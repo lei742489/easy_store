@@ -41,6 +41,16 @@
                   </a-form-item>
                 </a-col>
                 <a-col :span="8">
+                  <div
+                    v-if="
+                      form.customerId !== undefined && form.customerId !== null
+                    "
+                    class="counterparty-payable"
+                  >
+                    欠款：<span
+                      >￥{{ formatPrice(currentCustomerPayable) }}</span
+                    >
+                  </div>
                   <!--                  <div style="margin-top: 6px; font-size: 13px; color: #69778a"
                     >欠款:￥58555.12</div
                   >-->
@@ -241,7 +251,7 @@
   import { AppAccountSettle } from '@/views/app/AppAccountSettle/types/AppAccountSettle';
   import { list as getUserList } from '@/views/app/AppUser/api/api-AppUser';
   import { AppUser } from '@/views/app/AppUser/types/AppUser';
-  import { mulPrice, divPrice, addPrice } from '@/api/common';
+  import { mulPrice, divPrice, addPrice, formatPrice } from '@/api/common';
   import { openPdf } from '@/api/electron/electron-api';
   import { useRouter } from 'vue-router';
   import type { AppSaleOrder } from '../types/AppSaleOrder';
@@ -298,6 +308,12 @@
   };
 
   const form = reactive<AppSaleOrder>({ ...defaultForm });
+  const currentCustomerPayable = computed(() => {
+    const customer = customerList.value.find(
+      (item) => String(item.id) === String(form.customerId)
+    );
+    return customer?.payable || 0;
+  });
   const emit = defineEmits<{
     (e: 'ok', data: 1): void;
   }>();
@@ -519,5 +535,16 @@
 
 <style lang="less" scoped>
   .drawer {
+  }
+
+  .counterparty-payable {
+    margin-top: 6px;
+    color: var(--color-text-2);
+    font-size: 13px;
+    white-space: nowrap;
+
+    span {
+      color: rgb(var(--arcoblue-6));
+    }
   }
 </style>

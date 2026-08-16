@@ -21,14 +21,25 @@ public class AppPermissionInitializer {
     public void init() {
         createTables();
         addUserRoleColumn();
+        addUserCommissionRateColumn();
         addOrderCashierNameColumns();
         addGoodsCostColumns();
+        addStockStatisticIndexes();
         addSaleGrossProfitColumns();
         backfillOrderStatus();
         repairUnitNames();
         repairDateColumns();
         repairLegacyUsers();
         initHomeMenus();
+        repairSaleStatisticsMenu();
+        repairPurchaseStatisticsMenu();
+        repairProfitStatisticsMenu();
+        repairCashierStatisticsMenu();
+        repairFundStatisticsMenu();
+        repairIncomeExpenseRecordMenu();
+        repairStockStatisticsMenu();
+        repairStockWarningMenu();
+        repairStockCheckMenu();
     }
 
     private void createTables() {
@@ -91,6 +102,66 @@ public class AppPermissionInitializer {
                 "is_del INTEGER DEFAULT 0" +
                 ")");
 
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_stock_check (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "order_no TEXT NOT NULL," +
+                "cashier_id TEXT," +
+                "cashier_name TEXT," +
+                "profit_loss_quantity REAL DEFAULT 0," +
+                "profit_loss_amount REAL DEFAULT 0," +
+                "note TEXT," +
+                "create_time DATETIME," +
+                "update_time DATETIME," +
+                "is_del INTEGER DEFAULT 0" +
+                ")");
+
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_stock_check_item (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "goods_id TEXT NOT NULL," +
+                "unit TEXT," +
+                "book_quantity INTEGER DEFAULT 0," +
+                "actual_quantity INTEGER DEFAULT 0," +
+                "profit_loss_quantity INTEGER DEFAULT 0," +
+                "unit_price REAL DEFAULT 0," +
+                "profit_loss_amount REAL DEFAULT 0," +
+                "check_id INTEGER NOT NULL," +
+                "note TEXT," +
+                "create_time DATETIME," +
+                "update_time DATETIME," +
+                "is_del INTEGER DEFAULT 0" +
+                ")");
+
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_income_expense_item (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT NOT NULL," +
+                "item_type TEXT NOT NULL," +
+                "participate_performance INTEGER DEFAULT 1," +
+                "disabled INTEGER DEFAULT 0," +
+                "create_time DATETIME," +
+                "update_time DATETIME," +
+                "is_del INTEGER DEFAULT 0" +
+                ")");
+
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_income_expense_record (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "order_no TEXT NOT NULL," +
+                "settle_id TEXT NOT NULL," +
+                "cashier_id TEXT," +
+                "cashier_name TEXT," +
+                "summary TEXT NOT NULL," +
+                "counterparty TEXT," +
+                "fund_item TEXT NOT NULL," +
+                "income REAL DEFAULT 0," +
+                "expense REAL DEFAULT 0," +
+                "create_time DATETIME," +
+                "is_del INTEGER DEFAULT 0" +
+                ")");
+
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_income_expense_record_time_del " +
+                "ON app_income_expense_record(create_time, is_del)");
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_income_expense_item_type_del " +
+                "ON app_income_expense_item(item_type, disabled, is_del)");
+
         try {
             jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_app_customer_quote_customer_goods " +
                     "ON app_customer_quote(customer_id, goods_id) WHERE is_del = 0");
@@ -103,6 +174,11 @@ public class AppPermissionInitializer {
             jdbcTemplate.execute("ALTER TABLE app_user ADD COLUMN role_id INTEGER");
         } catch (Exception ignored) {
         }
+    }
+
+    private void addUserCommissionRateColumn() {
+        addColumnIfAbsent("app_user", "commission_rate", "REAL DEFAULT 0");
+        jdbcTemplate.update("UPDATE app_user SET commission_rate = 0 WHERE commission_rate IS NULL");
     }
 
     private void addOrderCashierNameColumns() {
@@ -121,6 +197,24 @@ public class AppPermissionInitializer {
         addColumnIfAbsent("app_goods", "cost_price", "REAL DEFAULT 0");
         jdbcTemplate.update("UPDATE app_goods SET stock_cost = COALESCE(stock_cost, COALESCE(stock, 0) * COALESCE(init_cost, pur_prc, 0)) WHERE stock_cost IS NULL");
         jdbcTemplate.update("UPDATE app_goods SET cost_price = COALESCE(cost_price, COALESCE(init_cost, pur_prc, 0)) WHERE cost_price IS NULL");
+    }
+
+    private void addStockStatisticIndexes() {
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_purchase_item_goods_del " +
+                "ON app_purchase_order_item(goods_id, is_del)");
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_sale_item_goods_del " +
+                "ON app_sale_order_item(goods_id, is_del)");
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_stock_check_item_goods_del " +
+                "ON app_stock_check_item(goods_id, is_del)");
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_stock_check_item_check_del " +
+                "ON app_stock_check_item(check_id, is_del)");
+    }
+
+    private void createIndexIfAbsent(String sql) {
+        try {
+            jdbcTemplate.execute(sql);
+        } catch (Exception ignored) {
+        }
     }
 
     private void addSaleGrossProfitColumns() {
@@ -164,6 +258,10 @@ public class AppPermissionInitializer {
         repairDateColumn("app_role_permission", "create_time");
         repairDateColumn("app_customer_quote", "create_time");
         repairDateColumn("app_customer_quote", "update_time");
+        repairDateColumn("app_stock_check", "create_time");
+        repairDateColumn("app_stock_check", "update_time");
+        repairDateColumn("app_stock_check_item", "create_time");
+        repairDateColumn("app_stock_check_item", "update_time");
     }
 
     private void repairDateColumn(String tableName, String columnName) {
@@ -203,28 +301,29 @@ public class AppPermissionInitializer {
 
         insertMenu("sale_order_list", "sale", "销售相关", "销售单查询", "dm1.png", "/custom/salesOrder", "", 110, 1, 0, 0);
         insertMenu("receive_payment_list", "sale", "销售相关", "收款单查询", "sm2.png", "/custom/appReceivePaymentVoucher", "", 120, 1, 0, 0);
-        insertMenu("sale_stats", "sale", "销售相关", "销售统计", "dm2.png", "", "", 130, 1, 0, 0);
+        insertMenu("sale_stats", "sale", "销售相关", "销售统计", "dm2.png", "/custom/salesStatistics", "", 130, 1, 0, 0);
         insertMenu("customer_statement", "sale", "销售相关", "应收对账单", "dm4.png", "/custom/receivableStatement", "", 140, 1, 0, 0);
         insertMenu("debt_stats", "sale", "销售相关", "欠款统计", "dm3.png", "/custom/debtStatistics", "", 150, 1, 0, 0);
         insertMenu("debt_detail", "sale", "销售相关", "欠款明细", "dm5.png", "/custom/debtDetail", "", 160, 1, 0, 0);
 
         insertMenu("purchase_order_list", "purchase", "进货/库存", "进货单查询", "jm1.png", "/custom/appSaleOrder", "", 210, 1, 0, 0);
         insertMenu("payment_list", "purchase", "进货/库存", "付款单查询", "sm4.png", "/custom/appPaymentVoucher", "", 220, 1, 0, 0);
-        insertMenu("purchase_stats", "purchase", "进货/库存", "进货统计", "jm2.png", "", "", 230, 1, 0, 0);
+        insertMenu("purchase_stats", "purchase", "进货/库存", "进货统计", "jm2.png", "/custom/purchaseStatistics", "", 230, 1, 0, 0);
         insertMenu("payable_order", "purchase", "进货/库存", "应付对帐单", "jm3.png", "/custom/payableStatement", "", 240, 1, 0, 0);
         insertMenu("payable_stats", "purchase", "进货/库存", "应付统计", "jm4.png", "/custom/payableStatistics", "", 250, 1, 0, 0);
         insertMenu("payable_detail", "purchase", "进货/库存", "应付明细", "jm5.png", "/custom/payableDetail", "", 260, 1, 0, 0);
-        insertMenu("stock_stats", "purchase", "进货/库存", "库存统计", "cc1.png", "", "", 270, 1, 0, 0);
-        insertMenu("stock_warning", "purchase", "进货/库存", "库存预警", "cc2.png", "", "", 280, 1, 0, 0);
-        insertMenu("stock_check", "purchase", "进货/库存", "盘点查询", "cc3.png", "", "", 290, 1, 0, 0);
+        insertMenu("stock_stats", "purchase", "进货/库存", "库存统计", "cc1.png", "/custom/stockStatistics", "", 270, 1, 0, 0);
+        insertMenu("stock_warning", "purchase", "进货/库存", "库存预警", "cc2.png", "/custom/stockWarning", "", 280, 1, 0, 0);
+        insertMenu("stock_check", "purchase", "进货/库存", "库存盘点", "cc3.png", "/custom/stockCheck", "", 290, 1, 0, 0);
 
-        insertMenu("fund_stats", "report", "统计报告", "资金统计", "tj1.png", "", "", 310, 1, 0, 0);
-        insertMenu("profit_stats", "report", "统计报告", "利润统计", "tj2.png", "", "", 320, 1, 0, 0);
-        insertMenu("cashier_stats", "report", "统计报告", "营业员统计", "tj3.png", "", "", 330, 1, 0, 0);
+        insertMenu("fund_stats", "report", "统计报告", "资金统计", "tj1.png", "/custom/fundStatistics", "", 310, 1, 0, 0);
+        insertMenu("profit_stats", "report", "统计报告", "利润统计", "tj2.png", "/custom/profitStatistics", "", 320, 1, 0, 0);
+        insertMenu("cashier_stats", "report", "统计报告", "营业员统计", "tj3.png", "/custom/cashierStatistics", "", 330, 1, 0, 0);
 
         insertMenu("app_user", "other", "其它功能", "员工管理", "icon-user-group", "/custom/appUser", "", 410, 1, 1, 0);
         insertMenu("app_role", "other", "其它功能", "角色管理", "icon-safe", "/custom/appRole", "", 420, 1, 1, 0);
         insertMenu("app_unit", "other", "其它功能", "单位管理", "icon-storage", "/custom/appUnit", "", 430, 1, 1, 0);
+        insertMenu("income_expense_record", "other", "其它功能", "收支记录", "icon-book", "/custom/incomeExpenseRecord", "", 440, 1, 1, 0);
     }
 
     private void insertMenu(String code, String groupCode, String groupTitle, String name,
@@ -234,5 +333,61 @@ public class AppPermissionInitializer {
                         "(code, group_code, group_title, name, icon, url, action, sort_no, status, root_only, create_time, is_del) " +
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'), ?)",
                 code, groupCode, groupTitle, name, icon, url, action, sortNo, status, rootOnly, isDel);
+    }
+
+    private void repairStockStatisticsMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/stockStatistics", "stock_stats");
+    }
+
+    private void repairSaleStatisticsMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/salesStatistics", "sale_stats");
+    }
+
+    private void repairPurchaseStatisticsMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/purchaseStatistics", "purchase_stats");
+    }
+
+    private void repairProfitStatisticsMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/profitStatistics", "profit_stats");
+    }
+
+    private void repairCashierStatisticsMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/cashierStatistics", "cashier_stats");
+    }
+
+    private void repairFundStatisticsMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/fundStatistics", "fund_stats");
+    }
+
+    private void repairIncomeExpenseRecordMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/incomeExpenseRecord", "income_expense_record");
+    }
+
+    private void repairStockWarningMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/stockWarning", "stock_warning");
+    }
+
+    private void repairStockCheckMenu() {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ? WHERE code = ? " +
+                        "AND (url IS NULL OR trim(url) = '')",
+                "/custom/stockCheck", "stock_check");
+        jdbcTemplate.update("UPDATE app_home_menu SET name = ? WHERE code = ? AND name = ?",
+                "库存盘点", "stock_check", "盘点查询");
     }
 }

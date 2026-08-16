@@ -17,6 +17,9 @@ export interface AppUser {
   /** 手机号 */
   mobile?: string;
 
+  /** 提成比例（百分比） */
+  commissionRate?: number;
+
   isRoot?: number;
 
   roleId?: number;

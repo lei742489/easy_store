@@ -81,23 +81,23 @@
 
 
 <body>
-<div class="title">${userInfo.companyName!""}</div>
+<!-- <div class="title">${userInfo.companyName!""}</div> -->
 
-<div class="sub-1 mt15">店铺地址：${userInfo.address!""}</div>
-<div class="sub-1 mt15">联系方式：${userInfo.mobile!""}</div>
+<!-- <div class="sub-1 mt15">店铺地址：${userInfo.address!""}</div>
+<div class="sub-1 mt15">联系方式：${userInfo.mobile!""}</div> -->
 
-<div class="title mt10" style="">销售单</div>
+<div class="title mt10" style="">${userInfo.companyName!""}-销售单</div>
 
 <table style="width: 100%;" class="s-c-c mt10">
     <tr>
         <td class="m-item">客户名称：${obj.customerId}</td>
-        <td class="m-item" style="text-align: left;">No. ${obj.orderNo}</td>
+        <td class="m-item" style="text-align: left;">单号：${obj.orderNo}</td>
         <td class="m-item" style="text-align: center;">日期：${obj.createTime?string("yyyy/MM/dd")}</td>
-        <td class="m-item" style="text-align: right;">币种：人民币</td>
+        <!-- <td class="m-item" style="text-align: right;">币种：人民币</td> -->
     </tr>
 </table>
 
-<div class="sub-1 mt15">客户地址：${customer.address!""}</div>
+<!-- <div class="sub-1 mt15">客户地址：${customer.address!""}</div> -->
 
 <table class="tb2 mt10" style="width: 100%; border-collapse: collapse;" border="1">
     <tr>
@@ -139,13 +139,13 @@
     </tr>
 </table>
 
-<table style="width: 100%;" class="mt15">
+<!-- <table style="width: 100%;" class="mt15">
     <tr>
         <td class="sub-1" style="width: 20%;">本单欠款：￥${obj.unpaidAmount?string("0.00")} </td>
         <td class="sub-1" style="text-align: left;">客户总欠款：￥${customer.payable?string("0.00")} </td>
 
     </tr>
-</table>
+</table> -->
 
 <div class="sub-1 mt15">备注说明：${obj.note!""}</div>
 

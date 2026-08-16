@@ -27,7 +27,6 @@
   import { resizeWindow } from '@/api/electron/electron-api';
   import { onMounted, ref } from 'vue';
 
-  import { useAppStore } from '@/store';
   import Banner from './components/banner.vue';
   import ContentMenu from './components/content-menu.vue';
   import Announcement from './components/announcement.vue';
@@ -36,15 +35,9 @@
   const initWindow = ref(false);
 
   onMounted(() => {
-    try {
-      const appStore = useAppStore();
-      appStore.updateSettings({ tabBar: true });
-      if (!initWindow.value) {
-        resizeWindow(1600, 1024);
-        initWindow.value = true;
-      }
-    } catch (err) {
-      console.warn('resizeWindow', err);
+    if (!initWindow.value) {
+      resizeWindow(1600, 1024);
+      initWindow.value = true;
     }
   });
 </script>

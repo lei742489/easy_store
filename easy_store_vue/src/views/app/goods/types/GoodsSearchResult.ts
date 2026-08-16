@@ -8,5 +8,6 @@ export interface GoodsSearchResult {
   purPrc?: number;
   salePrc?: number;
   tradePrc?: number;
+  costPrice?: number;
   stock?: number;
 }

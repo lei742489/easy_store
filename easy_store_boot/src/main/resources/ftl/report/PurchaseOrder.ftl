@@ -81,19 +81,20 @@
 
 
 <body>
+<!--
 <div class="title">${userInfo.companyName!""}</div>
 
 <div class="sub-1 mt15">店铺地址：${userInfo.address!""}</div>
-<div class="sub-1 mt15">联系方式：${userInfo.mobile!""}</div>
+<div class="sub-1 mt15">联系方式：${userInfo.mobile!""}</div> -->
 
-<div class="title mt10" style="">进货单</div>
+<div class="title mt10" style="">${userInfo.companyName!""}-进货单</div>
 
 <table style="width: 100%;" class="s-c-c mt10">
     <tr>
         <td class="m-item">供应商：${obj.supplierId}</td>
-        <td class="m-item" style="text-align: left;">No. ${obj.orderNo}</td>
+        <td class="m-item" style="text-align: left;">单号： ${obj.orderNo}</td>
         <td class="m-item" style="text-align: center;">日期：${obj.createTime?string("yyyy/MM/dd")}</td>
-        <td class="m-item" style="text-align: right;">币种：人民币</td>
+        <!-- <td class="m-item" style="text-align: right;">币种：人民币</td> -->
     </tr>
 </table>
 
@@ -141,7 +142,6 @@
     <tr>
         <td class="sub-1" style="width: 20%;">本单欠款：￥${obj.unpaidAmount?string("0.00")} </td>
         <td class="sub-1" style="text-align: left;">供应商总欠款：￥${supplier.payable?string("0.00")} </td>
-
     </tr>
 </table>
 

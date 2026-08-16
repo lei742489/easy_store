@@ -13,6 +13,7 @@
         g.pur_prc AS purPrc,
         g.sale_prc as salePrc,
         g.trade_prc as tradePrc,
+        g.cost_price as costPrice,
         c.title AS categoryName,
         g.stock AS stock,
         (CASE

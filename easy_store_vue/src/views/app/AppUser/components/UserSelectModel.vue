@@ -6,7 +6,7 @@
       :placeholder="placeholder"
       :loading="loading"
       :allow-search="true"
-      :field-names="{ value: 'id', label: 'realName' }"
+      :field-names="{ value: 'id', label: 'displayName' }"
       :filter-option="() => true"
       @search="handleSearch"
     >
@@ -19,22 +19,43 @@
   import { list } from '@/views/app/AppUser/api/api-AppUser';
   import { AppUser } from '@/views/app/AppUser/types/AppUser';
 
-  const dataList = ref<AppUser[]>([]);
+  type UserOption = AppUser & { displayName: string };
+
+  const dataList = ref<UserOption[]>([]);
   const userId = defineModel<number>('userId');
   const loading = ref(false);
+
+  const normalizeUsers = (users: AppUser[]) =>
+    users.map((user) => ({
+      ...user,
+      displayName: user.realName || user.userName || String(user.id || ''),
+    }));
 
   const fetchList = async () => {
     if (dataList.value.length > 0) return;
     loading.value = true;
-    const res = await list();
-    dataList.value = res.data;
-    loading.value = false;
+    try {
+      const res = await list();
+      dataList.value = normalizeUsers(res.data || []);
+    } finally {
+      loading.value = false;
+    }
   };
 
   const handleSearch = async () => {
     const res = await list();
-    dataList.value = res.data;
+    dataList.value = normalizeUsers(res.data || []);
   };
+
+  watch(
+    userId,
+    (value) => {
+      if (value !== undefined && value !== null) {
+        fetchList();
+      }
+    },
+    { immediate: true }
+  );
 
   defineProps<{
     placeholder?: string;

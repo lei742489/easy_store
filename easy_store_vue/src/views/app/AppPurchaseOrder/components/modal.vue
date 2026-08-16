@@ -41,6 +41,16 @@
                   </a-form-item>
                 </a-col>
                 <a-col :span="8">
+                  <div
+                    v-if="
+                      form.supplierId !== undefined && form.supplierId !== null
+                    "
+                    class="counterparty-payable"
+                  >
+                    应付款：<span
+                      >￥{{ formatPrice(currentSupplierPayable) }}</span
+                    >
+                  </div>
                   <!--                  <div style="margin-top: 6px; font-size: 13px; color: #69778a"
                     >欠款:￥58555.12</div
                   >-->
@@ -211,7 +221,7 @@
   import { AppAccountSettle } from '@/views/app/AppAccountSettle/types/AppAccountSettle';
   import { list as getUserList } from '@/views/app/AppUser/api/api-AppUser';
   import { AppUser } from '@/views/app/AppUser/types/AppUser';
-  import { mulPrice, divPrice, addPrice } from '@/api/common';
+  import { mulPrice, divPrice, addPrice, formatPrice } from '@/api/common';
   import { openPdf } from '@/api/electron/electron-api';
   import type { AppPurchaseOrder } from '../types/AppPurchaseOrder';
   import {
@@ -263,6 +273,12 @@
   };
 
   const form = reactive<AppPurchaseOrder>({ ...defaultForm });
+  const currentSupplierPayable = computed(() => {
+    const supplier = supplierList.value.find(
+      (item) => String(item.id) === String(form.supplierId)
+    );
+    return supplier?.payable || 0;
+  });
   const emit = defineEmits<{
     (e: 'ok', data: 1): void;
   }>();
@@ -298,7 +314,6 @@
     } else {
       title.value = '新增-进货单';
       initOrderNo();
-      fetchSupplierData();
     }
     if (Object.keys(item).length !== 0) {
       Object.assign(form, item);
@@ -309,6 +324,7 @@
         }
       }
     }
+    fetchSupplierData();
 
     nextTick(() => {
       setTimeout(() => {
@@ -467,5 +483,16 @@
 
 <style lang="less" scoped>
   .drawer {
+  }
+
+  .counterparty-payable {
+    margin-top: 6px;
+    color: var(--color-text-2);
+    font-size: 13px;
+    white-space: nowrap;
+
+    span {
+      color: rgb(var(--arcoblue-6));
+    }
   }
 </style>

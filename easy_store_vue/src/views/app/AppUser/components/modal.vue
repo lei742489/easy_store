@@ -54,10 +54,7 @@
             label="角色"
             :rules="[{ required: true, message: '请选择角色' }]"
           >
-            <a-select
-              v-model="form.roleId"
-              placeholder="请选择角色"
-            >
+            <a-select v-model="form.roleId" placeholder="请选择角色">
               <a-option
                 v-for="role in roleOptions"
                 :key="role.id"
@@ -72,6 +69,15 @@
               v-model="form.mobile"
               placeholder="请输入手机号"
               :max-length="100"
+            />
+          </a-form-item>
+          <a-form-item field="commissionRate" label="提成比例(%)">
+            <a-input-number
+              v-model="form.commissionRate"
+              :min="0"
+              :max="100"
+              :precision="2"
+              placeholder="请输入提成比例"
             />
           </a-form-item>
           <a-form-item field="remarks" label="备注">
@@ -107,6 +113,7 @@
     password: undefined,
     remarks: undefined,
     mobile: undefined,
+    commissionRate: 0,
     roleId: undefined,
     status: 1,
   };

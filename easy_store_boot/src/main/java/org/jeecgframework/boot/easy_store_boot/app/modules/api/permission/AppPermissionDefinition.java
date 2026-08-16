@@ -19,6 +19,7 @@ public final class AppPermissionDefinition {
         API_MENU_CODE_MAP.put("/api/user/appReceivePaymentVoucher", "receive_payment_list");
         API_MENU_CODE_MAP.put("/api/user/appReceivePaymentSettleItem", "receive_payment_list");
         API_MENU_CODE_MAP.put("/api/user/appPurchaseOrder", "purchase_order_list");
+        API_MENU_CODE_MAP.put("/api/user/appStockCheck", "stock_check");
         API_MENU_CODE_MAP.put("/api/user/appPaymentVoucher", "payment_list");
         API_MENU_CODE_MAP.put("/api/user/appPaymentSettleItem", "payment_list");
         API_MENU_CODE_MAP.put("/api/user/appGoods", "goods");
@@ -29,6 +30,8 @@ public final class AppPermissionDefinition {
         API_MENU_CODE_MAP.put("/api/user/appCustomerQuote", "customer_quote");
         API_MENU_CODE_MAP.put("/api/user/appSupplier", "supplier");
         API_MENU_CODE_MAP.put("/api/user/appAccountSettle", "account_settle");
+        API_MENU_CODE_MAP.put("/api/user/appFundStatistics", "fund_stats");
+        API_MENU_CODE_MAP.put("/api/user/appIncomeExpenseRecord", "income_expense_record");
         API_MENU_CODE_MAP.put("/api/user/appUnit", "app_unit");
         API_MENU_CODE_MAP.put("/api/user/appRole", "app_role");
         API_MENU_CODE_MAP.put("/api/user", "app_user");

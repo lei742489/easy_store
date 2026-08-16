@@ -302,6 +302,10 @@
       title: '状态',
       dataIndex: 'status',
       align: 'center',
+      sortable: {
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+      },
       render: (record) => {
         const data = record.record as AppPaymentVoucher;
         return h(

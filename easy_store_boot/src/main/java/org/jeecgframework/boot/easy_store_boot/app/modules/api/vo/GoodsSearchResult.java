@@ -24,6 +24,8 @@ public class GoodsSearchResult {
 
     private Double tradePrc;
 
+    private Double costPrice;
+
     private Integer stock;
 
 

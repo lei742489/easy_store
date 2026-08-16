@@ -43,6 +43,14 @@ export function searchKey(key: string, pageNo?: number) {
   });
 }
 
+export function stockDetail(data: {
+  goodsId: number;
+  startDate?: string;
+  endDate?: string;
+}) {
+  return axios.post<any>('api/user/appGoods/stockDetail', data);
+}
+
 export function batchUpdateCategory(categoryId: number, ids: string) {
   return axios.post<any>('api/user/appGoods/batchUpdateCategory', {
     ids,

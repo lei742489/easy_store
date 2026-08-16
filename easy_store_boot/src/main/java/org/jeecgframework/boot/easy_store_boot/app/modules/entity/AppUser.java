@@ -90,6 +90,10 @@ public class AppUser implements Serializable {
     @Excel(name = "手机号", width = 40)
     private String mobile;
 
+    @ApiModelProperty("提成比例（百分比）")
+    @Excel(name = "提成比例(%)", width = 15, numFormat = "0.00")
+    private Double commissionRate;
+
     /**
      *上次登录时间
      */

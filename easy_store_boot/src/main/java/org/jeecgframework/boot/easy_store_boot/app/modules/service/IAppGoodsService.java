@@ -2,6 +2,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.alibaba.fastjson.JSONObject;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.ApiQuery;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.GoodsSearchResult;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppGoods;
@@ -27,6 +28,11 @@ public interface IAppGoodsService extends IService<AppGoods> {
     void setDefCategoryId(String categoryId);
 
     void updateStock(String goodsId);
+
+    JSONObject getStockDetail(String goodsId, Long startTime, Long endTime);
+
+    JSONObject getStockStatistics(String categoryId, String key, Long startTime, Long endTime,
+                                  Integer current, Integer pageSize);
 
     String getTitleById(String goodsId);
 }

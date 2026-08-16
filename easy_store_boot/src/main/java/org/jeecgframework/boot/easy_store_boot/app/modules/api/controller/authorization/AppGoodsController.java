@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,6 +38,8 @@ import java.util.List;
 @RestController
 @RequestMapping("api/user/appGoods")
 public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsService> {
+    private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @PostMapping("listPage")
     public Result<?> listPage(@RequestBody JSONObject param) {
@@ -98,6 +103,71 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
     @PostMapping("searchKey")
     public Result<?> searchKey(@RequestBody JSONObject param) {
         return Result.ok(service.searchByKey(param.getInteger("pageNo"),param.getString("key")));
+    }
+
+    @PostMapping("stockDetail")
+    public Result<?> stockDetail(@RequestBody JSONObject param) {
+        String goodsId = param.getString("goodsId");
+        if (StringUtils.isEmpty(goodsId)) {
+            throw new AppRunTimeException("请选择货品");
+        }
+        Long startTime = parseStartTime(param.getString("startDate"));
+        Long endTime = parseEndTime(param.getString("endDate"));
+        if (startTime != null && endTime != null && startTime > endTime) {
+            throw new AppRunTimeException("开始日期不能晚于结束日期");
+        }
+        JSONObject result = service.getStockDetail(goodsId, startTime, endTime);
+        if (result == null) {
+            throw new AppRunTimeException("货品不存在或已删除");
+        }
+        return Result.ok(result);
+    }
+
+    @PostMapping("stockStatistics")
+    public Result<?> stockStatistics(@RequestBody JSONObject param) {
+        Long startTime = parseStartTime(param.getString("startDate"));
+        Long endTime = parseEndTime(param.getString("endDate"));
+        if (startTime != null && endTime != null && startTime > endTime) {
+            throw new AppRunTimeException("开始日期不能晚于结束日期");
+        }
+        return Result.ok(service.getStockStatistics(param.getString("categoryId"),
+                param.getString("key"), startTime, endTime,
+                param.getInteger("current"), param.getInteger("pageSize")));
+    }
+
+    @PostMapping("stockWarningPage")
+    public Result<?> stockWarningPage(@RequestBody JSONObject param) {
+        int current = param.getInteger("current") == null ? 1 : param.getInteger("current");
+        int pageSize = param.getInteger("pageSize") == null ? 50 : param.getInteger("pageSize");
+        QueryWrapper<AppGoods> wrapper = new QueryWrapper<>();
+        String supplierId = param.getString("supplierId");
+        if (StringUtils.isNotEmpty(supplierId)) {
+            wrapper.eq("supplier_id", supplierId);
+        }
+        wrapper.and(item -> item.apply("COALESCE(stock, 0) < COALESCE(min_stock, 0)")
+                .or()
+                .apply("COALESCE(max_stock, 0) > 0 AND COALESCE(stock, 0) > COALESCE(max_stock, 0)"));
+        wrapper.orderByAsc("title").orderByAsc("id");
+        return Result.ok(service.page(new Page<AppGoods>(current, pageSize), wrapper));
+    }
+
+    private Long parseStartTime(String value) {
+        if (StringUtils.isEmpty(value)) return null;
+        try {
+            return LocalDate.parse(value, DATE_FORMATTER).atStartOfDay(ZONE_ID).toInstant().toEpochMilli();
+        } catch (Exception e) {
+            throw new AppRunTimeException("开始日期格式错误");
+        }
+    }
+
+    private Long parseEndTime(String value) {
+        if (StringUtils.isEmpty(value)) return null;
+        try {
+            return LocalDate.parse(value, DATE_FORMATTER).plusDays(1)
+                    .atStartOfDay(ZONE_ID).toInstant().toEpochMilli() - 1;
+        } catch (Exception e) {
+            throw new AppRunTimeException("结束日期格式错误");
+        }
     }
 
 

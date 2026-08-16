@@ -142,6 +142,7 @@
       realName: undefined,
       remarks: undefined,
       mobile: undefined,
+      commissionRate: undefined,
       isRoot: 0,
     };
   };
@@ -187,6 +188,11 @@
     {
       title: '手机号',
       dataIndex: 'mobile',
+      align: 'center',
+    },
+    {
+      title: '提成比例(%)',
+      dataIndex: 'commissionRate',
       align: 'center',
     },
     {

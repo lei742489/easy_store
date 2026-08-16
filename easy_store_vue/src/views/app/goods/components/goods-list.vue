@@ -195,12 +195,17 @@
           >
             <a-button type="text" size="small">删除</a-button>
           </a-popconfirm>
+          <a-divider style="margin: 0" direction="vertical" />
+          <a-button type="text" size="small" @click="handleStockDetail(record)">
+            库存明细
+          </a-button>
         </template>
       </a-table>
     </div>
     <form-modal ref="modalRef" @ok="search(pagination)"></form-modal>
     <default-modal ref="defModal" @ok="doMore" />
     <category-select ref="categoryRef" @ok="categoryChange" />
+    <stock-detail-modal ref="stockDetailRef" />
   </div>
 </template>
 
@@ -216,6 +221,7 @@
   import DefaultModal from '@/components/default-modal.vue';
   import CategorySelect from '@/views/app/goods/components/category-select.vue';
   import FormModal from './goods-modal.vue';
+  import StockDetailModal from './stock-detail-modal.vue';
 
   import {
     listPage,
@@ -237,6 +243,9 @@
   const selectedRowKeys = ref([]);
   const defModal = ref<InstanceType<typeof DefaultModal> | null>(null);
   const categoryRef = ref<InstanceType<typeof CategorySelect> | null>(null);
+  const stockDetailRef = ref<InstanceType<typeof StockDetailModal> | null>(
+    null
+  );
 
   const rowSelection = reactive({
     selectedRowKeys,
@@ -404,7 +413,7 @@
       dataIndex: 'operations',
       slotName: 'operations',
       align: 'center',
-      width: 180,
+      width: 280,
     },
   ]);
 
@@ -473,6 +482,10 @@
 
   const handelEdit = (item: AppGoods) => {
     modalRef.value?.showModal(item);
+  };
+
+  const handleStockDetail = (item: AppGoods) => {
+    stockDetailRef.value?.showModal(item);
   };
 
   const dbRowClick = (record: AppGoods, rowIndex: number) => {
