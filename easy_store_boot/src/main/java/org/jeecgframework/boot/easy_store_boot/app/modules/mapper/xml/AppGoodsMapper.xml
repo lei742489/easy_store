@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecgframework.boot.easy_store_boot.app.modules.mapper.AppGoodsMapper">
+    <select id="searchByKey"   resultType="org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.GoodsSearchResult">
+        <bind name="offset" value="(pageNo - 1) * pageSize"/>
+        SELECT
+        g.title AS value,
+        g.id AS goods_id,
+        g.category_id AS category_id,
+        g.unit AS unit,
+        g.pur_prc AS purPrc,
+        g.sale_prc as salePrc,
+        g.trade_prc as tradePrc,
+        c.title AS categoryName,
+        g.stock AS stock,
+        (CASE
+        WHEN c.title IS NOT NULL THEN '（' || c.title || '）'
+        ELSE ''
+        END) || '  ' || g.title AS label
+        FROM
+        app_goods g
+        LEFT JOIN app_goods_category c
+        ON g.category_id = c.id
+        LEFT JOIN app_supplier s
+        ON g.supplier_id = s.id
+        WHERE
+        g.status = 1
+        and g.is_del = 0
+        <if test="key!=null and key!=''">
+            AND (
+            g.title LIKE '%' || #{key} || '%'
+            <if test="pyCode != null and pyCode != ''">
+                OR g.py_code LIKE '%' || #{pyCode} || '%'
+            </if>
+            OR g.goods_code LIKE '%' || #{key} || '%'
+            OR s.name LIKE '%' || #{key} || '%'
+            )
+            <if test="pyCode != null and pyCode != ''">
+                ORDER BY
+                CASE
+                WHEN g.py_code LIKE '%' || #{pyCode} || '%' THEN 0
+                ELSE 1
+                END,
+                g.title
+            </if>
+        </if>
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="search" resultType="org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppGoods">
+        SELECT
+        g.*
+        FROM
+        app_goods g
+        LEFT JOIN app_goods_category c
+        ON g.category_id = c.id
+        LEFT JOIN app_supplier s
+        ON g.supplier_id = s.id
+        WHERE
+        g.status = 1
+        and g.is_del = 0
+        AND (
+        g.title LIKE '%' || #{query.key} || '%'
+        <if test="query.pyCode != null and query.pyCode != ''">
+            OR g.py_code LIKE '%' || #{query.pyCode} || '%'
+        </if>
+        OR g.goods_code LIKE '%' || #{query.key} || '%'
+        OR s.name LIKE '%' || #{query.key} || '%'
+        )
+
+        <if test="query.column!=null and query.order!=null">
+            order by g.${query.column} ${query.order}
+        </if>
+
+    </select>
+
+</mapper>

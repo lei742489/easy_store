@@ -1,0 +1,41 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+**/target/
+**/dist/
+**/dist-ssr/
+**/build/
+
+# Runtime files and local backups
+logs/
+bak/
+**/temp/
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.zip
+
+# Local environment overrides
+**/.env.local
+**/.env.*.local
+easy_store_boot/src/main/resources/application-local.yml
+
+# IDE files
+**/.idea/
+**/.vscode/
+!.vscode/
+!.vscode/**
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db

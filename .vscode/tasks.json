@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend: maven compile",
+      "type": "process",
+      "command": "E:\\java\\apache-maven-3.3.9-bin\\bin\\mvn.cmd",
+      "args": [
+        "-DskipTests",
+        "compile"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\easy_store_boot"
+      },
+      "group": "build",
+      "problemMatcher": "$javac"
+    },
+    {
+      "label": "frontend: npm install",
+      "type": "shell",
+      "command": "npm.cmd install",
+      "options": {
+        "cwd": "${workspaceFolder}\\easy_store_vue"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: vite dev",
+      "type": "shell",
+      "command": "npm.cmd run dev",
+      "options": {
+        "cwd": "${workspaceFolder}\\easy_store_vue"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Local:\\s+http://localhost:8185/"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

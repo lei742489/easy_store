@@ -1,0 +1,33 @@
+export type RoleType = '' | '*' | 'admin' | 'user';
+export interface UserState {
+  id?: number;
+  name?: string;
+  userName?: string;
+  realName?: string;
+  companyName?: string;
+  address?: string;
+  mobile?: string;
+  avatar?: string;
+  isRoot?: number;
+  roleId?: number;
+  roleId_dictText?: string;
+  permissionCodes?: string[];
+  job?: string;
+  organization?: string;
+  location?: string;
+  email?: string;
+  introduction?: string;
+  personalWebsite?: string;
+  jobName?: string;
+  organizationName?: string;
+  locationName?: string;
+  phone?: string;
+  registrationDate?: string;
+  accountId?: string;
+  certification?: number;
+  role: RoleType;
+  lastLoginTime?: string | Date;
+  lastLoginIp?: string;
+  endTime?: string | Date;
+  createTime?: string | Date;
+}

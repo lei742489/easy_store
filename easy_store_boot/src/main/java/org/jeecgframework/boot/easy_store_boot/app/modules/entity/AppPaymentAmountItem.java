@@ -1,0 +1,67 @@
+package org.jeecgframework.boot.easy_store_boot.app.modules.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import java.io.Serializable;
+import java.util.Date;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.Accessors;
+import org.jeecgframework.boot.easy_store_boot.app.common.dict.DictField;
+import org.jeecgframework.poi.excel.annotation.Excel;
+
+/**
+ * 
+ * @TableName app_payment_amount_item
+ */
+@TableName(value ="app_payment_amount_item")
+@Data
+@EqualsAndHashCode(callSuper = false)
+@Accessors(chain = true)
+@ApiModel(value="app_payment_amount_item对象", description="付款单-结算记录")
+public class AppPaymentAmountItem implements Serializable {
+
+    @TableId(type = IdType.AUTO)
+    @ApiModelProperty("主键")
+    private Integer id;
+
+    @ApiModelProperty("进货单号")
+    @Excel(name = "进货单号", width = 20)
+    private String orderNo;
+
+    @TableField(exist = false)
+    @Excel(name = "应付金额", width = 20,numFormat = "0.00")
+    private Double payableAmount;
+
+    @TableField(exist = false)
+    @Excel(name = "已付金额", width = 20,numFormat = "0.00")
+    private Double paidAmount;
+
+    @TableField(exist = false)
+    @Excel(name = "未付金额", width = 20,numFormat = "0.00")
+    private Double unpaidAmount;
+
+    @ApiModelProperty("付款金额")
+    @Excel(name = "本次付款金额", width = 20,numFormat = "0.00")
+    private Double amount;
+
+    @ApiModelProperty("备注")
+    @Excel(name = "备注", width = 50)
+    private String note;
+
+    private Date createTime;
+
+    private Integer orderId;
+
+
+
+    @TableField(exist = false)
+    private static final long serialVersionUID = 1L;
+
+
+}

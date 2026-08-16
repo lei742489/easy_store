@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: Spring Boot",
+      "type": "java",
+      "request": "launch",
+      "mainClass": "org.jeecgframework.boot.easy_store_boot.EasyStoreBootApplication",
+      "projectName": "easy_store_boot",
+      "cwd": "${workspaceFolder}\\easy_store_boot",
+      "console": "integratedTerminal",
+      "vmArgs": "-Dspring.profiles.active=dev",
+      "preLaunchTask": "backend: maven compile"
+    },
+    {
+      "name": "Frontend: Vite",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm.cmd run dev",
+      "cwd": "${workspaceFolder}\\easy_store_vue"
+    },
+    {
+      "name": "Desktop: Vue + Electron",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm.cmd start",
+      "cwd": "${workspaceFolder}\\electron",
+      "preLaunchTask": "frontend: vite dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: Backend + Frontend",
+      "configurations": [
+        "Backend: Spring Boot",
+        "Frontend: Vite"
+      ],
+      "stopAll": true
+    }
+  ]
+}
