@@ -70,6 +70,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         Integer current = param.getInteger("current");
         Integer pageSize = param.getInteger("pageSize");
         Integer unpaidOnly = param.getInteger("unpaidOnly");
+        String customerId = param.getString("customerId");
 
         Integer orderId = param.getInteger("orderId");
         if(orderId!=null){
@@ -80,8 +81,14 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         if (pageSize == null) pageSize = 15;
 
         String searchKey = param.getString("searchKey");
+        if (StringUtils.isNotEmpty(customerId)) {
+            entity.setCustomerId(null);
+        }
         QueryWrapper<AppSaleOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity,param);
         applyOwnerFilter(queryWrapper, param);
+        if (StringUtils.isNotEmpty(customerId)) {
+            queryWrapper.eq("customer_id", customerId);
+        }
 
         if(unpaidOnly!=null){
             queryWrapper.ne("unpaid_amount",0).eq("status", 1);
@@ -256,6 +263,32 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         }
 
         return result;
+    }
+
+    @PostMapping(value = "/exportEscp")
+    public Result<?> exportEscp(@RequestBody JSONObject param) {
+        AppSaleOrder entity = JSONObject.toJavaObject(param, AppSaleOrder.class);
+        if (entity == null || entity.getItems() == null || entity.getItems().isEmpty()) {
+            throw new AppRunTimeException("数据输入不完整，请检查");
+        }
+        for (AppSaleOrderItem item : entity.getItems()) {
+            item.setGoodsId(appGoodsService.getTitleById(item.getGoodsId()));
+        }
+        if (entity.getPaidAmount() == null) entity.setPaidAmount(0.00);
+        if (entity.getFreightAmount() == null) entity.setFreightAmount(0.00);
+        if (entity.getTotalAmount() == null) entity.setTotalAmount(0.00);
+        entity.setUnpaidAmount(DoubleUtil.sub(entity.getPayableAmount(), entity.getPaidAmount()));
+        entity.setTotalAmountChinese(AmountToChineseUtil.toChinese(BigDecimal.valueOf(entity.getTotalAmount())));
+
+        byte[] bytes = EscpReportUtils.saleOrder(
+                entity,
+                appCustomerService.getById(entity.getCustomerId()),
+                appUserService.getById(param.getInteger("userId"))
+        );
+        JSONObject obj = new JSONObject();
+        obj.put("data", java.util.Base64.getEncoder().encodeToString(bytes));
+        obj.put("jobName", "销售单_" + entity.getOrderNo());
+        return Result.ok(obj);
     }
 
 

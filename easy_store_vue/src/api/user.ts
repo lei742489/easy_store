@@ -42,6 +42,14 @@ export function updatePwd(data: BasicInfoModel) {
   return axios.post<any>('/api/user/updatePwd', data);
 }
 
+export function resetSystemData(pwd: string) {
+  return axios.post<any>('/api/user/system/resetData', { pwd });
+}
+
+export function verifySystemResetPassword(pwd: string) {
+  return axios.post<any>('/api/user/system/verifyResetDataPassword', { pwd });
+}
+
 export function getMenuList() {
   return axios.post<RouteRecordNormalized[]>('/api/user/menu');
 }

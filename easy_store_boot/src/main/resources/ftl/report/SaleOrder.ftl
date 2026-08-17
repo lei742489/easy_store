@@ -7,23 +7,22 @@
     <style type="text/css">
         @page {
             size: A4 landscape;
-            margin: 5mm;
-            margin-bottom: 15mm;
+            margin: 7mm 8mm 12mm;
             @bottom-center {
                 content: "第 " counter(page) " 页 / 共 " counter(pages) " 页   ${obj.createTime?string("yyyy-MM-dd HH:mm")}";
                 font-family: SimSun;
-                font-size: 12pt;
-                color: #222;
-
+                font-size: 8pt;
+                color: #000;
             }
         }
 
-
         body {
             font-family: SimSun;
-            padding: 8px;
-            position: relative;
-            height: 100%;
+            margin: 0;
+            padding: 0;
+            color: #000;
+            font-size: 10.5pt;
+            line-height: 1.25;
         }
 
         div {
@@ -31,50 +30,45 @@
         }
 
         .mt10 {
-            margin-top: 10px;
+            margin-top: 4mm;
         }
 
         .mt15 {
-            margin-top: 15px;
+            margin-top: 6mm;
         }
 
         .mt20 {
-            margin-top: 20px;
-
-
+            margin-top: 8mm;
         }
 
         .title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #111;
+            font-size: 16pt;
+            font-weight: bold;
+            color: #000;
             text-align: center;
         }
 
         .sub-1 {
-            font-size: 17px;
-            color: #333;
-            font-weight: 550;
+            font-size: 10.5pt;
+            color: #000;
+            font-weight: normal;
         }
 
         .m-item {
-            font-size: 17px;
-            color: #333;
+            padding: 1.2mm 1.5mm;
+            font-size: 10.5pt;
+            color: #000;
         }
 
         .tb2 .m-item {
-            height: 33px;
+            height: 7mm;
             vertical-align: middle;
             text-align: center;
         }
 
-        .footer {
-            width: 100%;
-            text-align: center;
-            font-size: 15px;
-            color: #222;
-            position: absolute;
-            bottom: 0;
+        .tb2 {
+            table-layout: fixed;
+            border-color: #000;
         }
     </style>
 </head>
@@ -131,11 +125,12 @@
 
 <table style="width: 100%;" class="s-c-c mt10">
     <tr>
-        <td class="m-item">折后金额：￥${obj.discountedAmount?string("0.00")}</td>
-        <td class="m-item" style="text-align: left;">折扣率：${obj.discountRate?string("0.00")}%</td>
-        <td class="m-item" style="text-align: center;">运费：￥${obj.freightAmount?string("0.00")}</td>
-        <td class="m-item" style="text-align: right;">本单应付：￥${obj.payableAmount?string("0.00")}</td>
-        <td class="m-item" style="text-align: right;">实 付：￥${obj.paidAmount?string("0.00")}</td>
+       <!-- <td class="m-item">折后金额：￥${obj.discountedAmount?string("0.00")}</td>
+        <td class="m-item" style="text-align: left;">折扣率：${obj.discountRate?string("0.00")}%</td>-->
+        <td class="m-item" style="text-align: left;">运费：￥${obj.freightAmount?string("0.00")}</td>
+        <td class="m-item" style="text-align: left;">本单应付：￥${obj.payableAmount?string("0.00")}</td>
+        <td class="m-item" style="text-align: left;">实 付：￥${obj.paidAmount?string("0.00")}</td>
+        <td class="m-item" style="text-align: left;">签收人：</td>
     </tr>
 </table>
 

@@ -24,22 +24,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { resizeWindow } from '@/api/electron/electron-api';
-  import { onMounted, ref } from 'vue';
-
   import Banner from './components/banner.vue';
   import ContentMenu from './components/content-menu.vue';
   import Announcement from './components/announcement.vue';
   import Carousel from './components/carousel.vue';
-
-  const initWindow = ref(false);
-
-  onMounted(() => {
-    if (!initWindow.value) {
-      resizeWindow(1600, 1024);
-      initWindow.value = true;
-    }
-  });
 </script>
 
 <script lang="ts">

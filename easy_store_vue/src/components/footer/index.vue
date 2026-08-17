@@ -1,10 +1,11 @@
 <template>
   <a-layout-footer class="footer">
     <div class="f-left">当前版本：{{ version }}</div>
-    <div class="f-right">
+    <!-- <div class="f-right">
       <icon-cloud class="ico" :size="18" />
       <a-link class="t1">数据同步</a-link>
     </div>
+    -->
   </a-layout-footer>
 </template>
 

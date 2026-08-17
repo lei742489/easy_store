@@ -79,6 +79,7 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         Integer current = param.getInteger("current");
         Integer pageSize = param.getInteger("pageSize");
         Integer unpaidOnly = param.getInteger("unpaidOnly");
+        String supplierId = param.getString("supplierId");
         Integer orderId = param.getInteger("orderId");
         if(orderId!=null){
             return queryByVoucherOrder(orderId);
@@ -88,8 +89,14 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         if (pageSize == null) pageSize = 15;
 
         String searchKey = param.getString("searchKey");
+        if (StringUtils.isNotEmpty(supplierId)) {
+            entity.setSupplierId(null);
+        }
         QueryWrapper<AppPurchaseOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity,param);
         applyOwnerFilter(queryWrapper, param);
+        if (StringUtils.isNotEmpty(supplierId)) {
+            queryWrapper.eq("supplier_id", supplierId);
+        }
 
         if(unpaidOnly!=null){
             queryWrapper.ne("unpaid_amount",0).eq("status", 1);
@@ -248,6 +255,32 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         }
 
         return result;
+    }
+
+    @PostMapping(value = "/exportEscp")
+    public Result<?> exportEscp(@RequestBody JSONObject param) {
+        AppPurchaseOrder entity = JSONObject.toJavaObject(param, AppPurchaseOrder.class);
+        if (entity == null || entity.getItems() == null || entity.getItems().isEmpty()) {
+            throw new AppRunTimeException("数据输入不完整，请检查");
+        }
+        for (AppPurchaseOrderItem item : entity.getItems()) {
+            item.setGoodsId(appGoodsService.getTitleById(item.getGoodsId()));
+        }
+        if (entity.getPaidAmount() == null) entity.setPaidAmount(0.00);
+        if (entity.getFreightAmount() == null) entity.setFreightAmount(0.00);
+        if (entity.getTotalAmount() == null) entity.setTotalAmount(0.00);
+        entity.setUnpaidAmount(DoubleUtil.sub(entity.getPayableAmount(), entity.getPaidAmount()));
+        entity.setTotalAmountChinese(AmountToChineseUtil.toChinese(BigDecimal.valueOf(entity.getTotalAmount())));
+
+        byte[] bytes = EscpReportUtils.purchaseOrder(
+                entity,
+                appSupplierService.getById(entity.getSupplierId()),
+                appUserService.getById(param.getInteger("userId"))
+        );
+        JSONObject obj = new JSONObject();
+        obj.put("data", java.util.Base64.getEncoder().encodeToString(bytes));
+        obj.put("jobName", "进货单_" + entity.getOrderNo());
+        return Result.ok(obj);
     }
 
     private Result<?> queryByVoucherOrder(Integer voucherOrderId){

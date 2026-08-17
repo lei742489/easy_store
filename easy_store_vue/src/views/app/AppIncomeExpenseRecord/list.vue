@@ -29,6 +29,28 @@
                   />
                 </a-form-item>
               </a-col>
+              <a-col :span="6">
+                <a-form-item field="fundItem" label="收支项目">
+                  <a-select
+                    v-model="form.fundItem"
+                    :options="filterItemOptions"
+                    :loading="filterItemLoading"
+                    placeholder="全部项目"
+                    allow-clear
+                    allow-search
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="6">
+                <a-form-item field="incomeExpenseType" label="收支类型">
+                  <a-select
+                    v-model="form.incomeExpenseType"
+                    :options="incomeExpenseTypeOptions"
+                    placeholder="全部"
+                    allow-clear
+                  />
+                </a-form-item>
+              </a-col>
               <a-col :span="12">
                 <a-form-item field="businessDate" label="日期">
                   <time-select
@@ -41,7 +63,7 @@
             </a-row>
           </a-form>
         </a-col>
-        <a-divider style="height: 84px" direction="vertical" />
+        <a-divider style="height: 128px" direction="vertical" />
         <a-col :flex="'86px'" style="text-align: right">
           <a-space direction="vertical" :size="18">
             <a-button type="primary" :loading="loading" @click="search">
@@ -286,12 +308,16 @@
   );
   const incomeExpenseItems = ref<IncomeExpenseItem[]>([]);
   const itemLoading = ref(false);
+  const filterItemLoading = ref(false);
+  const filterItemOptions = ref<Array<{ label: string; value: string }>>([]);
   const accountOptions = ref<AppAccountSettle[]>([]);
   const accountLoading = ref(false);
   const counterpartyOptions = ref<string[]>([]);
   const form = reactive({
     customerId: undefined as number | string | undefined,
     supplierId: undefined as number | string | undefined,
+    fundItem: undefined as string | undefined,
+    incomeExpenseType: undefined as 'income' | 'expense' | undefined,
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
     endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
   });
@@ -300,6 +326,10 @@
     pageSize: 50,
     total: 0,
   });
+  const incomeExpenseTypeOptions = [
+    { label: '收入', value: 'income' },
+    { label: '支出', value: 'expense' },
+  ];
   const manualForm = reactive({
     flowType: 'income' as 'income' | 'expense',
     fundItem: undefined as string | undefined,
@@ -431,6 +461,8 @@
   const reset = () => {
     form.customerId = undefined;
     form.supplierId = undefined;
+    form.fundItem = undefined;
+    form.incomeExpenseType = undefined;
     form.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
     form.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
     timeSelectRef.value?.setPreset(2);
@@ -459,6 +491,27 @@
       incomeExpenseItems.value = data || [];
     } finally {
       itemLoading.value = false;
+    }
+  };
+  const fetchFilterItems = async () => {
+    filterItemLoading.value = true;
+    try {
+      const { data } = await listIncomeExpenseItems();
+      const itemNames = new Set([
+        '销售收入',
+        '进货支出',
+        '收款收入',
+        '付款支出',
+      ]);
+      (data || []).forEach((item: IncomeExpenseItem) => {
+        if (item.name) itemNames.add(item.name);
+      });
+      filterItemOptions.value = Array.from(itemNames).map((name) => ({
+        label: name,
+        value: name,
+      }));
+    } finally {
+      filterItemLoading.value = false;
     }
   };
   const fetchAccounts = async () => {
@@ -647,7 +700,10 @@
     }
   };
 
-  onMounted(fetchData);
+  onMounted(() => {
+    fetchData();
+    fetchFilterItems();
+  });
 </script>
 
 <style lang="less" scoped>

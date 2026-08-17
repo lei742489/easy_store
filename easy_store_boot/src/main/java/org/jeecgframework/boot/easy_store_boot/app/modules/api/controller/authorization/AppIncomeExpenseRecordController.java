@@ -180,6 +180,13 @@ public class AppIncomeExpenseRecordController {
 
         String customerId = param.getString("customerId");
         String supplierId = param.getString("supplierId");
+        String fundItem = StringUtils.trimToEmpty(param.getString("fundItem"));
+        String incomeExpenseType = param.getString("incomeExpenseType");
+        if (!StringUtils.isEmpty(incomeExpenseType)
+                && !"income".equals(incomeExpenseType)
+                && !"expense".equals(incomeExpenseType)) {
+            incomeExpenseType = "";
+        }
         int current = param.getIntValue("current");
         int pageSize = param.getIntValue("pageSize");
         if (current < 1) current = 1;
@@ -187,8 +194,10 @@ public class AppIncomeExpenseRecordController {
         pageSize = Math.min(pageSize, 200);
         int offset = (current - 1) * pageSize;
 
-        SqlAndParams openingSql = buildLedgerSql(customerId, supplierId, null, startTime, true);
-        SqlAndParams currentSql = buildLedgerSql(customerId, supplierId, startTime, endTime, false);
+        SqlAndParams openingSql = buildLedgerSql(customerId, supplierId, fundItem,
+                incomeExpenseType, null, startTime, true);
+        SqlAndParams currentSql = buildLedgerSql(customerId, supplierId, fundItem,
+                incomeExpenseType, startTime, endTime, false);
         Map<String, Object> openingSummary = querySummary(openingSql);
         Map<String, Object> currentSummary = querySummary(currentSql);
         double openingBalance = initialBalance()
@@ -230,8 +239,9 @@ public class AppIncomeExpenseRecordController {
         return Result.ok(result);
     }
 
-    private SqlAndParams buildLedgerSql(String customerId, String supplierId,
-                                        Long startTime, Long endTime, boolean beforeStart) {
+    private SqlAndParams buildLedgerSql(String customerId, String supplierId, String fundItem,
+                                        String incomeExpenseType, Long startTime, Long endTime,
+                                        boolean beforeStart) {
         List<Object> params = new ArrayList<>();
         StringBuilder unionSql = new StringBuilder();
         appendSaleSql(unionSql, params, customerId);
@@ -245,6 +255,12 @@ public class AppIncomeExpenseRecordController {
         appendManualSql(unionSql, params, customerId, supplierId);
 
         StringBuilder sql = new StringBuilder("SELECT * FROM (").append(unionSql).append(") ledger WHERE 1 = 1");
+        appendEquals(sql, params, "fundItem", fundItem);
+        if ("income".equals(incomeExpenseType)) {
+            sql.append(" AND income > 0");
+        } else if ("expense".equals(incomeExpenseType)) {
+            sql.append(" AND expense > 0");
+        }
         if (beforeStart && endTime != null) {
             sql.append(" AND businessTime < ?");
             params.add(endTime);

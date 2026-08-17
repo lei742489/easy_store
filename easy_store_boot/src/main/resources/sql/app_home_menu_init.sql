@@ -16,6 +16,7 @@ VALUES
     ('app_role', 'other', '其它功能', '角色管理', 'icon-safe', '/custom/appRole', '', 420, 1, 1, '2026-08-11 05:04:51.000', 0),
     ('app_unit', 'other', '其它功能', '单位管理', 'icon-storage', '/custom/appUnit', '', 430, 1, 1, '2026-08-11 05:04:51.000', 0),
     ('income_expense_record', 'other', '其它功能', '收支记录', 'icon-book', '/custom/incomeExpenseRecord', '', 440, 1, 1, '2026-08-11 05:04:51.000', 0),
+    ('operation_log', 'other', '其它功能', '操作日志', 'icon-history', '/custom/appOperationLog', '', 450, 1, 1, '2026-08-11 05:04:51.000', 0),
     ('purchase_order_list', 'purchase', '进货/库存', '进货单查询', 'jm1.png', '/custom/appSaleOrder', '', 210, 1, 0, '2026-08-11 05:04:51.000', 0),
     ('payment_list', 'purchase', '进货/库存', '付款单查询', 'sm4.png', '/custom/appPaymentVoucher', '', 220, 1, 0, '2026-08-11 05:04:51.000', 0),
     ('purchase_stats', 'purchase', '进货/库存', '进货统计', 'jm2.png', '/custom/purchaseStatistics', '', 230, 1, 0, '2026-08-11 05:04:51.000', 0),

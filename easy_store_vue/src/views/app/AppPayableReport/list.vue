@@ -229,6 +229,8 @@
       path: '/custom/payableDetail',
       query: {
         supplierId: record.supplierId,
+        startDate: form.startDate,
+        endDate: form.endDate,
       },
     });
   };
@@ -655,7 +657,12 @@
   };
 
   onMounted(() => {
-    const { supplierId } = route.query;
+    const { supplierId, startDate, endDate } = route.query;
+    if (typeof startDate === 'string' && typeof endDate === 'string') {
+      form.startDate = startDate;
+      form.endDate = endDate;
+      timeSelectRef.value?.setRange([startDate, endDate]);
+    }
     if (typeof supplierId === 'string' && supplierId) {
       const parsedSupplierId = Number(supplierId);
       form.supplierId = Number.isNaN(parsedSupplierId)

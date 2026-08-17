@@ -70,6 +70,9 @@
         OR g.goods_code LIKE '%' || #{query.key} || '%'
         OR s.name LIKE '%' || #{query.key} || '%'
         )
+        <if test="query.zeroStock != null and !query.zeroStock">
+            AND COALESCE(g.stock, 0) &lt;&gt; 0
+        </if>
 
         <if test="query.column!=null and query.order!=null">
             order by g.${query.column} ${query.order}

@@ -345,7 +345,12 @@
   };
 
   onMounted(() => {
-    const { customerId } = route.query;
+    const { customerId, startDate, endDate } = route.query;
+    if (typeof startDate === 'string' && typeof endDate === 'string') {
+      form.startDate = startDate;
+      form.endDate = endDate;
+      timeSelectRef.value?.setRange([startDate, endDate]);
+    }
     if (typeof customerId === 'string' && customerId) {
       const parsedCustomerId = Number(customerId);
       form.customerId = Number.isNaN(parsedCustomerId)

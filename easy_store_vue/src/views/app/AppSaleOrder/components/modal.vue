@@ -217,11 +217,18 @@
             </a-button>
           </div>
           <div style="display: flex; flex-direction: row; gap: 14px">
-            <a-button :loading="exportLoading" @click="handlePrint">
+            <a-button @click="handlePrint">
               <template #icon>
                 <icon-printer />
               </template>
-              <template #default> 打印单据 </template>
+              <template #default> 打印 </template>
+            </a-button>
+
+            <a-button @click="handlePdfPreview">
+              <template #icon>
+                <icon-file-pdf />
+              </template>
+              <template #default> PDF预览 </template>
             </a-button>
             <a-button @click="handleCancel">取消</a-button>
             <a-button type="primary" :loading="loading" @click="handleOk(0)"
@@ -252,13 +259,15 @@
   import { list as getUserList } from '@/views/app/AppUser/api/api-AppUser';
   import { AppUser } from '@/views/app/AppUser/types/AppUser';
   import { mulPrice, divPrice, addPrice, formatPrice } from '@/api/common';
-  import { openPdf } from '@/api/electron/electron-api';
+import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
+  import { printPdfWithCLodop } from '@/utils/clodop';
   import { useRouter } from 'vue-router';
   import type { AppSaleOrder } from '../types/AppSaleOrder';
   import {
     add,
     edit,
     createOrderNo,
+    exportEscpFile,
     exportPdfFile,
   } from '../api/api-AppSaleOrder';
   import ItemTable from './item-table.vue';
@@ -267,11 +276,11 @@
   const formRef = ref();
   const title = ref('');
   const loading = ref(false);
+  const clodopLoading = ref(false);
   const customerLoading = ref(false);
   const customerList = ref<Customer[]>([]);
   const settleList = ref<AppAccountSettle[]>([]);
   const cashierList = ref<AppUser[]>([]);
-  const exportLoading = ref(false);
   const itemTableRef = ref<InstanceType<typeof ItemTable> | null>(null);
   const showHistory = defineModel<boolean>('showHistory');
   const router = useRouter();
@@ -498,31 +507,66 @@
     updateDiscountAmount();
   };
 
-  const handlePrint = async () => {
+  const preparePrintData = () => {
     const items = itemTableRef.value?.getItemsList();
     if (items && items.length === 0) {
       Message.error('您还没有录入货品哦~');
-      return;
+      return false;
     }
     if (hasItemWithoutCategory(items)) {
       Message.error('所有商品必须选择分类');
-      return;
+      return false;
     }
     form.items = items;
-    exportLoading.value = true;
+    return true;
+  };
+
+  const buildPdfPath = (result: any) => {
+    const apiBaseUrl: string =
+      String(import.meta.env.VITE_API_BASE_URL || '')
+        .trim()
+        .replace(/^['"]|['"]$/g, '') || window.location.origin;
+    const { subPath } = result.data;
+    return `${apiBaseUrl}/api/upload/pdf/${subPath}`;
+  };
+
+  const handlePdfPreview = async () => {
+    if (!preparePrintData()) return;
+    const result = await exportPdfFile(form);
+    if (result.data) {
+      openPdf(buildPdfPath(result));
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!preparePrintData()) return;
+    if (!window.electronAPI?.rawPrintEscp) {
+      await handlePdfPreview();
+      return;
+    }
+    const result = await exportEscpFile(form);
+    if (result.data?.data) {
+      await rawPrintEscp(result.data.data, result.data.jobName);
+      Message.success('打印任务已发送');
+    }
+  };
+
+  const handleCLodopPrint = async () => {
+    if (!preparePrintData()) return;
+    clodopLoading.value = true;
     try {
       const result = await exportPdfFile(form);
-      if (result.data) {
-        const apiBaseUrl: string =
-          String(import.meta.env.VITE_API_BASE_URL || '')
-            .trim()
-            .replace(/^['"]|['"]$/g, '') || window.location.origin;
-        const { subPath } = result.data;
-        const filePath = `${apiBaseUrl}/api/upload/pdf/${subPath}`;
-        openPdf(filePath);
+      if (!result.data?.subPath) {
+        throw new Error('PDF 文件生成失败');
       }
+      await printPdfWithCLodop(
+        buildPdfPath(result),
+        `销售单_${form.orderNo || ''}`
+      );
+    } catch (error) {
+      Message.error(error instanceof Error ? error.message : 'C-Lodop 打印失败');
     } finally {
-      exportLoading.value = false;
+      clodopLoading.value = false;
     }
   };
 

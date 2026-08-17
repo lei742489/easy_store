@@ -31,6 +31,10 @@ export function exportPdfFile(data: AppPurchaseOrder) {
   return axios.post<any>('api/user/appPurchaseOrder/exportPdf', data);
 }
 
+export function exportEscpFile(data: AppPurchaseOrder) {
+  return axios.post<any>('api/user/appPurchaseOrder/exportEscp', data);
+}
+
 export function importExcel(file: File) {
   return uploadFile('api/user/appPurchaseOrder/importExcel', file);
 }

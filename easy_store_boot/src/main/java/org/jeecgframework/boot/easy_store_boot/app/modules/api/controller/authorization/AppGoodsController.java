@@ -67,12 +67,16 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
             if (categoryId!=null && !categoryId.equals("0")) {
                 queryWrapper.eq("category_id", categoryId);
             }
+            if (!Boolean.TRUE.equals(param.getBoolean("zeroStock"))) {
+                queryWrapper.apply("COALESCE(stock, 0) <> 0");
+            }
 
             Page<AppGoods> page = new Page<>(current, pageSize);
             return service.page(page, queryWrapper);
         }else{
             ApiQuery query = JSONObject.toJavaObject(param, ApiQuery.class);
             query.setKey(entity.getTitle());
+            query.setZeroStock(param.getBoolean("zeroStock"));
             return service.search(query);
         }
     }

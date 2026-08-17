@@ -1,13 +1,17 @@
 <template>
-  <a-spin :loading="loading" tip="加载中..." style="width: 100%">
-    <div class="container">
+  <div class="login-page">
+    <div v-if="loading" class="startup-loading">
+      <icon-loading class="startup-loading-icon" />
+      <span>正在启动服务...</span>
+    </div>
+    <div v-else class="container">
       <div class="logo">
         <img alt="logo" class="ico" src="@/assets/icon.png" />
         <div class="logo-text">{{ appName }}</div>
       </div>
       <LoginBanner />
       <div class="content">
-        <div v-if="mode == 1" class="content-inner">
+        <div v-if="mode === 1" class="content-inner">
           <LoginForm @change-mode="handleChangeMode" />
         </div>
         <div v-else>
@@ -17,65 +21,144 @@
           <Footer />
         </div>
       </div>
-
       <FrameMenu v-model="showMaximize" />
     </div>
-  </a-spin>
+  </div>
 </template>
 
 <script lang="ts" setup>
-  import { ref } from 'vue';
+  import { onBeforeUnmount, onMounted, ref } from 'vue';
   import Footer from '@/components/footer/index.vue';
   import FrameMenu from '@/components/menu/frame-menu.vue';
-  import axios from 'axios';
   import appConfig from '@/config/app';
   import LoginBanner from './components/banner.vue';
   import LoginForm from './components/login-form.vue';
   import RegForm from './components/reg-form.vue';
 
+  const READY_CHECK_INTERVAL = 1000;
+  const READY_CHECK_TIMEOUT = 5000;
+  const apiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '')
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/\/$/, '');
+
   const { appName } = appConfig;
   const mode = ref(1);
   const showMaximize = ref(false);
   const loading = ref(true);
+  let disposed = false;
+  let retryTimer: number | undefined;
+  let activeController: AbortController | undefined;
 
   function handleChangeMode(newMode: number) {
     mode.value = newMode;
   }
 
-  const apiTest = () => {
-    return axios.post<any>(
-      '/api/test',
-      {},
-      {
-        timeout: 10000, // 单位毫秒
-      }
+  const probeApiReady = async () => {
+    const controller = new AbortController();
+    activeController = controller;
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      READY_CHECK_TIMEOUT
     );
-  };
 
-  const testReady = async () => {
     try {
-      await apiTest();
-    } catch (err) {
-      // Ignore readiness probe errors; the loading state is cleared below.
+      const response = await fetch(`${apiBaseUrl}/api/health`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        return false;
+      }
+      const result = await response.json();
+      return result?.success === true;
+    } catch {
+      return false;
     } finally {
-      loading.value = false;
+      window.clearTimeout(timeoutId);
+      if (activeController === controller) {
+        activeController = undefined;
+      }
     }
   };
 
-  testReady();
+  async function waitForApiReady() {
+    if (disposed) {
+      return;
+    }
+    if (await probeApiReady()) {
+      if (!disposed) {
+        loading.value = false;
+      }
+      return;
+    }
+    if (!disposed) {
+      retryTimer = window.setTimeout(() => {
+        retryTimer = undefined;
+        waitForApiReady().catch(() => undefined);
+      }, READY_CHECK_INTERVAL);
+    }
+  }
+
+  onMounted(() => {
+    waitForApiReady().catch(() => undefined);
+  });
+
+  onBeforeUnmount(() => {
+    disposed = true;
+    activeController?.abort();
+    if (retryTimer !== undefined) {
+      window.clearTimeout(retryTimer);
+    }
+  });
 </script>
 
 <style lang="less" scoped>
+  .login-page {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .startup-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    gap: 12px;
+    color: var(--color-text-2);
+    background: var(--color-bg-1);
+  }
+
+  .startup-loading-icon {
+    color: rgb(var(--primary-6));
+    font-size: 34px;
+    animation: startup-loading-rotate 1s linear infinite;
+  }
+
+  @keyframes startup-loading-rotate {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .container {
     display: flex;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 
     .banner {
       width: 550px;
-      //background: linear-gradient(163.85deg, #1d2129 0%, #00308f 100%);
       background-image: url(@/assets/images/login-bg.png);
-      background-size: cover;
       background-repeat: no-repeat;
+      background-size: cover;
     }
 
     .content {
@@ -107,12 +190,14 @@
     z-index: 10;
     display: inline-flex;
     align-items: center;
+
     .ico {
       width: 28px;
       height: 28px;
       background: #ffffff;
       border-radius: 8px;
     }
+
     &-text {
       margin-right: 4px;
       margin-left: 6px;
@@ -123,7 +208,6 @@
 </style>
 
 <style lang="less" scoped>
-  // responsive
   @media (max-width: @screen-lg) {
     .container {
       .banner {

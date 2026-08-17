@@ -2,16 +2,21 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.annotations.ApiModel;
 import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.*;
 import org.jeecgframework.boot.easy_store_boot.app.common.excel.ExcelExportStylerBorder;
+import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPaymentAmountItem;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPaymentVoucher;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPurchaseOrder;
+import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSupplier;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.*;
 import org.jeecgframework.poi.excel.def.NormalExcelConstants;
 import org.jeecgframework.poi.excel.entity.ExportParams;
@@ -60,6 +65,31 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
     private String uploadPath;
 
     private final String  orderTag = "FKD";
+
+    @Override
+    @PostMapping("listPage")
+    public Result<?> listPage(@RequestBody JSONObject param) {
+        AppPaymentVoucher entity = JSONObject.toJavaObject(param, getEntityClass());
+        Integer current = param.getInteger("current");
+        Integer pageSize = param.getInteger("pageSize");
+        String supplierId = param.getString("supplierId");
+        if (current == null) current = 1;
+        if (pageSize == null) pageSize = 15;
+        if (StringUtils.isNotEmpty(supplierId)) {
+            entity.setSupplierId(null);
+        }
+
+        QueryWrapper<AppPaymentVoucher> queryWrapper =
+                QueryGenerator.initQueryWrapper(entity, param);
+        applyOwnerFilter(queryWrapper, param);
+        if (StringUtils.isNotEmpty(supplierId)) {
+            queryWrapper.eq("supplier_id", supplierId);
+        }
+        queryWrapper.orderByDesc("id");
+        IPage<AppPaymentVoucher> pageList =
+                service.page(new Page<>(current, pageSize), queryWrapper);
+        return Result.ok(pageList);
+    }
 
     @PostMapping("createOrderNo")
     public Result<?> createOrderNo(@RequestBody JSONObject param) {
@@ -178,6 +208,34 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
 
         return result;
 
+    }
+
+    @PostMapping(value = "/exportEscp")
+    public Result<?> exportEscp(@RequestBody JSONObject param) {
+        AppPaymentVoucher entity = JSONObject.parseObject(param.toJSONString(), AppPaymentVoucher.class);
+        if (entity == null || entity.getSettleItems() == null || entity.getSettleItems().isEmpty()) {
+            throw new AppRunTimeException("数据输入不完整，请检查");
+        }
+        AtomicReference<Double> totalAmount = new AtomicReference<>(0.0);
+        entity.getSettleItems().forEach(item -> {
+            item.setSettleId(accountSettleService.getNameById(item.getSettleId()));
+            totalAmount.set(DoubleUtil.add(totalAmount.get(), item.getAmount()));
+        });
+        entity.setTotalAmountChinese(AmountToChineseUtil.toChinese(BigDecimal.valueOf(totalAmount.get())));
+        if (entity.getSupplierId() == null) {
+            throw new AppRunTimeException("请选择供应商");
+        }
+        AppSupplier supplier = supplierService.getById(entity.getSupplierId());
+        byte[] bytes = EscpReportUtils.paymentVoucher(
+                entity,
+                supplier,
+                appUserService.getById(param.getInteger("userId")),
+                totalAmount.get()
+        );
+        JSONObject obj = new JSONObject();
+        obj.put("data", java.util.Base64.getEncoder().encodeToString(bytes));
+        obj.put("jobName", "付款单_" + entity.getOrderNo());
+        return Result.ok(obj);
     }
 
     private void assertRootForApprove(JSONObject param) {

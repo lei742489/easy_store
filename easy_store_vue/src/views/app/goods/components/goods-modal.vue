@@ -40,7 +40,16 @@
                   :max-length="100"
                 />
               </a-form-item>
-              <a-form-item field="categoryId" label="货品分类">
+              <a-form-item
+                field="categoryId"
+                label="货品分类"
+                :rules="[
+                  {
+                    required: true,
+                    message: '\u8bf7\u9009\u62e9\u8d27\u54c1\u5206\u7c7b',
+                  },
+                ]"
+              >
                 <category-select-tree
                   ref="categoryTreeRef"
                   v-model:category-id="form.categoryId"

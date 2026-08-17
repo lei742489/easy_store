@@ -20,6 +20,7 @@ public class AppPermissionInitializer {
     @PostConstruct
     public void init() {
         createTables();
+        addOperationLogMenuNameColumn();
         addUserRoleColumn();
         addUserCommissionRateColumn();
         addOrderCashierNameColumns();
@@ -157,6 +158,23 @@ public class AppPermissionInitializer {
                 "is_del INTEGER DEFAULT 0" +
                 ")");
 
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_operation_log (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "operator_id TEXT," +
+                "operator_name TEXT," +
+                "menu_name TEXT," +
+                "operation_type TEXT NOT NULL," +
+                "request_uri TEXT," +
+                "client_ip TEXT," +
+                "operate_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "data_json TEXT" +
+                ")");
+
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_operation_log_time " +
+                "ON app_operation_log(operate_time)");
+        createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_operation_log_operator " +
+                "ON app_operation_log(operator_id)");
+
         createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_income_expense_record_time_del " +
                 "ON app_income_expense_record(create_time, is_del)");
         createIndexIfAbsent("CREATE INDEX IF NOT EXISTS idx_income_expense_item_type_del " +
@@ -167,6 +185,10 @@ public class AppPermissionInitializer {
                     "ON app_customer_quote(customer_id, goods_id) WHERE is_del = 0");
         } catch (Exception ignored) {
         }
+    }
+
+    private void addOperationLogMenuNameColumn() {
+        addColumnIfAbsent("app_operation_log", "menu_name", "TEXT");
     }
 
     private void addUserRoleColumn() {
@@ -262,6 +284,7 @@ public class AppPermissionInitializer {
         repairDateColumn("app_stock_check", "update_time");
         repairDateColumn("app_stock_check_item", "create_time");
         repairDateColumn("app_stock_check_item", "update_time");
+        repairDateColumn("app_goods_category", "create_time");
     }
 
     private void repairDateColumn(String tableName, String columnName) {
@@ -324,6 +347,7 @@ public class AppPermissionInitializer {
         insertMenu("app_role", "other", "其它功能", "角色管理", "icon-safe", "/custom/appRole", "", 420, 1, 1, 0);
         insertMenu("app_unit", "other", "其它功能", "单位管理", "icon-storage", "/custom/appUnit", "", 430, 1, 1, 0);
         insertMenu("income_expense_record", "other", "其它功能", "收支记录", "icon-book", "/custom/incomeExpenseRecord", "", 440, 1, 1, 0);
+        insertMenu("operation_log", "other", "其它功能", "操作日志", "icon-history", "/custom/appOperationLog", "", 450, 1, 1, 0);
     }
 
     private void insertMenu(String code, String groupCode, String groupTitle, String name,

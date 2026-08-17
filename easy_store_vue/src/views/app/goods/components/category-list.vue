@@ -3,11 +3,10 @@
     <div class="tree">
       <a-tree
         v-if="treeData.length > 0"
+        v-model:expanded-keys="expandedKeys"
         :show-line="true"
         :data="treeData"
         size="large"
-        :default-expand-all="false"
-        :default-expanded-keys="[0]"
         @select="onSelect"
       >
         <template #extra="nodeData">
@@ -70,8 +69,25 @@
   }>();
 
   const treeData = ref<AppGoodsCategory[]>([]);
+  const expandedKeys = ref<number[]>([]);
 
-  const onSelect = (selectedKeys: string[], info: any) => {
+  const collectExpandedKeys = (nodes: AppGoodsCategory[]) => {
+    const keys: number[] = [];
+    const walk = (items: AppGoodsCategory[]) => {
+      items.forEach((item) => {
+        if (item.id !== undefined) {
+          keys.push(item.id);
+        }
+        if (item.children?.length) {
+          walk(item.children);
+        }
+      });
+    };
+    walk(nodes);
+    return keys;
+  };
+
+  const onSelect = (selectedKeys: (string | number)[], info: any) => {
     const { node } = info;
     emit('change', node ? node.id || 0 : 0);
   };
@@ -90,6 +106,7 @@
     });
 
     treeData.value = dataList;
+    expandedKeys.value = collectExpandedKeys(dataList);
   };
 
   onMounted(() => {

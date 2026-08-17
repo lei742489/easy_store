@@ -200,6 +200,7 @@
 
 <script lang="ts" setup>
   import { computed, h, nextTick, reactive, ref } from 'vue';
+  import dayjs from 'dayjs';
   import { useUserStore } from '@/store';
   import { Pagination } from '@/types/global';
   import useLoading from '@/hooks/loading';
@@ -291,6 +292,13 @@
   const statusText = (status?: number) => (status === 0 ? '待审核' : '正常');
   const statusColor = (status?: number) =>
     status === 0 ? '#eb4d4b' : '#00a870';
+  const formatDateOnly = (value?: string | Date) => {
+    if (!value) return '';
+    const date = dayjs(value);
+    return date.isValid()
+      ? date.format('YYYY-MM-DD')
+      : String(value).slice(0, 10);
+  };
 
   const columns = computed<TableColumnData[]>(() => [
     {
@@ -343,6 +351,10 @@
       title: '建立时间',
       dataIndex: 'createTime',
       align: 'center',
+      render: (record) =>
+        formatDateOnly(
+          (record.record as AppReceivePaymentVoucher).createTime
+        ),
     },
 
     {
@@ -393,7 +405,7 @@
   };
 
   const onPageChange = (current: number) => {
-    fetchData({ ...basePagination, current });
+    search({ ...basePagination, current });
   };
 
   fetchData();

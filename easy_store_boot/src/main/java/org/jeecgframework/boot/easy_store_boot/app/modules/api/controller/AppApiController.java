@@ -12,9 +12,11 @@ import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.AutoPoiDictService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppCustomerCategoryService;
+import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppOperationLogService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,9 +36,16 @@ public class AppApiController {
     private IAppUserService appUserService;
     @Autowired
     private AutoPoiDictService autoPoiDictService;
+    @Autowired
+    private IAppOperationLogService operationLogService;
 
     @PostMapping("test")
     public Result<Object> test() {
+        return Result.ok();
+    }
+
+    @GetMapping("health")
+    public Result<Object> health() throws Exception{
         return Result.ok();
     }
     /**
@@ -67,6 +76,7 @@ public class AppApiController {
 
         appUser.setLastLoginTime(new Date());
         appUserService.updateById(appUser);
+        operationLogService.cleanupExpired();
         appUser.setToken(SymmetricEncoder.createUserToken(appUser.getId() + ""));
         return Result.ok(appUser);
 

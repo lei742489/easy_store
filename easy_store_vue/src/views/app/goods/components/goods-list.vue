@@ -12,7 +12,7 @@
             style="margin-top: 10px"
           >
             <a-row :gutter="24">
-              <a-col :span="8">
+              <a-col :span="6">
                 <a-form-item field="status" :label="`状态`">
                   <a-select v-model="formModel.status" placeholder="请选择 ...">
                     <a-option :value="1">启用</a-option>
@@ -20,7 +20,7 @@
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :span="16">
+              <a-col :span="12">
                 <a-form-item field="status" label="货品">
                   <a-auto-complete
                     v-model="formModel.title"
@@ -31,6 +31,16 @@
                     @search="handleSearchKey"
                   >
                   </a-auto-complete>
+                </a-form-item>
+              </a-col>
+              <a-col :span="6">
+                <a-form-item field="zeroStock" label="零库存">
+                  <a-space>
+                    <a-switch
+                      v-model="formModel.zeroStock"
+                      @change="handleZeroStockChange"
+                    />
+                  </a-space>
                 </a-form-item>
               </a-col>
             </a-row>
@@ -294,6 +304,7 @@
       supplierId: undefined,
       note: undefined,
       status: undefined,
+      zeroStock: true,
       createTime: undefined,
       updateTime: undefined,
     };
@@ -458,10 +469,14 @@
   };
 
   const onPageChange = (current: number) => {
-    fetchData({ ...basePagination, current });
+    fetchData({ ...basePagination, ...formModel.value, current });
   };
 
-  fetchData();
+  const handleZeroStockChange = () => {
+    search();
+  };
+
+  search();
   const reset = () => {
     formModel.value = generateFormModel();
     search();

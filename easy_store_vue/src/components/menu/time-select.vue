@@ -85,6 +85,11 @@
     timeIdx.value = value;
   };
 
+  const setRange = (dates: string[]) => {
+    timeSelect.value = dates;
+    timeIdx.value = 4;
+  };
+
   watch(timeIdx, applyPreset);
 
   onMounted(() => {
@@ -93,7 +98,7 @@
     }
   });
 
-  defineExpose({ clear, setPreset });
+  defineExpose({ clear, setPreset, setRange });
 </script>
 
 <style lang="less" scoped>

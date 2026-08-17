@@ -61,6 +61,8 @@ export interface AppGoods {
   /** 状态 */
   status?: number;
 
+  zeroStock?: boolean;
+
   /** 建立时间 */
   createTime?: string | Date;
 

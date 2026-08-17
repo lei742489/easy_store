@@ -3,6 +3,8 @@ import axios from 'axios';
 export interface IncomeExpenseRecordQuery {
   customerId?: number | string;
   supplierId?: number | string;
+  fundItem?: string;
+  incomeExpenseType?: 'income' | 'expense';
   startDate?: string;
   endDate?: string;
   current?: number;

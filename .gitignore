@@ -10,9 +10,13 @@
 # Runtime files and local backups
 logs/
 bak/
+release/
+db_sync/backups/
+db_sync/__pycache__/
 **/temp/
 *.log
 *.db
+*.db-journal
 *.db-shm
 *.db-wal
 *.sqlite

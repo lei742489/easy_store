@@ -175,6 +175,15 @@ const FORM: AppRouteRecordRaw = {
       },
     },
     {
+      path: 'appOperationLog',
+      name: 'AppOperationLog',
+      component: () => import('@/views/app/AppOperationLog/list.vue'),
+      meta: {
+        locale: '操作日志',
+        requiresAuth: false,
+      },
+    },
+    {
       path: 'appPaymentVoucher',
       name: 'AppPaymentVoucher',
       component: () => import('@/views/app/AppPaymentVoucher/list.vue'),

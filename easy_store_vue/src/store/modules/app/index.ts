@@ -6,8 +6,42 @@ import defaultSettings from '@/config/settings.json';
 import { getMenuList } from '@/api/user';
 import { AppState } from './types';
 
+const THEME_COLOR_STORAGE_KEY = 'easy-store-theme-color';
+
+export const THEME_COLOR_PRESETS = [
+  { label: '红色', value: '#F53F3F', palette: 'red' },
+  { label: '橙红色', value: '#F77234', palette: 'orangered' },
+  { label: '橙色', value: '#FF7D00', palette: 'orange' },
+  { label: '青色', value: '#14C9C9', palette: 'cyan' },
+  { label: '绿色', value: '#00B42A', palette: 'green' },
+  { label: '蓝色', value: '#165DFF', palette: 'arcoblue' },
+  { label: '浅蓝色', value: '#3491FA', palette: 'blue' },
+  { label: '紫色', value: '#722ED1', palette: 'purple' },
+] as const;
+
+function resolveThemeColor(color?: string) {
+  return (
+    THEME_COLOR_PRESETS.find((item) => item.value === color) ||
+    THEME_COLOR_PRESETS.find(
+      (item) => item.value === defaultSettings.themeColor
+    ) ||
+    THEME_COLOR_PRESETS[7]
+  );
+}
+
+function getStoredThemeColor() {
+  if (typeof window === 'undefined') return defaultSettings.themeColor;
+  return (
+    window.localStorage.getItem(THEME_COLOR_STORAGE_KEY) ||
+    defaultSettings.themeColor
+  );
+}
+
 const useAppStore = defineStore('app', {
-  state: (): AppState => ({ ...defaultSettings }),
+  state: (): AppState => ({
+    ...defaultSettings,
+    themeColor: getStoredThemeColor(),
+  }),
 
   getters: {
     appCurrentSetting(state: AppState): AppState {
@@ -37,6 +71,24 @@ const useAppStore = defineStore('app', {
         this.theme = 'light';
         document.body.removeAttribute('arco-theme');
       }
+    },
+    applyThemeColor(color = this.themeColor) {
+      const themeColor = resolveThemeColor(color);
+      this.themeColor = themeColor.value;
+      for (let index = 1; index <= 10; index += 1) {
+        document.body.style.setProperty(
+          `--primary-${index}`,
+          `var(--${themeColor.palette}-${index})`
+        );
+        document.body.style.setProperty(
+          `--link-${index}`,
+          `var(--${themeColor.palette}-${index})`
+        );
+      }
+    },
+    setThemeColor(color: string) {
+      this.applyThemeColor(color);
+      window.localStorage.setItem(THEME_COLOR_STORAGE_KEY, this.themeColor);
     },
     toggleDevice(device: string) {
       this.device = device;

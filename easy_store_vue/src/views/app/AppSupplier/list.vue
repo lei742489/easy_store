@@ -339,7 +339,7 @@
   };
 
   const onPageChange = (current: number) => {
-    fetchData({ ...basePagination, current });
+    search({ ...basePagination, current });
   };
 
   fetchData();

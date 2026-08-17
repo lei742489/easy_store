@@ -1,0 +1,12 @@
+{
+  "appMode": "single",
+  "backupOnExit": true,
+  "sqlitePath": "",
+  "backendRunDir": "../easy_store_boot",
+  "backendConfigPath": "../easy_store_boot/src/main/resources/application-dev.yml",
+  "backendJarName": "easy_store_boot.jar",
+  "backendStartupTimeout": 30000,
+  "webDir": "",
+  "backupDir": "../backup/sqlite",
+  "backupKeepLatest": 10
+}

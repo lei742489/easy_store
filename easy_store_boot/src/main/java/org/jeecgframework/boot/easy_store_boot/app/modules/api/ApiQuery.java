@@ -23,6 +23,8 @@ public class ApiQuery {
 
     private String order;
 
+    private Boolean zeroStock;
+
     public Integer getPageNo() {
         return pageNo == null ? 1 : pageNo;
     }

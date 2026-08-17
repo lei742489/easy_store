@@ -103,11 +103,18 @@
             </a-button>
           </div>
           <div style="display: flex; flex-direction: row; gap: 14px">
-            <a-button :loading="exportLoading" @click="handlePrint">
+            <a-button @click="handlePrint">
               <template #icon>
                 <icon-printer />
               </template>
-              <template #default> 打印单据 </template>
+              <template #default> 打印 </template>
+            </a-button>
+
+            <a-button @click="handlePdfPreview">
+              <template #icon>
+                <icon-file-pdf />
+              </template>
+              <template #default> PDF预览 </template>
             </a-button>
             <a-button @click="handleCancel">取消</a-button>
             <a-button type="primary" :loading="loading" @click="handleOk(0)"
@@ -137,17 +144,18 @@
   import { addPrice } from '@/api/common';
 
   import { useRouter } from 'vue-router';
-  import { openPdf } from '@/api/electron/electron-api';
+  import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
+  import { printPdfWithCLodop } from '@/utils/clodop';
   import type { AppPaymentVoucher } from '../types/AppPaymentVoucher';
   import {
     add,
     edit,
     createOrderNo,
+    exportEscpFile,
     exportPdfFile,
   } from '../api/api-AppPaymentVoucher';
   import PurchaseOrderTable from './purchase-order-table.vue';
 
-  const exportLoading = ref(false);
   const router = useRouter();
   const visible = ref(false);
   const formRef = ref();
@@ -175,6 +183,7 @@
   };
   const form = reactive<AppPaymentVoucher>({ ...defaultForm });
   const loading = ref(false);
+  const clodopLoading = ref(false);
 
   const emit = defineEmits<{
     (e: 'ok', data: 1): void;
@@ -279,27 +288,62 @@
     router.push('/custom/appPaymentVoucher');
   };
 
-  const handlePrint = async () => {
+  const preparePrintData = () => {
     const items = settlerItemTableRef.value?.getItemsList();
     if (items && items.length === 0) {
       Message.error('还没有录入帐户信息~');
-      return;
+      return false;
     }
     form.settleItems = items;
-    exportLoading.value = true;
+    return true;
+  };
+
+  const buildPdfPath = (result: any) => {
+    const apiBaseUrl: string =
+      String(import.meta.env.VITE_API_BASE_URL || '')
+        .trim()
+        .replace(/^['"]|['"]$/g, '') || window.location.origin;
+    const { subPath } = result.data;
+    return `${apiBaseUrl}/api/upload/pdf/${subPath}`;
+  };
+
+  const handlePdfPreview = async () => {
+    if (!preparePrintData()) return;
+    const result = await exportPdfFile(form);
+    if (result.data) {
+      openPdf(buildPdfPath(result));
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!preparePrintData()) return;
+    if (!window.electronAPI?.rawPrintEscp) {
+      await handlePdfPreview();
+      return;
+    }
+    const result = await exportEscpFile(form);
+    if (result.data?.data) {
+      await rawPrintEscp(result.data.data, result.data.jobName);
+      Message.success('打印任务已发送');
+    }
+  };
+
+  const handleCLodopPrint = async () => {
+    if (!preparePrintData()) return;
+    clodopLoading.value = true;
     try {
       const result = await exportPdfFile(form);
-      if (result.data) {
-        const apiBaseUrl: string =
-          String(import.meta.env.VITE_API_BASE_URL || '')
-            .trim()
-            .replace(/^['"]|['"]$/g, '') || window.location.origin;
-        const { subPath } = result.data;
-        const filePath = `${apiBaseUrl}/api/upload/pdf/${subPath}`;
-        openPdf(filePath);
+      if (!result.data?.subPath) {
+        throw new Error('PDF 文件生成失败');
       }
+      await printPdfWithCLodop(
+        buildPdfPath(result),
+        `付款单_${form.orderNo || ''}`
+      );
+    } catch (error) {
+      Message.error(error instanceof Error ? error.message : 'C-Lodop 打印失败');
     } finally {
-      exportLoading.value = false;
+      clodopLoading.value = false;
     }
   };
 

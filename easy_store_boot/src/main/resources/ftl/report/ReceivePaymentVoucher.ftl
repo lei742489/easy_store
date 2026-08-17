@@ -6,64 +6,62 @@
     <title></title>
     <style type="text/css">
         @page {
-            size: A4 landscape;
-            margin: 8mm;
-
+            size: A4 portrait;
+            margin: 9mm 12mm 14mm;
             @bottom-center {
                 content: "第 " counter(page) " 页 / 共 " counter(pages) " 页  ${obj.createTime?string("yyyy-MM-dd HH:mm")}";
                 font-family: SimSun;
-                font-size: 12pt;
-                color: #222;
+                font-size: 8pt;
+                color: #000;
             }
         }
 
         body {
             font-family: SimSun;
-            padding: 2px;
-            position: relative;
-            height: 100%;
+            margin: 0;
+            padding: 0;
+            color: #000;
+            font-size: 10.5pt;
+            line-height: 1.25;
         }
 
         div {
             width: 100%;
         }
 
-        .mt10 { margin-top: 10px; }
-        .mt15 { margin-top: 15px; }
-        .mt20 { margin-top: 20px; }
-        .mt30 { margin-top: 30px; }
+        .mt10 { margin-top: 4mm; }
+        .mt15 { margin-top: 6mm; }
+        .mt20 { margin-top: 8mm; }
+        .mt30 { margin-top: 12mm; }
 
         .title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #111;
+            font-size: 16pt;
+            font-weight: bold;
+            color: #000;
             text-align: center;
         }
 
         .sub-1 {
-            font-size: 17px;
-            color: #333;
-            font-weight: 550;
+            font-size: 10.5pt;
+            color: #000;
+            font-weight: normal;
         }
 
         .m-item {
-            font-size: 17px;
-            color: #333;
+            padding: 1.2mm 1.5mm;
+            font-size: 10.5pt;
+            color: #000;
         }
 
         .tb2 .m-item {
-            height: 33px;
+            height: 7mm;
             vertical-align: middle;
             text-align: center;
         }
 
-        .footer {
-            width: 100%;
-            text-align: center;
-            font-size: 15px;
-            color: #222;
-            position: absolute;
-            bottom: 0;
+        .tb2 {
+            table-layout: fixed;
+            border-color: #000;
         }
     </style>
 </head>

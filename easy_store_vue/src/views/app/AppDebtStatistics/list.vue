@@ -152,6 +152,8 @@
       path: '/custom/debtDetail',
       query: {
         customerId: record.customerId,
+        startDate: form.startDate,
+        endDate: form.endDate,
       },
     });
   };
