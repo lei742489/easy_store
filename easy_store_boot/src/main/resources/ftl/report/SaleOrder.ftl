@@ -80,7 +80,7 @@
 <!-- <div class="sub-1 mt15">店铺地址：${userInfo.address!""}</div>
 <div class="sub-1 mt15">联系方式：${userInfo.mobile!""}</div> -->
 
-<div class="title mt10" style="">${userInfo.companyName!""}-销售单</div>
+<div class="title mt10" style="">${userInfo.companyName!""} 销售单</div>
 
 <table style="width: 100%;" class="s-c-c mt10">
     <tr>

@@ -36,11 +36,21 @@ export function importExcel(file: File) {
   return uploadFile('api/user/appGoods/importExcel', file);
 }
 
-export function searchKey(key: string, pageNo?: number) {
-  return axios.post<GoodsSearchResult[]>('api/user/appGoods/searchKey', {
-    key,
-    pageNo,
-  });
+export async function searchKey(key: string, pageNo?: number) {
+  const response = await axios.post<GoodsSearchResult[]>(
+    'api/user/appGoods/searchKey',
+    {
+      key,
+      pageNo,
+    }
+  );
+  return {
+    ...response,
+    data: (response.data || []).map((item) => ({
+      ...item,
+      label: item.value || item.label || '',
+    })),
+  };
 }
 
 export function stockDetail(data: {

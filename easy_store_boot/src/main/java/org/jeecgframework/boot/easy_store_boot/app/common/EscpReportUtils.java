@@ -20,7 +20,7 @@ public class EscpReportUtils {
         EscpWriter writer = new EscpWriter(WIDE_WIDTH);
         writer.init();
         writer.condensed(true);
-        writer.title(companyName(user) + "-销售单");
+        writer.title(companyName(user) + " 销售单");
         writer.blank();
         writer.spread3("客户名称：" + name(customer), "单号：" + value(order.getOrderNo()), "日期：" + date(order.getCreateTime()));
         int[] widths = new int[]{5, 36, 8, 8, 13, 13, 9};
@@ -60,7 +60,7 @@ public class EscpReportUtils {
         EscpWriter writer = new EscpWriter(WIDE_WIDTH);
         writer.init();
         writer.condensed(true);
-        writer.title(companyName(user) + "-进货单");
+        writer.title(companyName(user) + " 进货单");
         writer.blank();
         writer.spread3("供应商：" + name(supplier), "单号：" + value(order.getOrderNo()), "日期：" + date(order.getCreateTime()));
         int[] widths = new int[]{5, 36, 8, 8, 13, 13, 9};

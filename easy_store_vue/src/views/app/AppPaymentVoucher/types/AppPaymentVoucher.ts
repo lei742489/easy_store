@@ -27,6 +27,10 @@ export interface AppPaymentVoucher {
   /** 建立时间 */
   createTime?: string | Date;
 
+  updateTime?: string | Date;
+
+  updateBy?: string;
+
   settleItems?: AppPaymentSettleItem[];
 
   amountItems?: AppPaymentAmountItem[];

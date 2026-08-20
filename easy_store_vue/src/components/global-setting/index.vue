@@ -37,6 +37,37 @@
     <Block :options="contentOpts" :title="$t('settings.content')" />
     <Block :options="othersOpts" :title="$t('settings.otherSettings')" />
 
+    <div v-if="isElectron" class="display-block">
+      <h5 class="theme-title">显示缩放</h5>
+      <div class="zoom-row">
+        <a-slider
+          v-model="zoomPercent"
+          class="zoom-slider"
+          :min="50"
+          :max="150"
+          :step="5"
+          :format-tooltip="formatZoomTooltip"
+          @change="handleZoomChange"
+        />
+        <a-input-number
+          v-model="zoomPercent"
+          class="zoom-input"
+          :min="50"
+          :max="150"
+          :step="5"
+          hide-button
+          @change="handleZoomChange"
+        >
+          <template #suffix>%</template>
+        </a-input-number>
+      </div>
+      <a-space class="zoom-actions">
+        <a-button size="small" @click="setZoomPercent(85)">85%</a-button>
+        <a-button size="small" @click="setZoomPercent(90)">90%</a-button>
+        <a-button size="small" @click="setZoomPercent(100)">100%</a-button>
+      </a-space>
+    </div>
+
     <div v-if="isElectron" class="printer-block">
       <h5 class="theme-title">打印机设置</h5>
       <div class="printer-row">
@@ -88,9 +119,11 @@
   import { useClipboard } from '@vueuse/core';
   import type { ElectronPrinterSettings } from '@/api/electron/electron-api';
   import {
+    getZoomFactor,
     getPrinterSettings,
     isElectronRuntime,
     selectRawPrinter,
+    setZoomFactor,
   } from '@/api/electron/electron-api';
   import { openPasswordModal } from '@/api/passwordVerification';
   import {
@@ -113,6 +146,8 @@
   const isRoot = computed(() => userStore.isRoot === 1);
   const printerLoading = ref(false);
   const printerSettings = ref<ElectronPrinterSettings | null>(null);
+  const zoomPercent = ref(100);
+  const formatZoomTooltip = (value: number) => `${value}%`;
   const printerSourceMap: Record<string, string> = {
     'selected': '手动选择',
     'default-dot-matrix': '系统默认针式打印机',
@@ -194,6 +229,24 @@
       printerLoading.value = false;
     }
   };
+  const loadZoomSettings = async () => {
+    if (!isElectron.value) {
+      return;
+    }
+    const factor = await getZoomFactor();
+    zoomPercent.value = Math.round(Number(factor || 1) * 100);
+  };
+  const handleZoomChange = async (value: unknown) => {
+    const rawValue = Array.isArray(value) ? value[0] : value;
+    const percent = Number(rawValue || zoomPercent.value || 100);
+    const nextPercent = Math.min(Math.max(percent, 50), 150);
+    const factor = await setZoomFactor(nextPercent / 100);
+    zoomPercent.value = Math.round(Number(factor || 1) * 100);
+  };
+  const setZoomPercent = (percent: number) => {
+    zoomPercent.value = percent;
+    handleZoomChange(percent);
+  };
   const handleResetData = async () => {
     const password = await openPasswordModal();
     if (!password) {
@@ -233,6 +286,7 @@
   };
   watch(visible, (value) => {
     if (value) {
+      loadZoomSettings();
       loadPrinterSettings();
     }
   });
@@ -245,6 +299,28 @@
 
   .printer-block {
     margin-bottom: 24px;
+  }
+
+  .display-block {
+    margin-bottom: 24px;
+  }
+
+  .zoom-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .zoom-slider {
+    flex: 1;
+  }
+
+  .zoom-input {
+    width: 76px;
+  }
+
+  .zoom-actions {
+    margin-top: 8px;
   }
 
   .theme-title {

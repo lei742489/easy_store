@@ -35,7 +35,7 @@ export function getUserInfo() {
 }
 
 export function edit(data: BasicInfoModel) {
-  return axios.post<any>('/api/user/edit', data);
+  return axios.post<any>('/api/user/updateProfile', data);
 }
 
 export function updatePwd(data: BasicInfoModel) {

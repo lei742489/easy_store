@@ -16,7 +16,7 @@ export interface HttpResponse<T = unknown> {
 
 if (import.meta.env.VITE_API_BASE_URL) {
   axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
-  axios.defaults.timeout = 6000; // 超时时间 5 秒
+  axios.defaults.timeout = 30000;
 }
 
 axios.interceptors.request.use(

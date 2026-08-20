@@ -2,6 +2,8 @@ const { app, BrowserWindow, Menu, dialog, screen } = require('electron');
 const exec = require('child_process').exec;
 const { spawn } = require('child_process');
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const path = require('path');
 const { registerWindowEvents } = require('./ipcHandlers/windowHandlers');
 
@@ -10,9 +12,10 @@ let isQuitting = false;
 let backendProcess = null;
 const MIN_WIDTH = 1280;
 const MIN_HEIGHT = 800;
-const DEFAULT_WIDTH = 1440;
-const DEFAULT_HEIGHT = 900;
+const DEFAULT_WIDTH = 1600;
+const DEFAULT_HEIGHT = 1024;
 const APP_CONFIG_PATH = path.join(__dirname, 'config', 'app-config.json');
+const WEB_VERSION_CACHE_FILE = 'web-version.json';
 
 function getRuntimeRoot() {
     return app.isPackaged ? path.dirname(process.execPath) : __dirname;
@@ -24,9 +27,11 @@ function readAppConfig() {
         backupOnExit: true,
         sqlitePath: '',
         backendRunDir: app.isPackaged ? 'boot' : '../easy_store_boot',
-        backendConfigPath: app.isPackaged ? 'boot/application-dev.yml' : '../easy_store_boot/src/main/resources/application-dev.yml',
+        backendConfigPath: app.isPackaged ? 'boot/application-online.yml' : '../easy_store_boot/src/main/resources/application-dev.yml',
         backendJarName: 'easy_store_boot.jar',
         backendStartupTimeout: 30000,
+        webUrl: 'http://es.njhy6920.cn/',
+        webVersionUrl: '',
         webDir: app.isPackaged ? 'web' : '',
         backupDir: app.isPackaged ? 'backup/sqlite' : '../backup/sqlite',
         backupKeepLatest: 10,
@@ -40,7 +45,7 @@ function readAppConfig() {
         }
         return {
             ...defaultConfig,
-            ...JSON.parse(fs.readFileSync(configPath, 'utf8')),
+            ...JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '')),
         };
     } catch (error) {
         return defaultConfig;
@@ -91,7 +96,7 @@ function startBackendIfNeeded() {
     backendProcess = spawn('java', [
         '-jar',
         backendJarPath,
-        '--spring.profiles.active=dev',
+        '--spring.profiles.active=online',
         `--spring.config.additional-location=file:${backendConfigPath}`,
     ], {
         cwd: backendRunDir,
@@ -129,8 +134,131 @@ function getWebEntry(config) {
     return path.join(resolveAppPath(config.webDir || 'web'), 'index.html');
 }
 
-function backupSqliteOnExit() {
+function getRemoteWebUrl(config) {
+   return config.webUrl || 'http://es.njhy6920.cn/';
+   // return config.webUrl || 'http://localhost:8185/';
+}
+
+function getRemoteWebVersionUrl(config) {
+    if (config.webVersionUrl) {
+        return config.webVersionUrl;
+    }
+    return new URL('version.json', getRemoteWebUrl(config)).toString();
+}
+
+function getWebVersionCachePath() {
+    return path.join(app.getPath('userData'), WEB_VERSION_CACHE_FILE);
+}
+
+function readCachedWebVersion() {
+    try {
+        const filePath = getWebVersionCachePath();
+        if (!fs.existsSync(filePath)) {
+            return '';
+        }
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        return String(data.version || '');
+    } catch {
+        return '';
+    }
+}
+
+function writeCachedWebVersion(version) {
+    const filePath = getWebVersionCachePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(
+        filePath,
+        JSON.stringify({ version, checkedAt: new Date().toISOString() }, null, 2),
+        'utf8'
+    );
+}
+
+function requestText(url) {
     return new Promise((resolve, reject) => {
+        const client = url.startsWith('https:') ? https : http;
+        const request = client.get(
+            url,
+            {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    Pragma: 'no-cache',
+                },
+            },
+            (response) => {
+                if (
+                    response.statusCode >= 300 &&
+                    response.statusCode < 400 &&
+                    response.headers.location
+                ) {
+                    response.resume();
+                    resolve(requestText(new URL(response.headers.location, url).toString()));
+                    return;
+                }
+                if (response.statusCode < 200 || response.statusCode >= 300) {
+                    response.resume();
+                    reject(new Error(`Version request failed: ${response.statusCode}`));
+                    return;
+                }
+                let body = '';
+                response.setEncoding('utf8');
+                response.on('data', (chunk) => {
+                    body += chunk;
+                });
+                response.on('end', () => resolve(body));
+            }
+        );
+        request.setTimeout(5000, () => {
+            request.destroy(new Error('Version request timeout'));
+        });
+        request.on('error', reject);
+    });
+}
+
+function parseRemoteWebVersion(content) {
+    const text = String(content || '').trim().replace(/^\uFEFF/, '');
+    if (!text) {
+        return '';
+    }
+    try {
+        const data = JSON.parse(text);
+        return String(data.version || data.appVersion || data.VITE_APP_VERSION || '').trim();
+    } catch {
+        return text;
+    }
+}
+
+function appendUrlQuery(url, key, value) {
+    if (!value) {
+        return url;
+    }
+    const targetUrl = new URL(url);
+    targetUrl.searchParams.set(key, value);
+    return targetUrl.toString();
+}
+
+async function clearWebCacheIfVersionChanged(win, config) {
+    try {
+        const versionContent = await requestText(getRemoteWebVersionUrl(config));
+        const remoteVersion = parseRemoteWebVersion(versionContent);
+        if (!remoteVersion) {
+            return '';
+        }
+        const cachedVersion = readCachedWebVersion();
+        if (!cachedVersion || cachedVersion !== remoteVersion) {
+            await win.webContents.session.clearCache();
+        }
+        if (cachedVersion !== remoteVersion) {
+            writeCachedWebVersion(remoteVersion);
+        }
+        return remoteVersion;
+    } catch {
+        // 版本检测失败不应影响主页面启动。
+        return '';
+    }
+}
+
+function backupSqliteOnExit() {
+    return new Promise((resolve) => {
         const config = readAppConfig();
         if (!shouldBackupOnExit(config)) {
             resolve({ skipped: true });
@@ -166,13 +294,13 @@ function backupSqliteOnExit() {
         child.stderr.on('data', (data) => {
             stderr += data.toString('utf8');
         });
-        child.on('error', reject);
+        child.on('error', () => resolve({ skipped: true, failed: true }));
         child.on('close', (code) => {
             if (code === 0) {
                 resolve({ skipped: false, backupPath: stdout.trim() });
                 return;
             }
-            reject(new Error(stderr || `SQLite backup failed. Exit code: ${code}`));
+            resolve({ skipped: true, failed: true });
         });
     });
 }
@@ -192,9 +320,10 @@ function getWindowSize(preferredWidth, preferredHeight) {
     };
 }
 
-function createWindow() {
+async function createWindow() {
     const config = readAppConfig();
     const windowSize = getWindowSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    const electronSessionId = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     win = new BrowserWindow({
         width: windowSize.width,
         height: windowSize.height,
@@ -208,15 +337,21 @@ function createWindow() {
         webPreferences: {
             preload: getBundledAppPath('preload.js'),
             nodeIntegration: false,
-            contextIsolation: true
+            contextIsolation: true,
+            additionalArguments: [`--easy-store-session-id=${electronSessionId}`],
         }
     });
 
+    const remoteWebVersion = await clearWebCacheIfVersionChanged(win, config);
+
     if (app.isPackaged) {
-        win.loadFile(getWebEntry(config));
+        //win.loadFile(getWebEntry(config));
+        win.loadURL(appendUrlQuery(getRemoteWebUrl(config), 'v', remoteWebVersion));
     } else {
         win.loadURL('http://localhost:8185/');
+       // win.loadURL('http://es.njhy6920.cn/');
     }
+
     Menu.setApplicationMenu(null);
 
     win.once('ready-to-show', () => {
@@ -272,20 +407,9 @@ function createWindow() {
             await backupSqliteOnExit();
             isQuitting = true;
             win.close();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            const exitChoice = dialog.showMessageBoxSync(win, {
-                type: 'warning',
-                buttons: ['取消退出', '仍然退出'],
-                defaultId: 0,
-                cancelId: 0,
-                title: '备份失败',
-                message: `退出前备份失败：\n${message}\n\n是否仍然退出？`,
-            });
-            if (exitChoice === 1) {
-                isQuitting = true;
-                win.close();
-            }
+        } catch {
+            isQuitting = true;
+            win.close();
         }
     });
 

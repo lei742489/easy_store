@@ -1,9 +1,12 @@
-import { mergeConfig } from 'vite';
+import { loadEnv, mergeConfig } from 'vite';
 import baseConfig from './vite.config.base';
 import configCompressPlugin from './plugin/compress';
 import configVisualizerPlugin from './plugin/visualizer';
 import configArcoResolverPlugin from './plugin/arcoResolver';
 import configImageminPlugin from './plugin/imagemin';
+import configAppVersionPlugin from './plugin/appVersion';
+
+const env = loadEnv('production', process.cwd());
 
 export default mergeConfig(
   {
@@ -14,6 +17,7 @@ export default mergeConfig(
       configVisualizerPlugin(),
       configArcoResolverPlugin(),
       configImageminPlugin(),
+      configAppVersionPlugin(env.VITE_APP_VERSION),
     ],
     build: {
       rollupOptions: {

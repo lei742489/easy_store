@@ -401,7 +401,7 @@
         return getPriceStrByH((data as any).unpaidAmount);
       },
     },
-    {
+    /*{
       title: '运费',
       dataIndex: 'freightAmount',
       align: 'center',
@@ -413,7 +413,7 @@
         const data = record.record;
         return getPriceStrByH((data as any).freightAmount);
       },
-    },
+    },*/
 
     {
       title: '结算账户',
@@ -423,6 +423,11 @@
     {
       title: '营业员',
       dataIndex: 'cashierName',
+      align: 'center',
+    },
+    {
+      title: '最后更新人',
+      dataIndex: 'updateBy',
       align: 'center',
     },
     {

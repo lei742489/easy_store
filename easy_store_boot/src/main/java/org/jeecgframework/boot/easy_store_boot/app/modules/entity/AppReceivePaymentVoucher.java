@@ -75,6 +75,11 @@ public class AppReceivePaymentVoucher implements Serializable {
     @Excel(name = "建立时间", width = 30, format = "yyyy-MM-dd HH:mm:ss",needMerge = true)
     private Date createTime;
 
+    @TableField(fill = FieldFill.UPDATE)
+    private Date updateTime;
+
+    private String updateBy;
+
     @TableLogic
     private Integer isDel;
 

@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
@@ -28,15 +29,12 @@ public class AppPurchaseStatisticsController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(o.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(o.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', o.create_time) AS INTEGER) * 1000, 0) END";
-
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -102,7 +100,7 @@ public class AppPurchaseStatisticsController {
         validateRange(startTime, endTime);
 
         QueryCondition condition = buildCondition(param, user, startTime, endTime);
-        String sql = "SELECT o.order_no AS orderNo, " + BUSINESS_TIME_SQL + " AS businessTime, " +
+        String sql = "SELECT o.order_no AS orderNo, " + businessTimeSql() + " AS businessTime, " +
                 "COALESCE(s.name, '') AS supplierName, COALESCE(i.quantity, 0) AS quantity, " +
                 "COALESCE(i.unit_price, 0) AS unitPrice, COALESCE(i.total_amount, 0) AS amount, " +
                 "COALESCE(o.discount_rate, 100) AS discountRate, " +
@@ -161,11 +159,11 @@ public class AppPurchaseStatisticsController {
             params.add(likeKey);
         }
         if (startTime != null) {
-            whereSql.append(" AND ").append(BUSINESS_TIME_SQL).append(" >= ?");
+            whereSql.append(" AND ").append(businessTimeSql()).append(" >= ?");
             params.add(startTime);
         }
         if (endTime != null) {
-            whereSql.append(" AND ").append(BUSINESS_TIME_SQL).append(" <= ?");
+            whereSql.append(" AND ").append(businessTimeSql()).append(" <= ?");
             params.add(endTime);
         }
         return new QueryCondition(whereSql.toString(), params);
@@ -233,6 +231,10 @@ public class AppPurchaseStatisticsController {
     private String formatDate(double value) {
         if (value <= 0) return "";
         return Instant.ofEpochMilli((long) value).atZone(ZONE_ID).format(DATE_FORMATTER);
+    }
+
+    private String businessTimeSql() {
+        return databaseDialect.epochMillis("o.create_time");
     }
 
     private static class QueryCondition {

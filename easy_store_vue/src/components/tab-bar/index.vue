@@ -26,6 +26,7 @@
     removeRouteListener,
   } from '@/utils/route-listener';
   import { useAppStore, useTabBarStore } from '@/store';
+  import { DEFAULT_ROUTE_NAME } from '@/router/constants';
   import tabItem from './tab-item.vue';
 
   const appStore = useAppStore();
@@ -46,6 +47,13 @@
     }
   );
   listenerRouteChange((route: RouteLocationNormalized) => {
+    if (
+      route.path === '/' ||
+      route.name === 'notFound' ||
+      route.name === DEFAULT_ROUTE_NAME
+    ) {
+      return;
+    }
     if (
       !route.meta.noAffix &&
       !tagList.value.some((tag) => tag.fullPath === route.fullPath)

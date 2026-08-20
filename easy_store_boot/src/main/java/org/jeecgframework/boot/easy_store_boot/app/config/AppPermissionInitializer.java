@@ -1,6 +1,7 @@
 package org.jeecgframework.boot.easy_store_boot.app.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -9,13 +10,17 @@ import java.util.List;
 import java.util.Map;
 
 import org.jeecgframework.boot.easy_store_boot.app.common.CommonUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.common.PasswordUtil;
 
 @Component
+@Profile("dev")
 public class AppPermissionInitializer {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostConstruct
     public void init() {
@@ -253,10 +258,14 @@ public class AppPermissionInitializer {
     }
 
     private void repairUnitName(String tableName) {
+        String numericCondition = databaseDialect.isMySql()
+                ? "unit REGEXP '^[0-9]+$'"
+                : "unit NOT GLOB '*[^0-9]*'";
+        String unitId = databaseDialect.integerCast(tableName + ".unit");
         jdbcTemplate.update("UPDATE " + tableName + " SET unit = " +
-                "(SELECT name FROM app_unit WHERE app_unit.id = CAST(" + tableName + ".unit AS INTEGER)) " +
-                "WHERE unit IS NOT NULL AND unit <> '' AND unit NOT GLOB '*[^0-9]*' " +
-                "AND EXISTS (SELECT 1 FROM app_unit WHERE app_unit.id = CAST(" + tableName + ".unit AS INTEGER))");
+                "(SELECT name FROM app_unit WHERE app_unit.id = " + unitId + ") " +
+                "WHERE unit IS NOT NULL AND unit <> '' AND " + numericCondition + " " +
+                "AND EXISTS (SELECT 1 FROM app_unit WHERE app_unit.id = " + unitId + ")");
     }
 
     private void backfillOrderStatus() {
@@ -288,6 +297,9 @@ public class AppPermissionInitializer {
     }
 
     private void repairDateColumn(String tableName, String columnName) {
+        if (databaseDialect.isMySql()) {
+            return;
+        }
         jdbcTemplate.update("UPDATE " + tableName + " SET " + columnName + " = " +
                 "strftime('%Y-%m-%d %H:%M:%f', " + columnName + ") " +
                 "WHERE " + columnName + " IS NOT NULL " +
@@ -353,9 +365,14 @@ public class AppPermissionInitializer {
     private void insertMenu(String code, String groupCode, String groupTitle, String name,
                             String icon, String url, String action, Integer sortNo,
                             Integer status, Integer rootOnly, Integer isDel) {
-        jdbcTemplate.update("INSERT OR IGNORE INTO app_home_menu " +
-                        "(code, group_code, group_title, name, icon, url, action, sort_no, status, root_only, create_time, is_del) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'), ?)",
+        String sql = databaseDialect.isMySql()
+                ? "INSERT IGNORE INTO app_home_menu " +
+                "(code, group_code, group_title, name, icon, url, action, sort_no, status, root_only, create_time, is_del) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " + databaseDialect.currentTimestamp() + ", ?)"
+                : "INSERT OR IGNORE INTO app_home_menu " +
+                "(code, group_code, group_title, name, icon, url, action, sort_no, status, root_only, create_time, is_del) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'), ?)";
+        jdbcTemplate.update(sql,
                 code, groupCode, groupTitle, name, icon, url, action, sortNo, status, rootOnly, isDel);
     }
 

@@ -4,6 +4,8 @@ import 'nprogress/nprogress.css';
 import { appRoutes } from './routes';
 import { REDIRECT_MAIN, NOT_FOUND_ROUTE } from './routes/base';
 import createRouteGuard from './guard';
+import { DEFAULT_ROUTE_NAME } from './constants';
+import { isLogin } from '@/utils/auth';
 
 NProgress.configure({ showSpinner: false }); // NProgress Configuration
 
@@ -12,7 +14,9 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: 'login',
+      redirect: () => ({
+        name: isLogin() ? DEFAULT_ROUTE_NAME : 'login',
+      }),
     },
     {
       path: '/login',

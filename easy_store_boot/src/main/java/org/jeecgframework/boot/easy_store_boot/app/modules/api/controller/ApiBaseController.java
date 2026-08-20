@@ -264,6 +264,24 @@ public class ApiBaseController<T, S extends IService<T>> {
             fillCashierInfo(entity, user, userId);
         }
         setDocumentStatus(entity, user, getFieldValue(dbEntity, "status"));
+        setDocumentUpdateBy(entity, user);
+    }
+
+    protected void setDocumentUpdateBy(T entity, JSONObject param) {
+        setDocumentUpdateBy(entity, getCurrentUser(param));
+    }
+
+    protected void setDocumentUpdateBy(T entity, AppUser user) {
+        if (entity == null || user == null || !hasField(entity, "updateBy")) {
+            return;
+        }
+        try {
+            Field field = entity.getClass().getDeclaredField("updateBy");
+            field.setAccessible(true);
+            field.set(entity, getUserDisplayName(user));
+        } catch (Exception e) {
+            throw new AppRunTimeException("设置最后更新人失败");
+        }
     }
 
     protected void assertDocumentOwner(String id, JSONObject param) {

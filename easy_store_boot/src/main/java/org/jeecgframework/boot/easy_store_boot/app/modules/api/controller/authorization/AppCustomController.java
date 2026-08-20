@@ -81,7 +81,9 @@ public class AppCustomController extends ApiBaseController<AppCustomer,IAppCusto
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
         String key = param.getString("key");
-        LambdaQueryWrapper<AppCustomer> wrapper = new LambdaQueryWrapper<AppCustomer>().eq(AppCustomer::getStatus,1).orderByDesc(AppCustomer::getCreateTime);
+        LambdaQueryWrapper<AppCustomer> wrapper = new LambdaQueryWrapper<AppCustomer>()
+                .eq(AppCustomer::getStatus, 1)
+                .orderByAsc(AppCustomer::getId);
         if(StringUtils.isNotEmpty(key)){
             if(key.matches("^[a-zA-Z]+$")){
                 wrapper.like(AppCustomer::getPyCode,key);

@@ -9,7 +9,6 @@
       "projectName": "easy_store_boot",
       "cwd": "${workspaceFolder}\\easy_store_boot",
       "console": "integratedTerminal",
-      "vmArgs": "-Dspring.profiles.active=dev",
       "preLaunchTask": "backend: maven compile"
     },
     {
@@ -26,6 +25,20 @@
       "command": "npm.cmd start",
       "cwd": "${workspaceFolder}\\electron",
       "preLaunchTask": "frontend: vite dev"
+    },
+    {
+      "name": "Build: Vue",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm.cmd run build",
+      "cwd": "${workspaceFolder}\\easy_store_vue"
+    },
+    {
+      "name": "Package: Electron (Network)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm.cmd run package:network",
+      "cwd": "${workspaceFolder}\\electron"
     }
   ],
   "compounds": [

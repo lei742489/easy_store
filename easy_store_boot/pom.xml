@@ -35,6 +35,12 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.32.3.3</version>
         </dependency>
+        <!-- MySQL 8 驱动，application-online.yml 使用 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!--mybatis-plus插件-->
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -165,6 +171,16 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>fonts/**</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>fonts/**</include>
+                </includes>
             </resource>
             <resource>
                 <directory>src/main/java</directory>

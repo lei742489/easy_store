@@ -2,6 +2,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppOperationLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,6 +17,8 @@ public class AppOperationLogServiceImpl implements IAppOperationLogService {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @Override
     public void record(String operatorId, String operatorName, String menuName,
@@ -24,7 +27,7 @@ public class AppOperationLogServiceImpl implements IAppOperationLogService {
         jdbcTemplate.update("INSERT INTO app_operation_log " +
                         "(operator_id, operator_name, menu_name, operation_type, request_uri, " +
                         "client_ip, operate_time, data_json) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'), ?)",
+                        "VALUES (?, ?, ?, ?, ?, ?, " + databaseDialect.currentTimestamp() + ", ?)",
                 StringUtils.defaultString(operatorId),
                 StringUtils.defaultString(operatorName),
                 StringUtils.defaultString(menuName),
@@ -38,7 +41,7 @@ public class AppOperationLogServiceImpl implements IAppOperationLogService {
     public void cleanupExpired() {
         try {
             jdbcTemplate.update("DELETE FROM app_operation_log " +
-                    "WHERE operate_time < strftime('%Y-%m-%d %H:%M:%f', 'now', '-3 months')");
+                    "WHERE operate_time < " + databaseDialect.currentTimestampMinusMonths(3));
         } catch (Exception e) {
             log.warn("清理三个月前操作日志失败", e);
         }

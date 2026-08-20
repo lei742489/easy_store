@@ -343,6 +343,11 @@
       align: 'center',
     },
     {
+      title: '最后更新人',
+      dataIndex: 'updateBy',
+      align: 'center',
+    },
+    {
       title: '备注',
       dataIndex: 'note',
       align: 'center',

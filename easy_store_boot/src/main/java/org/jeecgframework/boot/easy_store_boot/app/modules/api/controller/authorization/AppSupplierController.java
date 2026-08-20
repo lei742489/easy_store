@@ -60,7 +60,9 @@ public class AppSupplierController extends ApiBaseController<AppSupplier, IAppSu
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
         String key = param.getString("key");
-        LambdaQueryWrapper<AppSupplier> wrapper = new LambdaQueryWrapper<AppSupplier>().eq(AppSupplier::getStatus,1).orderByDesc(AppSupplier::getCreateTime);
+        LambdaQueryWrapper<AppSupplier> wrapper = new LambdaQueryWrapper<AppSupplier>()
+                .eq(AppSupplier::getStatus, 1)
+                .orderByAsc(AppSupplier::getId);
 
         if(StringUtils.isNotEmpty(key)){
             if(key.matches("^[a-zA-Z]+$")){

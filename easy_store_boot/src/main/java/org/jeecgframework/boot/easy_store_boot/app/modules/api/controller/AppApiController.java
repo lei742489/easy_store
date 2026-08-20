@@ -71,6 +71,8 @@ public class AppApiController {
         }
 
         String passwordEncode = PasswordUtil.encrypt(appUser.getUserName(), password, appUser.getSalt());
+
+
         if(!StringUtils.equals(passwordEncode, appUser.getPassword()))
             throw new AppRunTimeException("用户名或者密码错误");
 

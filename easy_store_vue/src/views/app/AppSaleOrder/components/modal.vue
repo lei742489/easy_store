@@ -26,7 +26,11 @@
             <a-col :span="12">
               <a-row :gutter="24">
                 <a-col :span="16">
-                  <a-form-item field="supplierId" label="客户名称">
+                  <a-form-item
+                    field="customerId"
+                    label="客户名称"
+                    :rules="[{ required: true, message: '请选择客户' }]"
+                  >
                     <a-tree-select
                       v-model="form.customerId"
                       :loading="customerLoading"
@@ -327,15 +331,28 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     (e: 'ok', data: 1): void;
   }>();
 
-  const fetchSupplierData = async () => {
-    if (customerList.value.length !== 0) return;
-
-    customerLoading.value = true;
-    customerList.value = (await getCustomList()).data;
-    if (!form.customerId && customerList.value.length > 0) {
+  const selectDefaultCustomer = () => {
+    if (
+      form.id === undefined &&
+      (form.customerId === undefined || form.customerId === null) &&
+      customerList.value.length > 0
+    ) {
       form.customerId = customerList.value[0].id;
     }
-    customerLoading.value = false;
+  };
+
+  const fetchSupplierData = async () => {
+    if (customerList.value.length === 0) {
+      customerLoading.value = true;
+      try {
+        customerList.value = (await getCustomList()).data.sort(
+          (left, right) => Number(left.id) - Number(right.id)
+        );
+      } finally {
+        customerLoading.value = false;
+      }
+    }
+    selectDefaultCustomer();
   };
 
   const fetchCashierList = async () => {
@@ -416,6 +433,7 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
         } else {
           Object.assign(form, defaultForm);
           itemTableRef.value?.clearAll();
+          selectDefaultCustomer();
           form.orderNo = (await createOrderNo()).data;
         }
 

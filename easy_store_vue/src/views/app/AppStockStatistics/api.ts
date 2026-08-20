@@ -10,7 +10,7 @@ export interface StockStatisticsQuery {
 }
 
 export interface StockStatisticsRecord {
-  rowNo?: number;
+  rowNo?: number | string;
   goodsId?: number;
   goodsName?: string;
   unit?: string;
@@ -44,6 +44,7 @@ export interface StockStatisticsResult {
 export function listStockStatistics(data: StockStatisticsQuery) {
   return axios.post<StockStatisticsResult>(
     'api/user/appGoods/stockStatistics',
-    data
+    data,
+    { timeout: 60000 }
   );
 }

@@ -12,10 +12,7 @@ import freemarker.template.TemplateExceptionHandler;
 
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -27,13 +24,22 @@ public class PdfReportUtils {
 
     private static final Configuration cfg;
 
+    public static String SIMSUN_FONT_PATH = null;
+    private static final String TTC_FONT_INDEX = ",0";
+
     static {
-        cfg = new Configuration(Configuration.VERSION_2_3_32);
+        cfg = new Configuration(Configuration.VERSION_2_3_28);
         cfg.setDefaultEncoding("UTF-8");
         cfg.setClassLoaderForTemplateLoading(
                 PdfReportUtils.class.getClassLoader(), "ftl/report"
         );
         cfg.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
+        try {
+            SIMSUN_FONT_PATH = loadFontFromResource("fonts/simsun.ttc");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println("宋体字体全局加载成功：" + SIMSUN_FONT_PATH);
     }
 
     /**
@@ -86,44 +92,56 @@ public class PdfReportUtils {
         try (OutputStream os = Files.newOutputStream(Paths.get(outputPdfPath))) {
             ITextRenderer renderer = new ITextRenderer();
 
-            String osName = System.getProperty("os.name").toLowerCase();
-            String fontPath = null;
-            String fontFamily = null;
+            try {
+                // 从 resources 加载宋体
+                renderer.getFontResolver().addFont(
+                        getITextFontPath(SIMSUN_FONT_PATH),
+                        BaseFont.IDENTITY_H,
+                        BaseFont.EMBEDDED
+                );
 
-            if (osName.contains("windows")) {
-                // Windows -> 微软雅黑
-                fontPath = "C:/Windows/Fonts/simsun.ttc";
-                fontFamily = "SimSun";
-            } else if (osName.contains("linux")) {
-                // Linux 常见中文字体路径示例
-                // 你也可以上传你自己的 ttf 文件到服务器
-                fontPath = "/usr/share/fonts/truetype/arphic/ukai.ttc";
-                fontFamily = "AR PL UKai CN";
-            } else if (osName.contains("mac")) {
-                // macOS 示例
-                fontPath = "/System/Library/Fonts/STHeiti Medium.ttc";
-                fontFamily = "Heiti SC";
-            }
+                // System.out.println("宋体字体加载成功：" + SIMSUN_FONT_PATH);
 
-            // 如果存在字体路径，就注册
-            if (fontPath != null) {
-                try {
-                    renderer.getFontResolver().addFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                    System.out.println("注册中文字体：" + fontPath);
-                } catch (Exception e) {
-                    System.err.println("字体注册失败：" + fontPath + "，原因：" + e.getMessage());
-                }
+            } catch (Exception e) {
+                System.err.println("宋体加载失败：" + e.getMessage());
             }
 
             // 替换 HTML 中的 font-family
             // 如果 fontFamily 不为空，就动态把 htmlContent 替换成对应字体
-            if (fontFamily != null) {
-                htmlContent = htmlContent.replaceAll("font-family:[^;\"']*([;\"'])", "font-family: " + fontFamily + "$1");
-            }
+            htmlContent = htmlContent.replaceAll("font-family:[^;\"']*([;\"'])", "font-family: " + "SimSun" + "$1");
 
             renderer.setDocumentFromString(htmlContent);
             renderer.layout();
             renderer.createPDF(os);
         }
+    }
+
+    private static String getITextFontPath(String fontPath) {
+        if (fontPath == null) {
+            return null;
+        }
+        return fontPath.toLowerCase().endsWith(".ttc") ? fontPath + TTC_FONT_INDEX : fontPath;
+    }
+
+    private static String loadFontFromResource(String resourcePath) throws IOException {
+        InputStream is = Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream(resourcePath);
+
+        if (is == null) {
+            throw new FileNotFoundException("字体文件不存在: " + resourcePath);
+        }
+
+        File tempFont = File.createTempFile("font-", ".ttc");
+        tempFont.deleteOnExit();
+
+        try (FileOutputStream fos = new FileOutputStream(tempFont)) {
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = is.read(buffer)) != -1) {
+                fos.write(buffer, 0, len);
+            }
+        }
+        return tempFont.getAbsolutePath();
     }
 }

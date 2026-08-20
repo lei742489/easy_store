@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
@@ -31,17 +32,14 @@ public class AppIncomeExpenseRecordController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String SALE_TIME_SQL = businessTimeSql("o");
-    private static final String PURCHASE_TIME_SQL = businessTimeSql("o");
-    private static final String RECEIVE_TIME_SQL = businessTimeSql("r");
-    private static final String PAYMENT_TIME_SQL = businessTimeSql("p");
-
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private IAppUserService userService;
     @Autowired
     private IAppAccountSettleService accountSettleService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("add")
     @Transactional(rollbackFor = Exception.class)
@@ -306,7 +304,7 @@ public class AppIncomeExpenseRecordController {
     }
 
     private void appendSaleSql(StringBuilder sql, List<Object> params, String customerId) {
-        sql.append("SELECT 'sale' AS recordType, ").append(SALE_TIME_SQL)
+        sql.append("SELECT 'sale' AS recordType, ").append(businessTimeSql("o"))
                 .append(" AS businessTime, o.id AS recordId, o.order_no AS orderNo, ")
                 .append("CASE WHEN o.note IS NOT NULL AND trim(o.note) <> '' THEN o.note ")
                 .append("WHEN o.order_type = 2 THEN '销售退货' ELSE '销售出货' END AS summary, ")
@@ -321,7 +319,7 @@ public class AppIncomeExpenseRecordController {
     }
 
     private void appendPurchaseSql(StringBuilder sql, List<Object> params, String supplierId) {
-        sql.append("SELECT 'purchase' AS recordType, ").append(PURCHASE_TIME_SQL)
+        sql.append("SELECT 'purchase' AS recordType, ").append(businessTimeSql("o"))
                 .append(" AS businessTime, o.id AS recordId, o.order_no AS orderNo, ")
                 .append("CASE WHEN o.note IS NOT NULL AND trim(o.note) <> '' THEN o.note ")
                 .append("WHEN o.order_type = 2 THEN '进货退货' ELSE '采购进货' END AS summary, ")
@@ -336,7 +334,7 @@ public class AppIncomeExpenseRecordController {
     }
 
     private void appendReceiveSql(StringBuilder sql, List<Object> params, String customerId) {
-        sql.append("SELECT 'receive' AS recordType, ").append(RECEIVE_TIME_SQL)
+        sql.append("SELECT 'receive' AS recordType, ").append(businessTimeSql("r"))
                 .append(" AS businessTime, r.id AS recordId, r.order_no AS orderNo, ")
                 .append("CASE WHEN r.note IS NOT NULL AND trim(r.note) <> '' THEN r.note ELSE '收款' END AS summary, ")
                 .append("COALESCE(c.name, '') AS counterparty, '收款收入' AS fundItem, ")
@@ -352,7 +350,7 @@ public class AppIncomeExpenseRecordController {
     }
 
     private void appendPaymentSql(StringBuilder sql, List<Object> params, String supplierId) {
-        sql.append("SELECT 'payment' AS recordType, ").append(PAYMENT_TIME_SQL)
+        sql.append("SELECT 'payment' AS recordType, ").append(businessTimeSql("p"))
                 .append(" AS businessTime, p.id AS recordId, p.order_no AS orderNo, ")
                 .append("CASE WHEN p.note IS NOT NULL AND trim(p.note) <> '' THEN p.note ELSE '付款' END AS summary, ")
                 .append("COALESCE(s.name, '') AS counterparty, '付款支出' AS fundItem, ")
@@ -483,10 +481,8 @@ public class AppIncomeExpenseRecordController {
         return Instant.ofEpochMilli((long) value).atZone(ZONE_ID).format(DATE_FORMATTER);
     }
 
-    private static String businessTimeSql(String alias) {
-        return "CASE WHEN typeof(" + alias + ".create_time) IN ('integer', 'real') " +
-                "THEN CAST(" + alias + ".create_time AS INTEGER) " +
-                "ELSE COALESCE(CAST(strftime('%s', " + alias + ".create_time) AS INTEGER) * 1000, 0) END";
+    private String businessTimeSql(String alias) {
+        return databaseDialect.epochMillis(alias + ".create_time");
     }
 
     private static class SqlAndParams {

@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
@@ -27,15 +28,12 @@ public class AppSaleStatisticsController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String SALE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(o.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(o.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', o.create_time) AS INTEGER) * 1000, 0) END";
-
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -117,7 +115,7 @@ public class AppSaleStatisticsController {
         }
 
         QueryCondition condition = buildCondition(param, user, startTime, endTime);
-        String sql = "SELECT o.order_no AS orderNo, " + SALE_BUSINESS_TIME_SQL + " AS businessTime, " +
+        String sql = "SELECT o.order_no AS orderNo, " + saleBusinessTimeSql() + " AS businessTime, " +
                 "COALESCE(c.name, '') AS customerName, " +
                 "COALESCE(o.cashier_name, u.real_name, '') AS cashierName, " +
                 "COALESCE(i.quantity, 0) AS quantity, COALESCE(i.unit_price, 0) AS unitPrice, " +
@@ -173,11 +171,11 @@ public class AppSaleStatisticsController {
             params.add(likeKey);
         }
         if (startTime != null) {
-            whereSql.append(" AND ").append(SALE_BUSINESS_TIME_SQL).append(" >= ?");
+            whereSql.append(" AND ").append(saleBusinessTimeSql()).append(" >= ?");
             params.add(startTime);
         }
         if (endTime != null) {
-            whereSql.append(" AND ").append(SALE_BUSINESS_TIME_SQL).append(" <= ?");
+            whereSql.append(" AND ").append(saleBusinessTimeSql()).append(" <= ?");
             params.add(endTime);
         }
         return new QueryCondition(whereSql.toString(), params);
@@ -255,6 +253,10 @@ public class AppSaleStatisticsController {
         return java.time.Instant.ofEpochMilli((long) value)
                 .atZone(ZONE_ID)
                 .format(DATE_FORMATTER);
+    }
+
+    private String saleBusinessTimeSql() {
+        return databaseDialect.epochMillis("o.create_time");
     }
 
     private static class QueryCondition {

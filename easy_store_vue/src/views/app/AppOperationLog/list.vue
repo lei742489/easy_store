@@ -181,7 +181,10 @@
   };
 
   const fetchData = async () => {
-    if (userStore.isRoot !== 1) return;
+    if (userStore.isRoot === undefined || userStore.isRoot === null) {
+      await userStore.info();
+    }
+    if (Number(userStore.isRoot) !== 1) return;
     setLoading(true);
     try {
       const { data } = await listPage({

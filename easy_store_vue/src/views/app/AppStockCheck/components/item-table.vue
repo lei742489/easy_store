@@ -239,8 +239,8 @@
     );
     if (!goods || goods.goodsId === undefined) return;
     item.goodsId = goods.goodsId;
-    item.goodsId_dictText = goods.value;
-    item.goodsName = goods.value;
+    item.goodsId_dictText = goods.value || goods.label || '';
+    item.goodsName = item.goodsId_dictText;
     item.unit = goods.unit;
     item.bookQuantity = Number(goods.stock || 0);
     item.actualQuantity = Number(goods.stock || 0);

@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSupplier;
@@ -32,14 +33,6 @@ public class AppPayableReportController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String PURCHASE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(app_purchase_order.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(app_purchase_order.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', app_purchase_order.create_time) AS INTEGER) * 1000, 0) END";
-    private static final String PAYMENT_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(app_payment_voucher.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(app_payment_voucher.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', app_payment_voucher.create_time) AS INTEGER) * 1000, 0) END";
     private static final String PURCHASE_LINKED_AMOUNT_SQL = "COALESCE(payment_item.linked_amount, 0)";
     private static final String PURCHASE_UNPAID_AMOUNT_SQL =
             "COALESCE(app_purchase_order.unpaid_amount, COALESCE(app_purchase_order.payable_amount, 0) " +
@@ -58,6 +51,8 @@ public class AppPayableReportController {
     private IAppSupplierService supplierService;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("detail")
     public Result<?> detail(@RequestBody JSONObject param) {
@@ -263,7 +258,7 @@ public class AppPayableReportController {
         String paymentOwnerCondition = cashierId == null ? "" : " AND app_payment_voucher.cashier_id = ?";
         String sql = "SELECT business_time AS businessTime, order_no AS orderNo, summary, " +
                 "payable_amount AS payableAmount, paid_amount AS paidAmount FROM (" +
-                "SELECT " + PURCHASE_BUSINESS_TIME_SQL + " AS business_time, app_purchase_order.order_no AS order_no, " +
+                "SELECT " + purchaseBusinessTimeSql() + " AS business_time, app_purchase_order.order_no AS order_no, " +
                 "CASE WHEN app_purchase_order.note IS NOT NULL AND trim(app_purchase_order.note) <> '' THEN app_purchase_order.note " +
                 "WHEN app_purchase_order.order_type = 2 THEN '进货退货' ELSE '采购入库' END AS summary, " +
                 PURCHASE_DEBT_AMOUNT_SQL + " AS payable_amount, 0 AS paid_amount " +
@@ -276,7 +271,7 @@ public class AppPayableReportController {
                 "AND " + PURCHASE_DEBT_FILTER_SQL + " AND ABS(" + PURCHASE_DEBT_AMOUNT_SQL + ") >= 0.005" +
                 purchaseOwnerCondition +
                 " UNION ALL " +
-                "SELECT " + PAYMENT_BUSINESS_TIME_SQL + " AS business_time, app_payment_voucher.order_no, " +
+                "SELECT " + paymentBusinessTimeSql() + " AS business_time, app_payment_voucher.order_no, " +
                 "CASE WHEN app_payment_voucher.note IS NULL OR trim(app_payment_voucher.note) = '' THEN '付款' " +
                 "ELSE app_payment_voucher.note END AS summary, " +
                 "0 AS payable_amount, COALESCE(app_payment_voucher.amount, 0) AS paid_amount " +
@@ -308,7 +303,7 @@ public class AppPayableReportController {
         String sql = "SELECT record_type AS recordType, business_time AS businessTime, id, order_no AS orderNo, " +
                 "order_type AS orderType, note, freight_amount AS freightAmount, total_amount AS totalAmount, " +
                 "discounted_amount AS discountedAmount, payable_amount AS payableAmount, paid_amount AS paidAmount FROM (" +
-                "SELECT 'purchase' AS record_type, " + PURCHASE_BUSINESS_TIME_SQL +
+                "SELECT 'purchase' AS record_type, " + purchaseBusinessTimeSql() +
                 " AS business_time, app_purchase_order.id, app_purchase_order.order_no, " +
                 "app_purchase_order.order_type, app_purchase_order.note, " +
                 "COALESCE(app_purchase_order.freight_amount, 0) AS freight_amount, " +
@@ -324,7 +319,7 @@ public class AppPayableReportController {
                 "AND " + PURCHASE_DEBT_FILTER_SQL + " AND ABS(" + PURCHASE_DEBT_AMOUNT_SQL + ") >= 0.005" +
                 purchaseOwnerCondition +
                 " UNION ALL " +
-                "SELECT 'payment' AS record_type, " + PAYMENT_BUSINESS_TIME_SQL +
+                "SELECT 'payment' AS record_type, " + paymentBusinessTimeSql() +
                 " AS business_time, app_payment_voucher.id, app_payment_voucher.order_no, " +
                 "NULL AS order_type, app_payment_voucher.note, 0 AS freight_amount, 0 AS total_amount, " +
                 "0 AS discounted_amount, 0 AS payable_amount, COALESCE(app_payment_voucher.amount, 0) AS paid_amount " +
@@ -387,14 +382,14 @@ public class AppPayableReportController {
             params.add(cashierId);
         }
         if (beforeStart && endTime != null) {
-            sql += " AND " + PURCHASE_BUSINESS_TIME_SQL + " < ?";
+            sql += " AND " + purchaseBusinessTimeSql() + " < ?";
             params.add(endTime);
         } else if (startTime != null) {
-            sql += " AND " + PURCHASE_BUSINESS_TIME_SQL + " >= ?";
+            sql += " AND " + purchaseBusinessTimeSql() + " >= ?";
             params.add(startTime);
         }
         if (!beforeStart && endTime != null) {
-            sql += " AND " + PURCHASE_BUSINESS_TIME_SQL + " <= ?";
+            sql += " AND " + purchaseBusinessTimeSql() + " <= ?";
             params.add(endTime);
         }
         sql += " GROUP BY app_purchase_order.supplier_id";
@@ -424,14 +419,14 @@ public class AppPayableReportController {
             params.add(cashierId);
         }
         if (beforeStart && endTime != null) {
-            sql += " AND " + PAYMENT_BUSINESS_TIME_SQL + " < ?";
+            sql += " AND " + paymentBusinessTimeSql() + " < ?";
             params.add(endTime);
         } else if (startTime != null) {
-            sql += " AND " + PAYMENT_BUSINESS_TIME_SQL + " >= ?";
+            sql += " AND " + paymentBusinessTimeSql() + " >= ?";
             params.add(startTime);
         }
         if (!beforeStart && endTime != null) {
-            sql += " AND " + PAYMENT_BUSINESS_TIME_SQL + " <= ?";
+            sql += " AND " + paymentBusinessTimeSql() + " <= ?";
             params.add(endTime);
         }
         sql += " GROUP BY app_payment_voucher.supplier_id";
@@ -513,6 +508,14 @@ public class AppPayableReportController {
         row.put("paidAmount", paidAmount);
         row.put("endingBalance", endingBalance);
         return row;
+    }
+
+    private String purchaseBusinessTimeSql() {
+        return databaseDialect.epochMillis("app_purchase_order.create_time");
+    }
+
+    private String paymentBusinessTimeSql() {
+        return databaseDialect.epochMillis("app_payment_voucher.create_time");
     }
 
     private Long parseStartTime(String value) {

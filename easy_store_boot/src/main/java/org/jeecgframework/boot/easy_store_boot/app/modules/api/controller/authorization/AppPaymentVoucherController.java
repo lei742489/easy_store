@@ -110,6 +110,7 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
             voucher.setStatus(1);
             voucher.setSettleItems(settleItemService.listByPaymentId(voucher.getId().toString()));
             voucher.setAmountItems(amountItemService.listByOrderId(voucher.getId().toString()));
+            setDocumentUpdateBy(voucher, param);
             service.updateById(voucher);
         }
         return Result.ok();

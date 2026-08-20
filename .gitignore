@@ -6,6 +6,7 @@
 **/dist/
 **/dist-ssr/
 **/build/
+electron/web/
 
 # Runtime files and local backups
 logs/

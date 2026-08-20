@@ -133,6 +133,7 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
             }
             order.setStatus(1);
             order.setItems(appPurchaseOrderItemService.listByOrderId(order.getId()));
+            setDocumentUpdateBy(order, param);
             service.updateById(order);
         }
         return Result.ok();

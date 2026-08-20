@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppCustomer;
@@ -30,9 +31,6 @@ public class AppDebtDetailController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(create_time) IN ('integer', 'real') THEN CAST(create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', create_time) AS INTEGER) * 1000, 0) END";
     private static final String SALE_LINKED_AMOUNT_SQL = "COALESCE(receive_item.linked_amount, 0)";
     private static final String SALE_UNPAID_AMOUNT_SQL =
             "COALESCE(unpaid_amount, COALESCE(payable_amount, 0) - COALESCE(paid_amount, 0))";
@@ -49,6 +47,8 @@ public class AppDebtDetailController {
     private IAppCustomerService customerService;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -116,7 +116,7 @@ public class AppDebtDetailController {
         String ownerCondition = cashierId == null ? "" : " AND cashier_id = ?";
         String sql = "SELECT business_time AS businessTime, order_no AS orderNo, summary, " +
                 "receivable_amount AS receivableAmount, received_amount AS receivedAmount FROM (" +
-                "SELECT " + BUSINESS_TIME_SQL + " AS business_time, app_sale_order.order_no AS order_no, " +
+                "SELECT " + businessTimeSql("app_sale_order.create_time") + " AS business_time, app_sale_order.order_no AS order_no, " +
                 "CASE WHEN note IS NOT NULL AND trim(note) <> '' THEN note " +
                 "WHEN order_type = 2 THEN '销售退货' ELSE '销售出货' END AS summary, " +
                 SALE_DEBT_AMOUNT_SQL + " AS receivable_amount, 0 AS received_amount " +
@@ -128,7 +128,7 @@ public class AppDebtDetailController {
                 "AND " + SALE_DEBT_FILTER_SQL + " AND ABS(" + SALE_DEBT_AMOUNT_SQL + ") >= 0.005" +
                 ownerCondition +
                 " UNION ALL " +
-                "SELECT " + BUSINESS_TIME_SQL + " AS business_time, order_no, " +
+                "SELECT " + businessTimeSql("create_time") + " AS business_time, order_no, " +
                 "CASE WHEN note IS NULL OR trim(note) = '' THEN '收款' ELSE note END AS summary, " +
                 "0 AS receivable_amount, COALESCE(amount, 0) AS received_amount " +
                 "FROM app_receive_payment_voucher WHERE customer_id = ? AND status = 1 AND COALESCE(is_del, 0) = 0" +
@@ -169,7 +169,7 @@ public class AppDebtDetailController {
                 "ON app_sale_order.order_no = receive_item.order_no " +
                 "WHERE customer_id = ? AND status = 1 AND COALESCE(is_del, 0) = 0 " +
                 "AND " + SALE_DEBT_FILTER_SQL + " AND ABS(" + SALE_DEBT_AMOUNT_SQL + ") >= 0.005" +
-                ownerCondition + " AND " + BUSINESS_TIME_SQL + " < ?";
+                ownerCondition + " AND " + businessTimeSql("app_sale_order.create_time") + " < ?";
         return querySum(sql, customerId, startTime, cashierId);
     }
 
@@ -177,7 +177,7 @@ public class AppDebtDetailController {
         String ownerCondition = cashierId == null ? "" : " AND cashier_id = ?";
         String sql = "SELECT COALESCE(SUM(COALESCE(amount, 0)), 0) FROM app_receive_payment_voucher " +
                 "WHERE customer_id = ? AND status = 1 AND COALESCE(is_del, 0) = 0" +
-                ownerCondition + " AND " + BUSINESS_TIME_SQL + " < ?";
+                ownerCondition + " AND " + businessTimeSql("app_receive_payment_voucher.create_time") + " < ?";
         return querySum(sql, customerId, startTime, cashierId);
     }
 
@@ -201,6 +201,10 @@ public class AppDebtDetailController {
         row.put("receivedAmount", receivedAmount);
         row.put("endingBalance", endingBalance);
         return row;
+    }
+
+    private String businessTimeSql(String expression) {
+        return databaseDialect.epochMillis(expression);
     }
 
     private Long parseStartTime(String value) {

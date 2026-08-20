@@ -123,6 +123,37 @@ public class AppUserController extends ApiBaseController<AppUser, IAppUserServic
         return Result.ok();
     }
 
+    @PostMapping("updateProfile")
+    public Result<?> updateProfile(@RequestBody JSONObject param) {
+        AppUser currentUser = getCurrentUser(param);
+
+        if (param.containsKey("realName")) {
+            currentUser.setRealName(param.getString("realName"));
+        }
+        if (param.containsKey("email")) {
+            currentUser.setEmail(param.getString("email"));
+        }
+        if (param.containsKey("mobile")) {
+            currentUser.setMobile(param.getString("mobile"));
+        }
+        if (param.containsKey("avatar")) {
+            currentUser.setAvatar(param.getString("avatar"));
+        }
+        if (currentUser.getIsRoot() != null && currentUser.getIsRoot() == 1) {
+            if (param.containsKey("companyName")) {
+                currentUser.setCompanyName(param.getString("companyName"));
+            }
+            if (param.containsKey("address")) {
+                currentUser.setAddress(param.getString("address"));
+            }
+        }
+
+        if (!service.updateById(currentUser)) {
+            throw new AppRunTimeException("更新失败");
+        }
+        return Result.ok();
+    }
+
     @PostMapping("checkPwd")
     public Result<?> checkPwd(@RequestBody JSONObject param) {
         String userId = param.getString("userId");

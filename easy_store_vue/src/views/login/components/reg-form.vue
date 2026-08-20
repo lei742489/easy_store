@@ -127,6 +127,7 @@
   import useLoading from '@/hooks/loading';
   import type { RegData } from '@/api/user';
   import appConfig from '@/config/app';
+  import { DEFAULT_ROUTE_NAME } from '@/router/constants';
 
   const { appName } = appConfig;
   const router = useRouter();
@@ -165,7 +166,7 @@
         await userStore.register(values as RegData);
         const { redirect, ...othersQuery } = router.currentRoute.value.query;
         router.push({
-          name: (redirect as string) || 'Workplace',
+          name: (redirect as string) || DEFAULT_ROUTE_NAME,
           query: {
             ...othersQuery,
           },

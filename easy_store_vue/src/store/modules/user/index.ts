@@ -22,6 +22,7 @@ const defaultUserState = (): UserState => ({
   userName: undefined,
   realName: undefined,
   name: undefined,
+  isRoot: undefined,
   avatar: undefined,
   mobile: undefined,
   job: undefined,
@@ -44,12 +45,20 @@ const defaultUserState = (): UserState => ({
   role: '',
 });
 
+const normalizeUserState = (partial: Partial<UserState>): Partial<UserState> => {
+  const userInfo = { ...partial };
+  if (userInfo.isRoot !== undefined && userInfo.isRoot !== null) {
+    userInfo.isRoot = Number(userInfo.isRoot);
+  }
+  return userInfo;
+};
+
 const loadCachedUserState = (): Partial<UserState> => {
   if (typeof window === 'undefined') return {};
 
   try {
     const raw = window.localStorage.getItem(USER_INFO_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Partial<UserState>) : {};
+    return raw ? normalizeUserState(JSON.parse(raw) as Partial<UserState>) : {};
   } catch {
     return {};
   }
@@ -88,7 +97,7 @@ const useUserStore = defineStore('user', {
     },
     // Set user's information
     setInfo(partial: Partial<UserState>) {
-      this.$patch(partial);
+      this.$patch(normalizeUserState(partial));
       saveCachedUserState(this.$state);
     },
 
@@ -111,19 +120,24 @@ const useUserStore = defineStore('user', {
     // Get user's information
     async info() {
       const res = await getUserInfo();
+      const userInfo = normalizeUserState(res.data);
       this.setInfo({
-        ...res.data,
+        ...userInfo,
         role: '*',
       });
-      if (res.data.isRoot === 1 && !res.data.companyName) this.openEdit();
+      if (userInfo.isRoot === 1 && !userInfo.companyName) this.openEdit();
+      return userInfo;
     },
 
     // Login
     async login(loginForm: LoginData) {
       try {
         const res = await userLogin(loginForm);
+        // A new token must not inherit the previous account's permission cache.
+        this.resetInfo();
         setToken(res.data.token);
       } catch (err) {
+        this.resetInfo();
         clearToken();
         throw err;
       }

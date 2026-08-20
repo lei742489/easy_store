@@ -50,7 +50,7 @@
   import { computed, onMounted, ref } from 'vue';
   import { FormInstance } from '@arco-design/web-vue/es/form';
   import { BasicInfoModel } from '@/api/user-center';
-  import { edit as userEdit, getUserInfo } from '@/api/user';
+  import { edit as userEdit } from '@/api/user';
   import { useUserStore } from '@/store';
   import { Message } from '@arco-design/web-vue';
 
@@ -78,8 +78,7 @@
   };
 
   const getInfo = async () => {
-    const res = await getUserInfo();
-    userStore.setInfo(res.data);
+    await userStore.info();
     syncFormData();
   };
   const validate = async () => {

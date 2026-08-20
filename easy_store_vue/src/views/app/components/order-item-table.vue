@@ -345,9 +345,18 @@
   const selectGoods = (goodsItem: OrderItemRow, value: any) => {
     const option = goodsSearchData.value.find((item) => item.value === value);
     if (option) {
-      const { goodsId, unit, categoryId, categoryName, stock } = option;
+      const {
+        goodsId,
+        unit,
+        categoryId,
+        categoryName,
+        stock,
+        value: goodsName,
+      } = option;
       if (goodsId == null) return;
       goodsItem.goodsId = goodsId;
+      goodsItem.goodsId_dictText = goodsName || option.label || '';
+      goodsItem.goodsName = goodsItem.goodsId_dictText;
       goodsItem.unit = unit;
       goodsItem.categoryId = categoryId;
       goodsItem.quantity = orderType.value === 1 ? 1 : -1;

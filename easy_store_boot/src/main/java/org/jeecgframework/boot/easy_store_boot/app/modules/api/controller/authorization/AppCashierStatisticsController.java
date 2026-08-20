@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
@@ -27,10 +28,6 @@ public class AppCashierStatisticsController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String SALE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(o.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(o.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', o.create_time) AS INTEGER) * 1000, 0) END";
     private static final String DISCOUNTED_AMOUNT_SQL =
             "COALESCE(i.total_amount, 0) * " +
                     "(CASE WHEN COALESCE(o.discount_rate, 100) <= 0 THEN 100 " +
@@ -42,6 +39,8 @@ public class AppCashierStatisticsController {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -200,11 +199,11 @@ public class AppCashierStatisticsController {
         String cashierId = isRoot(user) ? param.getString("cashierId") : String.valueOf(user.getId());
         appendEquals(whereSql, params, "o.cashier_id", cashierId);
         if (startTime != null) {
-            whereSql.append(" AND ").append(SALE_BUSINESS_TIME_SQL).append(" >= ?");
+            whereSql.append(" AND ").append(saleBusinessTimeSql()).append(" >= ?");
             params.add(startTime);
         }
         if (endTime != null) {
-            whereSql.append(" AND ").append(SALE_BUSINESS_TIME_SQL).append(" <= ?");
+            whereSql.append(" AND ").append(saleBusinessTimeSql()).append(" <= ?");
             params.add(endTime);
         }
         return new QueryCondition(whereSql.toString(), params);
@@ -272,6 +271,10 @@ public class AppCashierStatisticsController {
 
     private String stringValue(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String saleBusinessTimeSql() {
+        return databaseDialect.epochMillis("o.create_time");
     }
 
     private static class QueryCondition {

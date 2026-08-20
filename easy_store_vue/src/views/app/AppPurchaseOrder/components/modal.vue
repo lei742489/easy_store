@@ -26,7 +26,11 @@
             <a-col :span="12">
               <a-row :gutter="24">
                 <a-col :span="16">
-                  <a-form-item field="supplierId" label="供应商">
+                  <a-form-item
+                    field="supplierId"
+                    label="供应商"
+                    :rules="[{ required: true, message: '请选择供应商' }]"
+                  >
                     <a-tree-select
                       v-model="form.supplierId"
                       :loading="supplierLoading"
@@ -292,15 +296,28 @@
     (e: 'ok', data: 1): void;
   }>();
 
-  const fetchSupplierData = async () => {
-    if (supplierList.value.length !== 0) return;
-
-    supplierLoading.value = true;
-    supplierList.value = (await getSupplierList()).data;
-    if (!form.supplierId && supplierList.value.length > 0) {
+  const selectDefaultSupplier = () => {
+    if (
+      form.id === undefined &&
+      (form.supplierId === undefined || form.supplierId === null) &&
+      supplierList.value.length > 0
+    ) {
       form.supplierId = supplierList.value[0].id;
     }
-    supplierLoading.value = false;
+  };
+
+  const fetchSupplierData = async () => {
+    if (supplierList.value.length === 0) {
+      supplierLoading.value = true;
+      try {
+        supplierList.value = (await getSupplierList()).data.sort(
+          (left, right) => Number(left.id) - Number(right.id)
+        );
+      } finally {
+        supplierLoading.value = false;
+      }
+    }
+    selectDefaultSupplier();
   };
 
   const fetchCashierList = async () => {
@@ -389,6 +406,7 @@
         } else {
           Object.assign(form, defaultForm);
           itemTableRef.value?.clearAll();
+          selectDefaultSupplier();
           form.orderNo = (await createOrderNo()).data;
         }
 

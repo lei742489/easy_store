@@ -38,7 +38,15 @@ const useAppStore = defineStore('tabBar', {
 
   actions: {
     updateTabList(route: RouteLocationNormalized) {
-      if (BAN_LIST.includes(route.name as string)) return;
+      if (
+        BAN_LIST.includes(route.name as string) ||
+        route.path === '/' ||
+        route.name === 'notFound' ||
+        route.name === DEFAULT_ROUTE_NAME ||
+        this.tagList.some((tag) => tag.fullPath === route.fullPath)
+      ) {
+        return;
+      }
       this.tagList.push(formatTag(route));
       if (!route.meta.ignoreCache) {
         this.cacheTabList.add(route.name as string);

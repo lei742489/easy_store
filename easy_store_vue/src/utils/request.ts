@@ -5,7 +5,7 @@ import { Message } from '@arco-design/web-vue';
 // 创建 Axios 实例
 const request = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL} /api`, // 可配置 .env 文件
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // 请求拦截器

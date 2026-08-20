@@ -2,6 +2,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.common.PasswordUtil;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
@@ -42,6 +43,8 @@ public class AppSystemController extends ApiBaseController<AppUser, IAppUserServ
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("verifyResetDataPassword")
     public Result<?> verifyResetDataPassword(@RequestBody JSONObject param) {
@@ -54,13 +57,11 @@ public class AppSystemController extends ApiBaseController<AppUser, IAppUserServ
     public Result<?> resetData(@RequestBody JSONObject param) {
         verifyRootPassword(param);
 
-        List<String> tables = jdbcTemplate.queryForList(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'app_%'",
-                String.class);
+        List<String> tables = jdbcTemplate.queryForList(appTablesSql(), String.class);
         List<String> clearedTables = new ArrayList<>();
         for (String table : tables) {
             if (APP_TABLE_NAME_PATTERN.matcher(table).matches() && !BASIC_TABLES.contains(table)) {
-                jdbcTemplate.execute("DELETE FROM \"" + table + "\"");
+                jdbcTemplate.execute("DELETE FROM `" + table + "`");
                 clearedTables.add(table);
             }
         }
@@ -99,6 +100,15 @@ public class AppSystemController extends ApiBaseController<AppUser, IAppUserServ
     private void resetSequences(List<String> clearedTables) {
         List<String> sequenceTables = new ArrayList<>(clearedTables);
         sequenceTables.add("app_user");
+        if (databaseDialect.isMySql()) {
+            for (String table : sequenceTables) {
+                try {
+                    jdbcTemplate.execute("ALTER TABLE `" + table + "` AUTO_INCREMENT = 1");
+                } catch (Exception ignored) {
+                }
+            }
+            return;
+        }
         Integer sequenceTableCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(1) FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_sequence'",
                 Integer.class);
@@ -119,26 +129,52 @@ public class AppSystemController extends ApiBaseController<AppUser, IAppUserServ
     }
 
     private void restoreDefaultBusinessData() {
-        jdbcTemplate.update(
-                "INSERT OR REPLACE INTO app_supplier " +
-                        "(id, name, py_code, status, payable, def_payable, is_del, create_time) " +
-                        "VALUES (?, ?, ?, 1, 0, 0, 0, datetime('now', 'localtime'))",
+        String supplierSql = databaseDialect.isMySql()
+                ? "INSERT INTO app_supplier " +
+                "(id, name, py_code, status, payable, def_payable, is_del, create_time) " +
+                "VALUES (?, ?, ?, 1, 0, 0, 0, " + databaseDialect.currentTimestamp() + ") " +
+                "ON DUPLICATE KEY UPDATE name = VALUES(name), py_code = VALUES(py_code), " +
+                "status = 1, payable = 0, def_payable = 0, is_del = 0, create_time = VALUES(create_time)"
+                : "INSERT OR REPLACE INTO app_supplier " +
+                "(id, name, py_code, status, payable, def_payable, is_del, create_time) " +
+                "VALUES (?, ?, ?, 1, 0, 0, 0, datetime('now', 'localtime'))";
+        jdbcTemplate.update(supplierSql,
                 1,
                 "\u96f6\u6563\u4f9b\u5e94\u5546",
                 "lsgys");
-        jdbcTemplate.update(
-                "INSERT OR REPLACE INTO app_customer " +
-                        "(id, name, py_code, status, discount, payable, def_payable, is_del, create_time) " +
-                        "VALUES (?, ?, ?, 1, 100, 0, 0, 0, datetime('now', 'localtime'))",
+        String customerSql = databaseDialect.isMySql()
+                ? "INSERT INTO app_customer " +
+                "(id, name, py_code, status, discount, payable, def_payable, is_del, create_time) " +
+                "VALUES (?, ?, ?, 1, 100, 0, 0, 0, " + databaseDialect.currentTimestamp() + ") " +
+                "ON DUPLICATE KEY UPDATE name = VALUES(name), py_code = VALUES(py_code), " +
+                "status = 1, discount = 100, payable = 0, def_payable = 0, is_del = 0, create_time = VALUES(create_time)"
+                : "INSERT OR REPLACE INTO app_customer " +
+                "(id, name, py_code, status, discount, payable, def_payable, is_del, create_time) " +
+                "VALUES (?, ?, ?, 1, 100, 0, 0, 0, datetime('now', 'localtime'))";
+        jdbcTemplate.update(customerSql,
                 1,
                 "\u96f6\u552e\u5ba2\u6237",
                 "lskh");
-        jdbcTemplate.update(
-                "INSERT OR REPLACE INTO app_goods_category " +
-                        "(id, title, py_code, parent_id, root, is_del, create_time) " +
-                        "VALUES (?, ?, ?, 0, 1, 0, datetime('now', 'localtime'))",
+        String categorySql = databaseDialect.isMySql()
+                ? "INSERT INTO app_goods_category " +
+                "(id, title, py_code, parent_id, root, is_del, create_time) " +
+                "VALUES (?, ?, ?, 0, 1, 0, " + databaseDialect.currentTimestamp() + ") " +
+                "ON DUPLICATE KEY UPDATE title = VALUES(title), py_code = VALUES(py_code), " +
+                "parent_id = 0, root = 1, is_del = 0, create_time = VALUES(create_time)"
+                : "INSERT OR REPLACE INTO app_goods_category " +
+                "(id, title, py_code, parent_id, root, is_del, create_time) " +
+                "VALUES (?, ?, ?, 0, 1, 0, datetime('now', 'localtime'))";
+        jdbcTemplate.update(categorySql,
                 1,
                 "\u9ed8\u8ba4\u5206\u7c7b",
                 "mrfl");
+    }
+
+    private String appTablesSql() {
+        if (databaseDialect.isMySql()) {
+            return "SELECT table_name FROM information_schema.tables " +
+                    "WHERE table_schema = DATABASE() AND table_name LIKE 'app=_%' ESCAPE '='";
+        }
+        return "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'app_%'";
     }
 }

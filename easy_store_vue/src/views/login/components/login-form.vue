@@ -81,6 +81,7 @@
   import useLoading from '@/hooks/loading';
   import type { LoginData } from '@/api/user';
   import appConfig from '@/config/app';
+  import { DEFAULT_ROUTE_NAME } from '@/router/constants';
 
   const { appName } = appConfig;
   const router = useRouter();
@@ -94,15 +95,17 @@
     (e: 'changeMode', mode: number): void;
   }>();
 
-  const loginConfig = useStorage('login-configs', {
-    rememberPassword: true,
+  const loginConfig = useStorage('easy-store-login-config-v2', {
+    rememberPassword: false,
     username: 'test001', // 演示默认值
     password: 'test001', // demo default value
   });
 
   const userInfo = reactive({
-    username: loginConfig.value.username,
-    password: loginConfig.value.password,
+    username:
+      loginConfig.value.username === 'test001' ? '' : loginConfig.value.username,
+    password:
+      loginConfig.value.password === 'test001' ? '' : loginConfig.value.password,
   });
   const changeMode = (mode: number) => {
     emit('changeMode', mode);
@@ -119,9 +122,10 @@
       setLoading(true);
       try {
         await userStore.login(values as LoginData);
+        await userStore.info();
         const { redirect, ...othersQuery } = router.currentRoute.value.query;
         router.push({
-          name: (redirect as string) || 'Workplace',
+          name: (redirect as string) || DEFAULT_ROUTE_NAME,
           query: {
             ...othersQuery,
           },
@@ -136,6 +140,7 @@
         loginConfig.value.username = rememberPassword ? username : '';
         loginConfig.value.password = rememberPassword ? password : '';
       } catch (err) {
+        await userStore.logout();
         errorMessage.value = (err as Error).message;
       } finally {
         setLoading(false);

@@ -59,6 +59,8 @@ export interface AppPurchaseOrder {
   /** 修改时间 */
   updateTime?: string | Date;
 
+  updateBy?: string;
+
   items?: AppPurchaseOrderItem[];
 
   searchKey?: string;

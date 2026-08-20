@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppCustomer;
@@ -31,14 +32,6 @@ public class AppDebtStatisticsController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String SALE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(app_sale_order.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(app_sale_order.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', app_sale_order.create_time) AS INTEGER) * 1000, 0) END";
-    private static final String RECEIVE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(app_receive_payment_voucher.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(app_receive_payment_voucher.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', app_receive_payment_voucher.create_time) AS INTEGER) * 1000, 0) END";
     private static final String SALE_LINKED_AMOUNT_SQL = "COALESCE(receive_item.linked_amount, 0)";
     private static final String SALE_UNPAID_AMOUNT_SQL =
             "COALESCE(app_sale_order.unpaid_amount, COALESCE(app_sale_order.payable_amount, 0) " +
@@ -57,6 +50,8 @@ public class AppDebtStatisticsController {
     private IAppCustomerService customerService;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -153,14 +148,14 @@ public class AppDebtStatisticsController {
             params.add(cashierId);
         }
         if (beforeStart && endTime != null) {
-            sql += " AND " + SALE_BUSINESS_TIME_SQL + " < ?";
+            sql += " AND " + saleBusinessTimeSql() + " < ?";
             params.add(endTime);
         } else if (startTime != null) {
-            sql += " AND " + SALE_BUSINESS_TIME_SQL + " >= ?";
+            sql += " AND " + saleBusinessTimeSql() + " >= ?";
             params.add(startTime);
         }
         if (!beforeStart && endTime != null) {
-            sql += " AND " + SALE_BUSINESS_TIME_SQL + " <= ?";
+            sql += " AND " + saleBusinessTimeSql() + " <= ?";
             params.add(endTime);
         }
         sql += " GROUP BY app_sale_order.customer_id";
@@ -191,14 +186,14 @@ public class AppDebtStatisticsController {
             params.add(cashierId);
         }
         if (beforeStart && endTime != null) {
-            sql += " AND " + RECEIVE_BUSINESS_TIME_SQL + " < ?";
+            sql += " AND " + receiveBusinessTimeSql() + " < ?";
             params.add(endTime);
         } else if (startTime != null) {
-            sql += " AND " + RECEIVE_BUSINESS_TIME_SQL + " >= ?";
+            sql += " AND " + receiveBusinessTimeSql() + " >= ?";
             params.add(startTime);
         }
         if (!beforeStart && endTime != null) {
-            sql += " AND " + RECEIVE_BUSINESS_TIME_SQL + " <= ?";
+            sql += " AND " + receiveBusinessTimeSql() + " <= ?";
             params.add(endTime);
         }
         sql += " GROUP BY app_receive_payment_voucher.customer_id";
@@ -235,6 +230,14 @@ public class AppDebtStatisticsController {
     private double amountOf(Map<String, Double> amountMap, String customerId) {
         Double amount = amountMap.get(customerId);
         return amount == null ? 0D : amount;
+    }
+
+    private String saleBusinessTimeSql() {
+        return databaseDialect.epochMillis("app_sale_order.create_time");
+    }
+
+    private String receiveBusinessTimeSql() {
+        return databaseDialect.epochMillis("app_receive_payment_voucher.create_time");
     }
 
     private Long parseStartTime(String value) {

@@ -16,10 +16,7 @@
         g.cost_price as costPrice,
         c.title AS categoryName,
         g.stock AS stock,
-        (CASE
-        WHEN c.title IS NOT NULL THEN '（' || c.title || '）'
-        ELSE ''
-        END) || '  ' || g.title AS label
+        g.title AS label
         FROM
         app_goods g
         LEFT JOIN app_goods_category c
@@ -30,18 +27,20 @@
         g.status = 1
         and g.is_del = 0
         <if test="key!=null and key!=''">
+            <bind name="likeKey" value="'%' + key + '%'"/>
             AND (
-            g.title LIKE '%' || #{key} || '%'
+            g.title LIKE #{likeKey}
             <if test="pyCode != null and pyCode != ''">
-                OR g.py_code LIKE '%' || #{pyCode} || '%'
+                <bind name="likePyCode" value="'%' + pyCode + '%'"/>
+                OR g.py_code LIKE #{likePyCode}
             </if>
-            OR g.goods_code LIKE '%' || #{key} || '%'
-            OR s.name LIKE '%' || #{key} || '%'
+            OR g.goods_code LIKE #{likeKey}
+            OR s.name LIKE #{likeKey}
             )
             <if test="pyCode != null and pyCode != ''">
                 ORDER BY
                 CASE
-                WHEN g.py_code LIKE '%' || #{pyCode} || '%' THEN 0
+                WHEN g.py_code LIKE #{likePyCode} THEN 0
                 ELSE 1
                 END,
                 g.title
@@ -62,13 +61,15 @@
         WHERE
         g.status = 1
         and g.is_del = 0
+        <bind name="likeKey" value="'%' + query.key + '%'"/>
         AND (
-        g.title LIKE '%' || #{query.key} || '%'
+        g.title LIKE #{likeKey}
         <if test="query.pyCode != null and query.pyCode != ''">
-            OR g.py_code LIKE '%' || #{query.pyCode} || '%'
+            <bind name="likePyCode" value="'%' + query.pyCode + '%'"/>
+            OR g.py_code LIKE #{likePyCode}
         </if>
-        OR g.goods_code LIKE '%' || #{query.key} || '%'
-        OR s.name LIKE '%' || #{query.key} || '%'
+        OR g.goods_code LIKE #{likeKey}
+        OR s.name LIKE #{likeKey}
         )
         <if test="query.zeroStock != null and !query.zeroStock">
             AND COALESCE(g.stock, 0) &lt;&gt; 0

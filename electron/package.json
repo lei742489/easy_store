@@ -4,7 +4,10 @@
   "productName": "Easy Store",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "package": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-app.ps1 -Network",
+    "package:network": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-app.ps1 -Network",
+    "package:single": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-app.ps1"
   },
   "devDependencies": {
     "@electron/asar": "^4.2.1",

@@ -53,6 +53,18 @@ export async function printPdf(filePath: string, landscape: boolean) {
 
   openPdf(filePath);
 }
+export async function getZoomFactor() {
+  if (!window.electronAPI?.getZoomFactor) {
+    return 1;
+  }
+  return window.electronAPI.getZoomFactor();
+}
+export async function setZoomFactor(factor: number) {
+  if (!window.electronAPI?.setZoomFactor) {
+    return 1;
+  }
+  return window.electronAPI.setZoomFactor(factor);
+}
 export async function getPrinterSettings(): Promise<ElectronPrinterSettings> {
   if (!window.electronAPI?.getPrinterSettings) {
     throw new Error('当前环境不支持打印机设置');

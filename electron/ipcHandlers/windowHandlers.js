@@ -8,6 +8,10 @@ const path = require('path');
 const MIN_WIDTH = 1440;
 const MIN_HEIGHT = 900;
 const PRINTER_SETTINGS_FILE = 'printer-settings.json';
+const DISPLAY_SETTINGS_FILE = 'display-settings.json';
+const DEFAULT_ZOOM_FACTOR = 1;
+const MIN_ZOOM_FACTOR = 0.5;
+const MAX_ZOOM_FACTOR = 1.5;
 const DOT_MATRIX_PRINTER_PATTERNS = [
     /lq[-\s]?\d+/i,
     /lq/i,
@@ -42,6 +46,52 @@ function writePrinterSettings(settings) {
     const filePath = getPrinterSettingsPath();
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
+}
+
+function getDisplaySettingsPath() {
+    return path.join(app.getPath('userData'), DISPLAY_SETTINGS_FILE);
+}
+
+function readDisplaySettings() {
+    try {
+        const filePath = getDisplaySettingsPath();
+        if (!fs.existsSync(filePath)) {
+            return {};
+        }
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (error) {
+        return {};
+    }
+}
+
+function writeDisplaySettings(settings) {
+    const filePath = getDisplaySettingsPath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf8');
+}
+
+function normalizeZoomFactor(value) {
+    const factor = Number(value);
+    if (!Number.isFinite(factor)) {
+        return DEFAULT_ZOOM_FACTOR;
+    }
+    return Math.min(Math.max(factor, MIN_ZOOM_FACTOR), MAX_ZOOM_FACTOR);
+}
+
+function getSavedZoomFactor() {
+    return normalizeZoomFactor(readDisplaySettings().zoomFactor || DEFAULT_ZOOM_FACTOR);
+}
+
+function setWindowZoomFactor(win, factor) {
+    const nextFactor = normalizeZoomFactor(factor);
+    if (win && !win.isDestroyed()) {
+        win.webContents.setZoomFactor(nextFactor);
+    }
+    writeDisplaySettings({
+        ...readDisplaySettings(),
+        zoomFactor: nextFactor,
+    });
+    return nextFactor;
 }
 
 function isDotMatrixPrinterName(name) {
@@ -366,6 +416,12 @@ public class RawPrinterHelper {
 }
 
 function registerWindowEvents(win) {
+    if (win) {
+        win.webContents.once('did-finish-load', () => {
+            win.webContents.setZoomFactor(getSavedZoomFactor());
+        });
+    }
+
     // 最小化窗口
     ipcMain.on('window-minimize', (event) => {
         if (win) win.minimize();
@@ -412,6 +468,14 @@ function registerWindowEvents(win) {
             throw new Error('打印文件地址不能为空');
         }
         return printPdf(filePath, landscape);
+    });
+
+    ipcMain.handle('get-zoom-factor', async () => {
+        return getSavedZoomFactor();
+    });
+
+    ipcMain.handle('set-zoom-factor', async (event, factor) => {
+        return setWindowZoomFactor(win, factor);
     });
 
     ipcMain.handle('get-printer-settings', async () => {

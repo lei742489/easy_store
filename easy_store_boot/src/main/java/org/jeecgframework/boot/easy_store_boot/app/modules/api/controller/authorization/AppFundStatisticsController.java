@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
@@ -44,6 +45,8 @@ public class AppFundStatisticsController {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("items")
     public Result<?> items(@RequestBody JSONObject param) {
@@ -551,9 +554,7 @@ public class AppFundStatisticsController {
     }
 
     private String businessTimeSql(String alias) {
-        return "CASE WHEN typeof(" + alias + ".create_time) IN ('integer', 'real') " +
-                "THEN CAST(" + alias + ".create_time AS INTEGER) " +
-                "ELSE COALESCE(CAST(strftime('%s', " + alias + ".create_time) AS INTEGER) * 1000, 0) END";
+        return databaseDialect.epochMillis(alias + ".create_time");
     }
 
     private static class FixedQueryItem {

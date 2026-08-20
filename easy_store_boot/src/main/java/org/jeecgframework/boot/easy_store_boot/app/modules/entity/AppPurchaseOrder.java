@@ -109,6 +109,8 @@ public class AppPurchaseOrder implements Serializable {
     @JsonFormat(timezone = "GMT+8",pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
 
+    private String updateBy;
+
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 

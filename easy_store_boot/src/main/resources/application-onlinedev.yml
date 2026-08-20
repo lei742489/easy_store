@@ -1,0 +1,62 @@
+server:
+  port: 8036
+  tomcat:
+    max-swallow-size: -1
+    max-threads: 500      # 最大工作线程数（默认200）
+    min-spare-threads: 50  # 最小空闲线程数（Tomcat 在启动时创建的线程数）
+    accept-count: 500      # 当所有工作线程都被占用时，可接受的排队请求数量
+    max-connections: 1000 # 最大连接数（同时处理的连接数，包含正在处理和排队的连接）
+    background-processor-delay: 10 # 后台处理线程的延迟时间，默认10秒
+    basedir: /opt/temp
+
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/javascript,application/json,application/xml,text/html,text/xml,text/plain,text/css,image/*
+
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 30MB
+  mvc:
+    static-path-pattern: /**
+  resource:
+    static-locations: classpath:/static/,classpath:/public/
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${EASY_STORE_DB_URL:jdbc:mysql://127.0.0.1:3306/easy_store?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true}
+    username: ${EASY_STORE_DB_USERNAME:root}
+    password: ${EASY_STORE_DB_PASSWORD:}
+    hikari:
+      pool-name: EasyStoreMySqlPool
+      minimum-idle: 20
+      maximum-pool-size: 40
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+
+mybatis-plus:
+  mapper-locations: classpath*:org/jeecgframework/boot/easy_store_boot/app/modules/**/xml/*Mapper.xml
+  global-config:
+    banner: false
+    db-config:
+      table-underline: true
+  configuration:
+    call-setters-on-nulls: true
+
+es-app:
+  uploadType: local
+  path:
+    upload: d:/opt/jeecg-boot/upload
+    webapp: d:/opt/jeecg-boot/webapp

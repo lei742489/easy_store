@@ -13,5 +13,5 @@ public interface IAppUserService extends IService<AppUser> {
 
     AppUser getByAccount(String account);
 
-
+    AppUser getByName(String realName);
 }

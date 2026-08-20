@@ -61,6 +61,8 @@ export interface AppSaleOrder {
   /** 修改时间 */
   updateTime?: string | Date;
 
+  updateBy?: string;
+
   items?: AppSaleOrderItem[];
 
   searchKey?: string;

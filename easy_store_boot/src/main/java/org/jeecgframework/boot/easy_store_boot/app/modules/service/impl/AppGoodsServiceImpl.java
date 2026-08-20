@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.CommonConstant;
 import org.jeecgframework.boot.easy_store_boot.app.common.CommonUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.common.DoubleUtil;
 import org.jeecgframework.boot.easy_store_boot.app.common.PinyinUtil;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.ApiQuery;
@@ -40,6 +41,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
 * @author Administrator
@@ -51,6 +53,7 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
     implements IAppGoodsService {
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final long STOCK_STATISTICS_CACHE_TTL_MILLIS = 30_000L;
     @Autowired
     private IAppUnitService appUnitService;
     @Autowired
@@ -70,6 +73,10 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
     private AppSaleOrderItemMapper saleOrderItemMapper;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private DatabaseDialect databaseDialect;
+    private final Map<String, StockStatisticsCache> stockStatisticsCache = new ConcurrentHashMap<>();
+    private final Object stockStatisticsCacheLock = new Object();
 
     @EventListener(ApplicationReadyEvent.class)
     public void refreshAllStockCosts() {
@@ -90,7 +97,7 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
        boolean flag = super.save(entity);
        if(entity.getInitStock()!=null)
            purchaseOrderItemService.insertInitStore(entity.getId().toString(),entity.getInitStock());
-
+       clearStockStatisticsCache();
       return flag;
    }
 
@@ -98,7 +105,9 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
     public boolean updateById(AppGoods entity){
         entity.setUnit(appUnitService.normalizeName(entity.getUnit()));
         appUnitService.updateByName(entity.getUnit());
-        return super.updateById(entity);
+        boolean updated = super.updateById(entity);
+        clearStockStatisticsCache();
+        return updated;
     }
 
     @Override
@@ -138,6 +147,7 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
 
     @Override
     public void updateStock(String goodsId) {
+        clearStockStatisticsCache();
         AppGoods appGoods = getById(goodsId);
         if(appGoods!=null){
             Integer p = purchaseOrderItemService. sumQuantityGoodsId(appGoods.getId().toString());
@@ -327,6 +337,56 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
                                          Integer current, Integer pageSize) {
         int currentPage = current == null || current < 1 ? 1 : current;
         int size = pageSize == null || pageSize < 1 ? 50 : pageSize;
+        StockStatisticsCache cache = getStockStatisticsCache(categoryId, key, startTime, endTime);
+        int total = cache.records.size();
+        int fromIndex = Math.min((currentPage - 1) * size, total);
+        int toIndex = Math.min(fromIndex + size, total);
+        JSONArray records = new JSONArray();
+        for (int index = fromIndex; index < toIndex; index++) {
+            records.add(cache.records.get(index).toJson(index + 1));
+        }
+
+        JSONObject result = new JSONObject();
+        result.put("current", currentPage);
+        result.put("pageSize", size);
+        result.put("total", total);
+        result.put("pages", (int) Math.ceil(total * 1D / size));
+        result.put("openingQtyTotal", number(cache.openingQtyTotal, 4));
+        result.put("openingAmountTotal", number(cache.openingAmountTotal, 2));
+        result.put("inQtyTotal", number(cache.inQtyTotal, 4));
+        result.put("inAmountTotal", number(cache.inAmountTotal, 2));
+        result.put("outQtyTotal", number(cache.outQtyTotal, 4));
+        result.put("outAmountTotal", number(cache.outAmountTotal, 2));
+        result.put("endingQtyTotal", number(cache.endingQtyTotal, 4));
+        result.put("endingAmountTotal", number(cache.endingAmountTotal, 2));
+        result.put("records", records);
+        return result;
+    }
+
+    private StockStatisticsCache getStockStatisticsCache(String categoryId, String key,
+                                                         Long startTime, Long endTime) {
+        String cacheKey = String.valueOf(categoryId) + "|" + String.valueOf(key) + "|"
+                + String.valueOf(startTime) + "|" + String.valueOf(endTime);
+        long now = System.currentTimeMillis();
+        StockStatisticsCache cache = stockStatisticsCache.get(cacheKey);
+        if (cache != null && now - cache.createdAt < STOCK_STATISTICS_CACHE_TTL_MILLIS) {
+            return cache;
+        }
+        synchronized (stockStatisticsCacheLock) {
+            cache = stockStatisticsCache.get(cacheKey);
+            if (cache == null || now - cache.createdAt >= STOCK_STATISTICS_CACHE_TTL_MILLIS) {
+                cache = calculateStockStatistics(categoryId, key, startTime, endTime, now);
+                if (stockStatisticsCache.size() > 20) {
+                    stockStatisticsCache.clear();
+                }
+                stockStatisticsCache.put(cacheKey, cache);
+            }
+        }
+        return cache;
+    }
+
+    private StockStatisticsCache calculateStockStatistics(String categoryId, String key,
+                                                          Long startTime, Long endTime, long createdAt) {
         LambdaQueryWrapper<AppGoods> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.isNotEmpty(categoryId) && !"0".equals(categoryId)) {
             wrapper.eq(AppGoods::getCategoryId, categoryId);
@@ -338,11 +398,12 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
         }
         wrapper.orderByAsc(AppGoods::getTitle).orderByAsc(AppGoods::getId);
         List<AppGoods> goodsList = list(wrapper);
-        Map<String, List<Map<String, Object>>> movementMap = new HashMap<>();
-        for (Map<String, Object> movement : queryStockStatisticMovements(categoryId, key)) {
-            String goodsId = stringValue(movement.get("goods_id"));
-            movementMap.computeIfAbsent(goodsId, item -> new ArrayList<>()).add(movement);
+        if (canUseCurrentStockSnapshot(endTime)) {
+            return calculateCurrentStockStatistics(goodsList, categoryId, key,
+                    startTime, endTime, createdAt);
         }
+        Map<String, List<StockStatisticMovement>> movementMap =
+                queryStockStatisticMovements(categoryId, key, endTime);
 
         BigDecimal openingQtyTotal = BigDecimal.ZERO;
         BigDecimal openingAmountTotal = BigDecimal.ZERO;
@@ -352,23 +413,27 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
         BigDecimal outAmountTotal = BigDecimal.ZERO;
         BigDecimal endingQtyTotal = BigDecimal.ZERO;
         BigDecimal endingAmountTotal = BigDecimal.ZERO;
-        int fromIndex = Math.min((currentPage - 1) * size, goodsList.size());
-        int toIndex = Math.min(fromIndex + size, goodsList.size());
-        JSONArray records = new JSONArray();
 
-        for (int index = 0; index < goodsList.size(); index++) {
-            AppGoods goods = goodsList.get(index);
-            JSONObject detail = calculateStockSummary(goods,
-                    movementMap.getOrDefault(String.valueOf(goods.getId()), Collections.emptyList()),
+        List<StockStatisticsRow> records = new ArrayList<>();
+        for (AppGoods goods : goodsList) {
+            List<StockStatisticMovement> movements =
+                    movementMap.getOrDefault(String.valueOf(goods.getId()), Collections.emptyList());
+            if (movements.isEmpty()) {
+                continue;
+            }
+            StockSummary detail = calculateStockSummary(goods, movements,
                     startTime, endTime);
-            BigDecimal openingQty = decimal(detail.get("openingQty"));
-            BigDecimal openingAmount = decimal(detail.get("openingAmount"));
-            BigDecimal inQty = decimal(detail.get("inQtyTotal"));
-            BigDecimal inAmount = decimal(detail.get("inTotal"));
-            BigDecimal outQty = decimal(detail.get("outQtyTotal"));
-            BigDecimal outAmount = decimal(detail.get("outTotal"));
-            BigDecimal endingQty = decimal(detail.get("endingQty"));
-            BigDecimal endingAmount = decimal(detail.get("endingAmount"));
+            if (detail.isEmpty()) {
+                continue;
+            }
+            BigDecimal openingQty = detail.openingQty;
+            BigDecimal openingAmount = detail.openingAmount;
+            BigDecimal inQty = detail.inQty;
+            BigDecimal inAmount = detail.inAmount;
+            BigDecimal outQty = detail.outQty;
+            BigDecimal outAmount = detail.outAmount;
+            BigDecimal endingQty = detail.endingQty;
+            BigDecimal endingAmount = detail.endingAmount;
             openingQtyTotal = openingQtyTotal.add(openingQty);
             openingAmountTotal = openingAmountTotal.add(openingAmount);
             inQtyTotal = inQtyTotal.add(inQty);
@@ -377,49 +442,71 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
             outAmountTotal = outAmountTotal.add(outAmount);
             endingQtyTotal = endingQtyTotal.add(endingQty);
             endingAmountTotal = endingAmountTotal.add(endingAmount);
-
-            if (index < fromIndex || index >= toIndex) {
-                continue;
-            }
-            JSONObject row = new JSONObject();
-            row.put("rowNo", index + 1);
-            row.put("goodsId", goods.getId());
-            row.put("goodsName", goods.getTitle());
-            row.put("unit", goods.getUnit());
-            row.put("openingQty", number(openingQty, 4));
-            row.put("openingAmount", number(openingAmount, 2));
-            row.put("inQty", number(inQty, 4));
-            row.put("inAmount", number(inAmount, 2));
-            row.put("outQty", number(outQty, 4));
-            row.put("outAmount", number(outAmount, 2));
-            row.put("endingQty", number(endingQty, 4));
-            row.put("endingAmount", number(endingAmount, 2));
-            records.add(row);
+            records.add(new StockStatisticsRow(goods, detail));
         }
 
-        JSONObject result = new JSONObject();
-        result.put("current", currentPage);
-        result.put("pageSize", size);
-        result.put("total", goodsList.size());
-        result.put("pages", (int) Math.ceil(goodsList.size() * 1D / size));
-        result.put("openingQtyTotal", number(openingQtyTotal, 4));
-        result.put("openingAmountTotal", number(openingAmountTotal, 2));
-        result.put("inQtyTotal", number(inQtyTotal, 4));
-        result.put("inAmountTotal", number(inAmountTotal, 2));
-        result.put("outQtyTotal", number(outQtyTotal, 4));
-        result.put("outAmountTotal", number(outAmountTotal, 2));
-        result.put("endingQtyTotal", number(endingQtyTotal, 4));
-        result.put("endingAmountTotal", number(endingAmountTotal, 2));
-        result.put("records", records);
-        return result;
+        return new StockStatisticsCache(createdAt, records, openingQtyTotal, openingAmountTotal,
+                inQtyTotal, inAmountTotal, outQtyTotal, outAmountTotal,
+                endingQtyTotal, endingAmountTotal);
     }
 
-    private JSONObject calculateStockSummary(AppGoods goods, List<Map<String, Object>> sourceMovements,
-                                             Long startTime, Long endTime) {
-        List<Map<String, Object>> movements = new ArrayList<>(sourceMovements);
+    private boolean canUseCurrentStockSnapshot(Long endTime) {
+        return endTime == null || endTime >= System.currentTimeMillis();
+    }
+
+    private StockStatisticsCache calculateCurrentStockStatistics(List<AppGoods> goodsList,
+                                                                 String categoryId,
+                                                                 String key,
+                                                                 Long startTime,
+                                                                 Long endTime,
+                                                                 long createdAt) {
+        Map<String, StockPeriodAggregate> periodMap =
+                queryCurrentStockPeriodAggregates(categoryId, key, startTime, endTime);
+        BigDecimal openingQtyTotal = BigDecimal.ZERO;
+        BigDecimal openingAmountTotal = BigDecimal.ZERO;
+        BigDecimal inQtyTotal = BigDecimal.ZERO;
+        BigDecimal inAmountTotal = BigDecimal.ZERO;
+        BigDecimal outQtyTotal = BigDecimal.ZERO;
+        BigDecimal outAmountTotal = BigDecimal.ZERO;
+        BigDecimal endingQtyTotal = BigDecimal.ZERO;
+        BigDecimal endingAmountTotal = BigDecimal.ZERO;
+        List<StockStatisticsRow> records = new ArrayList<>();
+
+        for (AppGoods goods : goodsList) {
+            StockPeriodAggregate aggregate = periodMap.getOrDefault(
+                    String.valueOf(goods.getId()), StockPeriodAggregate.EMPTY);
+            BigDecimal endingQty = decimal(goods.getStock());
+            BigDecimal endingAmount = decimal(goods.getStockCost());
+            BigDecimal openingQty = endingQty.subtract(aggregate.inQty).add(aggregate.outQty);
+            BigDecimal openingAmount = endingAmount.subtract(aggregate.inAmount).add(aggregate.outAmount);
+            StockSummary summary = new StockSummary(openingQty, openingAmount,
+                    aggregate.inQty, aggregate.inAmount, aggregate.outQty, aggregate.outAmount,
+                    endingQty, endingAmount);
+            if (summary.isEmpty()) {
+                continue;
+            }
+
+            openingQtyTotal = openingQtyTotal.add(openingQty);
+            openingAmountTotal = openingAmountTotal.add(openingAmount);
+            inQtyTotal = inQtyTotal.add(aggregate.inQty);
+            inAmountTotal = inAmountTotal.add(aggregate.inAmount);
+            outQtyTotal = outQtyTotal.add(aggregate.outQty);
+            outAmountTotal = outAmountTotal.add(aggregate.outAmount);
+            endingQtyTotal = endingQtyTotal.add(endingQty);
+            endingAmountTotal = endingAmountTotal.add(endingAmount);
+            records.add(new StockStatisticsRow(goods, summary));
+        }
+
+        return new StockStatisticsCache(createdAt, records, openingQtyTotal, openingAmountTotal,
+                inQtyTotal, inAmountTotal, outQtyTotal, outAmountTotal,
+                endingQtyTotal, endingAmountTotal);
+    }
+
+    private StockSummary calculateStockSummary(AppGoods goods, List<StockStatisticMovement> movements,
+                                               Long startTime, Long endTime) {
         movements.sort(Comparator
-                .comparingLong((Map<String, Object> row) -> timeValue(row.get("bill_time")))
-                .thenComparing(row -> integer(row.get("item_id")), Comparator.nullsLast(Integer::compareTo)));
+                .comparingLong((StockStatisticMovement row) -> timeValue(row.billTime))
+                .thenComparing(row -> row.itemId, Comparator.nullsLast(Integer::compareTo)));
 
         BigDecimal stockQty = BigDecimal.ZERO;
         BigDecimal stockCost = BigDecimal.ZERO;
@@ -433,14 +520,14 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
         BigDecimal outQtyTotal = BigDecimal.ZERO;
         BigDecimal outTotal = BigDecimal.ZERO;
 
-        for (Map<String, Object> movement : movements) {
-            BigDecimal quantity = decimal(movement.get("quantity"));
+        for (StockStatisticMovement movement : movements) {
+            BigDecimal quantity = movement.quantity;
             if (quantity.compareTo(BigDecimal.ZERO) == 0) {
                 continue;
             }
-            long businessTime = timeValue(movement.get("bill_time"));
+            long businessTime = timeValue(movement.billTime);
             if (startTime != null && businessTime < startTime) {
-                StockBalance balance = applyMovement(goods, movement, stockQty, stockCost, costPrice);
+                StockBalance balance = applyStockStatisticMovement(goods, movement, stockQty, stockCost, costPrice);
                 stockQty = balance.stockQty;
                 stockCost = balance.stockCost;
                 costPrice = balance.costPrice;
@@ -456,9 +543,9 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
                 break;
             }
 
-            Integer billType = integer(movement.get("bill_type"));
+            Integer billType = movement.billType;
             if (billType != null && billType == 3) {
-                BigDecimal unitPrice = decimal(movement.get("unit_price"));
+                BigDecimal unitPrice = movement.unitPrice;
                 if (quantity.compareTo(BigDecimal.ZERO) > 0) {
                     inQtyTotal = inQtyTotal.add(quantity);
                     inTotal = inTotal.add(quantity.multiply(unitPrice));
@@ -488,7 +575,7 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
                 }
             }
 
-            StockBalance balance = applyMovement(goods, movement, stockQty, stockCost, costPrice);
+            StockBalance balance = applyStockStatisticMovement(goods, movement, stockQty, stockCost, costPrice);
             stockQty = balance.stockQty;
             stockCost = balance.stockCost;
             costPrice = balance.costPrice;
@@ -504,21 +591,20 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
             openingPrice = BigDecimal.ZERO;
         }
 
-        JSONObject result = new JSONObject();
-        result.put("openingQty", number(openingQty, 4));
-        result.put("openingCostPrice", number(openingPrice, 4));
-        result.put("openingAmount", number(openingCost, 2));
-        result.put("inQtyTotal", number(inQtyTotal, 4));
-        result.put("inTotal", number(inTotal, 2));
-        result.put("outQtyTotal", number(outQtyTotal, 4));
-        result.put("outTotal", number(outTotal, 2));
-        result.put("endingQty", number(stockQty, 4));
-        result.put("endingCostPrice", number(costPrice, 4));
-        result.put("endingAmount", number(stockCost, 2));
-        return result;
+        return new StockSummary(openingQty, openingCost, inQtyTotal, inTotal,
+                outQtyTotal, outTotal, stockQty, stockCost);
     }
 
-    private List<Map<String, Object>> queryStockStatisticMovements(String categoryId, String key) {
+    private Map<String, StockPeriodAggregate> queryCurrentStockPeriodAggregates(String categoryId,
+                                                                                String key,
+                                                                                Long startTime,
+                                                                                Long endTime) {
+        String purchaseAmount = "CASE WHEN ABS(COALESCE(i.total_amount, 0)) > 0 " +
+                "THEN COALESCE(i.total_amount, 0) " +
+                "ELSE COALESCE(i.quantity, 0) * COALESCE(i.unit_price, 0) END";
+        String stockCheckAmount = "CASE WHEN ABS(COALESCE(i.profit_loss_amount, 0)) > 0 " +
+                "THEN COALESCE(i.profit_loss_amount, 0) " +
+                "ELSE COALESCE(i.profit_loss_quantity, 0) * COALESCE(i.unit_price, 0) END";
         String goodsFilter = "";
         List<Object> filterParams = new ArrayList<>();
         if (StringUtils.isNotEmpty(categoryId) && !"0".equals(categoryId)) {
@@ -532,20 +618,96 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
             filterParams.add(likeKey);
             filterParams.add(likeKey);
         }
+
+        StringBuilder sql = new StringBuilder("SELECT goods_id, " +
+                "COALESCE(SUM(in_qty), 0) AS in_qty, " +
+                "COALESCE(SUM(in_amount), 0) AS in_amount, " +
+                "COALESCE(SUM(out_qty), 0) AS out_qty, " +
+                "COALESCE(SUM(out_amount), 0) AS out_amount FROM (");
+        List<Object> params = new ArrayList<>();
+
+        sql.append(" SELECT i.goods_id, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) > 0 THEN COALESCE(i.quantity, 0) ELSE 0 END AS in_qty, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) > 0 THEN ABS(").append(purchaseAmount).append(") ELSE 0 END AS in_amount, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) < 0 THEN ABS(COALESCE(i.quantity, 0)) ELSE 0 END AS out_qty, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) < 0 THEN ABS(").append(purchaseAmount).append(") ELSE 0 END AS out_amount ")
+                .append("FROM app_purchase_order_item i ")
+                .append("INNER JOIN app_goods g ON g.id = i.goods_id AND COALESCE(g.is_del, 0) = 0 ")
+                .append("LEFT JOIN app_purchase_order o ON o.id = i.order_id AND o.is_del = 0 ")
+                .append("WHERE i.is_del = 0 AND (i.order_id IS NULL OR o.status = 1)")
+                .append(goodsFilter);
+        params.addAll(filterParams);
+        appendBusinessTimeRange(sql, params, "COALESCE(o.create_time, i.create_time)", startTime, endTime);
+
+        sql.append(" UNION ALL SELECT i.goods_id, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) < 0 THEN ABS(COALESCE(i.quantity, 0)) ELSE 0 END AS in_qty, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) < 0 THEN ABS(COALESCE(i.total_amount, 0) - COALESCE(i.gross_profit, 0)) ELSE 0 END AS in_amount, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) > 0 THEN COALESCE(i.quantity, 0) ELSE 0 END AS out_qty, ")
+                .append("CASE WHEN COALESCE(i.quantity, 0) > 0 THEN ABS(COALESCE(i.total_amount, 0) - COALESCE(i.gross_profit, 0)) ELSE 0 END AS out_amount ")
+                .append("FROM app_sale_order_item i ")
+                .append("INNER JOIN app_goods g ON g.id = i.goods_id AND COALESCE(g.is_del, 0) = 0 ")
+                .append("INNER JOIN app_sale_order o ON o.id = i.order_id AND o.is_del = 0 AND o.status = 1 ")
+                .append("WHERE i.is_del = 0")
+                .append(goodsFilter);
+        params.addAll(filterParams);
+        appendBusinessTimeRange(sql, params, "o.create_time", startTime, endTime);
+
+        sql.append(" UNION ALL SELECT i.goods_id, ")
+                .append("CASE WHEN COALESCE(i.profit_loss_quantity, 0) > 0 THEN COALESCE(i.profit_loss_quantity, 0) ELSE 0 END AS in_qty, ")
+                .append("CASE WHEN COALESCE(i.profit_loss_quantity, 0) > 0 THEN ABS(").append(stockCheckAmount).append(") ELSE 0 END AS in_amount, ")
+                .append("CASE WHEN COALESCE(i.profit_loss_quantity, 0) < 0 THEN ABS(COALESCE(i.profit_loss_quantity, 0)) ELSE 0 END AS out_qty, ")
+                .append("CASE WHEN COALESCE(i.profit_loss_quantity, 0) < 0 THEN ABS(").append(stockCheckAmount).append(") ELSE 0 END AS out_amount ")
+                .append("FROM app_stock_check_item i ")
+                .append("INNER JOIN app_goods g ON g.id = i.goods_id AND COALESCE(g.is_del, 0) = 0 ")
+                .append("INNER JOIN app_stock_check o ON o.id = i.check_id AND o.is_del = 0 ")
+                .append("WHERE i.is_del = 0")
+                .append(goodsFilter);
+        params.addAll(filterParams);
+        appendBusinessTimeRange(sql, params, "o.create_time", startTime, endTime);
+
+        sql.append(") t GROUP BY goods_id");
+        Map<String, StockPeriodAggregate> result = new HashMap<>();
+        jdbcTemplate.query(sql.toString(), params.toArray(), resultSet -> {
+            result.put(resultSet.getString("goods_id"), new StockPeriodAggregate(
+                    decimal(resultSet.getObject("in_qty")),
+                    decimal(resultSet.getObject("in_amount")),
+                    decimal(resultSet.getObject("out_qty")),
+                    decimal(resultSet.getObject("out_amount"))));
+        });
+        return result;
+    }
+
+    private Map<String, List<StockStatisticMovement>> queryStockStatisticMovements(String categoryId, String key,
+                                                                                   Long endTime) {
+        String goodsFilter = "";
+        List<Object> filterParams = new ArrayList<>();
+        if (StringUtils.isNotEmpty(categoryId) && !"0".equals(categoryId)) {
+            goodsFilter += " AND g.category_id = ?";
+            filterParams.add(categoryId);
+        }
+        if (StringUtils.isNotEmpty(key)) {
+            goodsFilter += " AND (g.title LIKE ? OR g.goods_code LIKE ? OR g.py_code LIKE ?)";
+            String likeKey = "%" + key + "%";
+            filterParams.add(likeKey);
+            filterParams.add(likeKey);
+            filterParams.add(likeKey);
+        }
+        String purchaseEndFilter = buildBusinessTimeEndFilter("COALESCE(o.create_time, i.create_time)", endTime);
+        String saleEndFilter = buildBusinessTimeEndFilter("o.create_time", endTime);
         String sql = "SELECT * FROM (" +
                 " SELECT 1 AS bill_type, i.id AS item_id, i.goods_id, i.quantity, i.unit_price, i.total_amount, " +
                 "        i.is_init, COALESCE(o.create_time, i.create_time) AS bill_time, o.order_type " +
                 " FROM app_purchase_order_item i " +
                 " INNER JOIN app_goods g ON g.id = i.goods_id AND COALESCE(g.is_del, 0) = 0 " +
                 " LEFT JOIN app_purchase_order o ON o.id = i.order_id AND o.is_del = 0 " +
-                " WHERE i.is_del = 0 AND (i.order_id IS NULL OR o.status = 1)" + goodsFilter +
+                " WHERE i.is_del = 0 AND (i.order_id IS NULL OR o.status = 1)" + goodsFilter + purchaseEndFilter +
                 " UNION ALL " +
                 " SELECT 2 AS bill_type, i.id AS item_id, i.goods_id, i.quantity, i.unit_price, i.total_amount, " +
                 "        0 AS is_init, o.create_time AS bill_time, o.order_type " +
                 " FROM app_sale_order_item i " +
                 " INNER JOIN app_goods g ON g.id = i.goods_id AND COALESCE(g.is_del, 0) = 0 " +
                 " INNER JOIN app_sale_order o ON o.id = i.order_id AND o.is_del = 0 AND o.status = 1 " +
-                " WHERE i.is_del = 0" + goodsFilter +
+                " WHERE i.is_del = 0" + goodsFilter + saleEndFilter +
                 " UNION ALL " +
                 " SELECT 3 AS bill_type, i.id AS item_id, i.goods_id, i.profit_loss_quantity AS quantity, " +
                 "        i.unit_price, i.profit_loss_amount AS total_amount, 0 AS is_init, " +
@@ -553,12 +715,60 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
                 " FROM app_stock_check_item i " +
                 " INNER JOIN app_goods g ON g.id = i.goods_id AND COALESCE(g.is_del, 0) = 0 " +
                 " INNER JOIN app_stock_check o ON o.id = i.check_id AND o.is_del = 0 " +
-                " WHERE i.is_del = 0" + goodsFilter +
+                " WHERE i.is_del = 0" + goodsFilter + saleEndFilter +
                 ") t";
         List<Object> params = new ArrayList<>(filterParams);
+        addEndTimeParam(params, endTime);
         params.addAll(filterParams);
+        addEndTimeParam(params, endTime);
         params.addAll(filterParams);
-        return jdbcTemplate.queryForList(sql, params.toArray());
+        addEndTimeParam(params, endTime);
+        Map<String, List<StockStatisticMovement>> movementMap = new HashMap<>();
+        jdbcTemplate.query(sql, params.toArray(), resultSet -> {
+            String goodsId = resultSet.getString("goods_id");
+            StockStatisticMovement movement = new StockStatisticMovement(
+                    resultSet.getInt("bill_type"),
+                    resultSet.getInt("item_id"),
+                    decimal(resultSet.getObject("quantity")),
+                    decimal(resultSet.getObject("unit_price")),
+                    decimal(resultSet.getObject("total_amount")),
+                    integer(resultSet.getObject("is_init")),
+                    resultSet.getObject("bill_time"));
+            movementMap.computeIfAbsent(goodsId, item -> new ArrayList<>()).add(movement);
+        });
+        return movementMap;
+    }
+
+    private void appendBusinessTimeRange(StringBuilder sql, List<Object> params, String expression,
+                                         Long startTime, Long endTime) {
+        if (startTime != null) {
+            sql.append(" AND ").append(buildBusinessTimeCompare(expression, ">="));
+            params.add(startTime);
+        }
+        if (endTime != null) {
+            sql.append(" AND ").append(buildBusinessTimeCompare(expression, "<="));
+            params.add(endTime);
+        }
+    }
+
+    private String buildBusinessTimeEndFilter(String expression, Long endTime) {
+        if (endTime == null) {
+            return "";
+        }
+        return " AND " + buildBusinessTimeCompare(expression, "<=");
+    }
+
+    private void addEndTimeParam(List<Object> params, Long endTime) {
+        if (endTime != null) {
+            params.add(endTime);
+        }
+    }
+
+    private String buildBusinessTimeCompare(String expression, String operator) {
+        if (databaseDialect.isMySql()) {
+            return expression + " " + operator + " FROM_UNIXTIME(? / 1000)";
+        }
+        return databaseDialect.epochMillis(expression) + " " + operator + " ?";
     }
 
     private List<Map<String, Object>> queryStockMovements(String goodsId) {
@@ -610,6 +820,30 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
             stockCost = stockCost.subtract(saleQty.multiply(direction).multiply(costPrice));
         }
 
+        if (stockQty.compareTo(BigDecimal.ZERO) == 0) {
+            return new StockBalance(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+        return new StockBalance(stockQty, stockCost,
+                stockCost.divide(stockQty, 4, RoundingMode.HALF_UP));
+    }
+
+    private StockBalance applyStockStatisticMovement(AppGoods goods, StockStatisticMovement movement,
+                                                     BigDecimal stockQty, BigDecimal stockCost,
+                                                     BigDecimal costPrice) {
+        if (movement.billType != null && movement.billType == 3) {
+            stockQty = stockQty.add(movement.quantity);
+            stockCost = stockCost.add(movement.quantity.multiply(movement.unitPrice));
+        } else if (movement.billType != null && movement.billType == 1) {
+            BigDecimal unitPrice = resolvePurchaseUnitPrice(goods, movement, movement.quantity);
+            stockQty = stockQty.add(movement.quantity);
+            stockCost = stockCost.add(movement.quantity.multiply(unitPrice));
+        } else {
+            BigDecimal saleQty = movement.quantity.abs();
+            BigDecimal direction = movement.quantity.compareTo(BigDecimal.ZERO) > 0
+                    ? BigDecimal.ONE : BigDecimal.ONE.negate();
+            stockQty = stockQty.subtract(saleQty.multiply(direction));
+            stockCost = stockCost.subtract(saleQty.multiply(direction).multiply(costPrice));
+        }
         if (stockQty.compareTo(BigDecimal.ZERO) == 0) {
             return new StockBalance(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
@@ -770,6 +1004,20 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
         return BigDecimal.ZERO;
     }
 
+    private BigDecimal resolvePurchaseUnitPrice(AppGoods appGoods, StockStatisticMovement row,
+                                                BigDecimal quantity) {
+        if (row.unitPrice.compareTo(BigDecimal.ZERO) != 0) {
+            return row.unitPrice;
+        }
+        if (row.totalAmount.compareTo(BigDecimal.ZERO) != 0 && quantity.compareTo(BigDecimal.ZERO) != 0) {
+            return row.totalAmount.divide(quantity, 4, RoundingMode.HALF_UP);
+        }
+        if (row.isInit != null && row.isInit == 1) {
+            return decimal(appGoods.getInitCost());
+        }
+        return BigDecimal.ZERO;
+    }
+
     private void initCostFields(AppGoods entity) {
         if(entity == null) return;
         BigDecimal stock = decimal(entity.getStock());
@@ -793,6 +1041,146 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
             return null;
         }
         return Integer.valueOf(value.toString());
+    }
+
+    private void clearStockStatisticsCache() {
+        stockStatisticsCache.clear();
+    }
+
+    private static class StockPeriodAggregate {
+        private static final StockPeriodAggregate EMPTY = new StockPeriodAggregate(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        private final BigDecimal inQty;
+        private final BigDecimal inAmount;
+        private final BigDecimal outQty;
+        private final BigDecimal outAmount;
+
+        private StockPeriodAggregate(BigDecimal inQty, BigDecimal inAmount,
+                                     BigDecimal outQty, BigDecimal outAmount) {
+            this.inQty = inQty;
+            this.inAmount = inAmount;
+            this.outQty = outQty;
+            this.outAmount = outAmount;
+        }
+    }
+
+    private static class StockStatisticMovement {
+        private final Integer billType;
+        private final Integer itemId;
+        private final BigDecimal quantity;
+        private final BigDecimal unitPrice;
+        private final BigDecimal totalAmount;
+        private final Integer isInit;
+        private final Object billTime;
+
+        private StockStatisticMovement(Integer billType, Integer itemId, BigDecimal quantity,
+                                       BigDecimal unitPrice, BigDecimal totalAmount, Integer isInit,
+                                       Object billTime) {
+            this.billType = billType;
+            this.itemId = itemId;
+            this.quantity = quantity;
+            this.unitPrice = unitPrice;
+            this.totalAmount = totalAmount;
+            this.isInit = isInit;
+            this.billTime = billTime;
+        }
+    }
+
+    private static class StockSummary {
+        private final BigDecimal openingQty;
+        private final BigDecimal openingAmount;
+        private final BigDecimal inQty;
+        private final BigDecimal inAmount;
+        private final BigDecimal outQty;
+        private final BigDecimal outAmount;
+        private final BigDecimal endingQty;
+        private final BigDecimal endingAmount;
+
+        private StockSummary(BigDecimal openingQty, BigDecimal openingAmount,
+                             BigDecimal inQty, BigDecimal inAmount,
+                             BigDecimal outQty, BigDecimal outAmount,
+                             BigDecimal endingQty, BigDecimal endingAmount) {
+            this.openingQty = openingQty;
+            this.openingAmount = openingAmount;
+            this.inQty = inQty;
+            this.inAmount = inAmount;
+            this.outQty = outQty;
+            this.outAmount = outAmount;
+            this.endingQty = endingQty;
+            this.endingAmount = endingAmount;
+        }
+
+        private boolean isEmpty() {
+            return openingQty.compareTo(BigDecimal.ZERO) == 0
+                    && openingAmount.compareTo(BigDecimal.ZERO) == 0
+                    && inQty.compareTo(BigDecimal.ZERO) == 0
+                    && inAmount.compareTo(BigDecimal.ZERO) == 0
+                    && outQty.compareTo(BigDecimal.ZERO) == 0
+                    && outAmount.compareTo(BigDecimal.ZERO) == 0
+                    && endingQty.compareTo(BigDecimal.ZERO) == 0
+                    && endingAmount.compareTo(BigDecimal.ZERO) == 0;
+        }
+    }
+
+    private class StockStatisticsRow {
+        private final Integer goodsId;
+        private final String goodsName;
+        private final String unit;
+        private final StockSummary summary;
+
+        private StockStatisticsRow(AppGoods goods, StockSummary summary) {
+            this.goodsId = goods.getId();
+            this.goodsName = goods.getTitle();
+            this.unit = goods.getUnit();
+            this.summary = summary;
+        }
+
+        private JSONObject toJson(int rowNo) {
+            JSONObject row = new JSONObject();
+            row.put("rowNo", rowNo);
+            row.put("goodsId", goodsId);
+            row.put("goodsName", goodsName);
+            row.put("unit", unit);
+            row.put("openingQty", number(summary.openingQty, 4));
+            row.put("openingAmount", number(summary.openingAmount, 2));
+            row.put("inQty", number(summary.inQty, 4));
+            row.put("inAmount", number(summary.inAmount, 2));
+            row.put("outQty", number(summary.outQty, 4));
+            row.put("outAmount", number(summary.outAmount, 2));
+            row.put("endingQty", number(summary.endingQty, 4));
+            row.put("endingAmount", number(summary.endingAmount, 2));
+            return row;
+        }
+    }
+
+    private static class StockStatisticsCache {
+        private final long createdAt;
+        private final List<StockStatisticsRow> records;
+        private final BigDecimal openingQtyTotal;
+        private final BigDecimal openingAmountTotal;
+        private final BigDecimal inQtyTotal;
+        private final BigDecimal inAmountTotal;
+        private final BigDecimal outQtyTotal;
+        private final BigDecimal outAmountTotal;
+        private final BigDecimal endingQtyTotal;
+        private final BigDecimal endingAmountTotal;
+
+        private StockStatisticsCache(long createdAt, List<StockStatisticsRow> records,
+                                     BigDecimal openingQtyTotal, BigDecimal openingAmountTotal,
+                                     BigDecimal inQtyTotal, BigDecimal inAmountTotal,
+                                     BigDecimal outQtyTotal, BigDecimal outAmountTotal,
+                                     BigDecimal endingQtyTotal, BigDecimal endingAmountTotal) {
+            this.createdAt = createdAt;
+            this.records = records;
+            this.openingQtyTotal = openingQtyTotal;
+            this.openingAmountTotal = openingAmountTotal;
+            this.inQtyTotal = inQtyTotal;
+            this.inAmountTotal = inAmountTotal;
+            this.outQtyTotal = outQtyTotal;
+            this.outAmountTotal = outAmountTotal;
+            this.endingQtyTotal = endingQtyTotal;
+            this.endingAmountTotal = endingAmountTotal;
+        }
     }
 }
 

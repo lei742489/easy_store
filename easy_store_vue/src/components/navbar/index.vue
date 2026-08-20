@@ -31,7 +31,7 @@
             v-model="quickGoodsKey"
             class="ipt"
             :data="[]"
-            :style="{ width: '360px' }"
+            :style="{ width: '380px' }"
             placeholder="商品名称或者字母查询..."
             @keydown.enter="handleQuickGoodsSearch"
           >
@@ -96,20 +96,7 @@
         </a-tooltip>
       </li>-->
       <li>
-        <a-tooltip :content="$t('settings.navbar.alerts')">
-          <div class="message-box-trigger">
-            <a-badge :count="9" dot>
-              <a-button
-                class="nav-btn"
-                type="outline"
-                :shape="'circle'"
-                @click="setPopoverVisible"
-              >
-                <icon-notification />
-              </a-button>
-            </a-badge>
-          </div>
-        </a-tooltip>
+        
         <a-popover
           trigger="click"
           :arrow-style="{ display: 'none' }"
@@ -184,7 +171,7 @@
               </a-space>
             </a-doption>
             <a-doption>
-              <a-space @click="$router.push({ name: 'Setting' })">
+              <a-space @click="setVisible">
                 <icon-settings />
                 <span> 系统设置 </span>
               </a-space>

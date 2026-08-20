@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppCustomer;
@@ -30,14 +31,6 @@ public class AppReceivableStatementController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String SALE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(app_sale_order.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(app_sale_order.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', app_sale_order.create_time) AS INTEGER) * 1000, 0) END";
-    private static final String RECEIVE_BUSINESS_TIME_SQL =
-            "CASE WHEN typeof(app_receive_payment_voucher.create_time) IN ('integer', 'real') " +
-                    "THEN CAST(app_receive_payment_voucher.create_time AS INTEGER) " +
-                    "ELSE COALESCE(CAST(strftime('%s', app_receive_payment_voucher.create_time) AS INTEGER) * 1000, 0) END";
     private static final String SALE_LINKED_AMOUNT_SQL = "COALESCE(receive_item.linked_amount, 0)";
     private static final String SALE_UNPAID_AMOUNT_SQL =
             "COALESCE(app_sale_order.unpaid_amount, COALESCE(app_sale_order.payable_amount, 0) " +
@@ -56,6 +49,8 @@ public class AppReceivableStatementController {
     private IAppCustomerService customerService;
     @Autowired
     private IAppUserService userService;
+    @Autowired
+    private DatabaseDialect databaseDialect;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -161,7 +156,7 @@ public class AppReceivableStatementController {
                 "order_type AS orderType, note, freight_amount AS freightAmount, total_amount AS totalAmount, " +
                 "discounted_amount AS discountedAmount, receivable_amount AS receivableAmount, " +
                 "received_amount AS receivedAmount FROM (" +
-                "SELECT 'sale' AS record_type, " + SALE_BUSINESS_TIME_SQL + " AS business_time, app_sale_order.id, " +
+                "SELECT 'sale' AS record_type, " + saleBusinessTimeSql() + " AS business_time, app_sale_order.id, " +
                 "app_sale_order.order_no, app_sale_order.order_type, app_sale_order.note, " +
                 "COALESCE(app_sale_order.freight_amount, 0) AS freight_amount, " +
                 "COALESCE(app_sale_order.total_amount, 0) AS total_amount, " +
@@ -176,7 +171,7 @@ public class AppReceivableStatementController {
                 "AND " + SALE_DEBT_FILTER_SQL + " AND ABS(" + SALE_DEBT_AMOUNT_SQL + ") >= 0.005" +
                 saleOwnerCondition +
                 " UNION ALL " +
-                "SELECT 'receipt' AS record_type, " + RECEIVE_BUSINESS_TIME_SQL + " AS business_time, " +
+                "SELECT 'receipt' AS record_type, " + receiveBusinessTimeSql() + " AS business_time, " +
                 "app_receive_payment_voucher.id, app_receive_payment_voucher.order_no, " +
                 "NULL AS order_type, app_receive_payment_voucher.note, 0 AS freight_amount, " +
                 "0 AS total_amount, 0 AS discounted_amount, " +
@@ -226,7 +221,7 @@ public class AppReceivableStatementController {
                 "WHERE app_sale_order.customer_id = ? AND app_sale_order.status = 1 " +
                 "AND COALESCE(app_sale_order.is_del, 0) = 0 " +
                 "AND " + SALE_DEBT_FILTER_SQL + " AND ABS(" + SALE_DEBT_AMOUNT_SQL + ") >= 0.005" +
-                ownerCondition + " AND " + SALE_BUSINESS_TIME_SQL + " < ?";
+                ownerCondition + " AND " + saleBusinessTimeSql() + " < ?";
         return querySum(sql, customerId, startTime, cashierId);
     }
 
@@ -235,7 +230,7 @@ public class AppReceivableStatementController {
         String sql = "SELECT COALESCE(SUM(COALESCE(amount, 0)), 0) FROM app_receive_payment_voucher " +
                 "WHERE app_receive_payment_voucher.customer_id = ? AND app_receive_payment_voucher.status = 1 " +
                 "AND COALESCE(app_receive_payment_voucher.is_del, 0) = 0" +
-                ownerCondition + " AND " + RECEIVE_BUSINESS_TIME_SQL + " < ?";
+                ownerCondition + " AND " + receiveBusinessTimeSql() + " < ?";
         return querySum(sql, customerId, startTime, cashierId);
     }
 
@@ -266,6 +261,14 @@ public class AppReceivableStatementController {
         row.put("receivedAmount", receivedAmount);
         row.put("endingBalance", endingBalance);
         return row;
+    }
+
+    private String saleBusinessTimeSql() {
+        return databaseDialect.epochMillis("app_sale_order.create_time");
+    }
+
+    private String receiveBusinessTimeSql() {
+        return databaseDialect.epochMillis("app_receive_payment_voucher.create_time");
     }
 
     private Long parseStartTime(String value) {

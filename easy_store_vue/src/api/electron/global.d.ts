@@ -10,6 +10,8 @@ declare global {
       onMainReply: (data: any) => void;
       openPdf: (filePath: string) => void;
       printPdf: (filePath: string, landscape: boolean) => Promise<void>;
+      getZoomFactor: () => Promise<number>;
+      setZoomFactor: (factor: number) => Promise<number>;
       getPrinterSettings: () => Promise<{
         printers: Array<{
           name: string;
