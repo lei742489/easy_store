@@ -65,7 +65,7 @@
         :columns="columns"
         :data="renderData"
         :bordered="{ cell: true }"
-        :scroll="{ x: 1040, y: 560 }"
+        :scroll="{ x: 1040, y: getAdaptiveTableScrollY(560) }"
         :row-selection="rowSelection"
         @selection-change="handleSelectionChange"
         @page-change="onPageChange"
@@ -88,6 +88,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, onMounted, reactive, ref } from 'vue';
   import { Message } from '@arco-design/web-vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';

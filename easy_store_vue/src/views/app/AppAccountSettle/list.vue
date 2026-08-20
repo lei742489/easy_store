@@ -69,7 +69,7 @@
         :bordered="true"
         :size="size"
         :scrollbar="true"
-        :scroll="{ x: '100%', y: 540 }"
+        :scroll="{ x: '100%', y: getAdaptiveTableScrollY(540) }"
         @page-change="onPageChange"
         @row-dblclick="dbRowClick"
         @sorter-change="onSorterChange"
@@ -103,6 +103,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, reactive, ref, h, nextTick } from 'vue';
   import { Pagination } from '@/types/global';
   import useLoading from '@/hooks/loading';

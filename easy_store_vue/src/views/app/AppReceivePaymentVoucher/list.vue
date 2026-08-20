@@ -158,7 +158,7 @@
         :row-selection="isRoot ? rowSelection : undefined"
         :size="size"
         :scrollbar="true"
-        :scroll="{ x: '100%', y: 540 }"
+        :scroll="{ x: '100%', y: getAdaptiveTableScrollY(540) }"
         @page-change="onPageChange"
         @row-dblclick="dbRowClick"
         @selection-change="handleSelectionChange"
@@ -199,6 +199,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, nextTick, reactive, ref } from 'vue';
   import dayjs from 'dayjs';
   import { useUserStore } from '@/store';

@@ -166,7 +166,7 @@
         :row-selection="isRoot ? rowSelection : undefined"
         :size="size"
         :scrollbar="true"
-        :scroll="{ x: '100%', y: 540 }"
+        :scroll="{ x: '100%', y: getAdaptiveTableScrollY(540) }"
         :expandable="expandable"
         @page-change="onPageChange"
         @row-dblclick="dbRowClick"
@@ -212,6 +212,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, nextTick, reactive, ref } from 'vue';
   import { useUserStore } from '@/store';
   import { Pagination } from '@/types/global';
@@ -401,7 +402,7 @@
         return getPriceStrByH((data as any).unpaidAmount);
       },
     },
-    /*{
+    /* {
       title: '运费',
       dataIndex: 'freightAmount',
       align: 'center',
@@ -413,7 +414,7 @@
         const data = record.record;
         return getPriceStrByH((data as any).freightAmount);
       },
-    },*/
+    }, */
 
     {
       title: '结算账户',

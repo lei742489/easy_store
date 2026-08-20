@@ -73,7 +73,7 @@
         :columns="columns"
         :data="records"
         :bordered="{ cell: true }"
-        :scroll="{ x: 860, y: 540 }"
+        :scroll="{ x: 860, y: getAdaptiveTableScrollY(540) }"
         @page-change="onPageChange"
         @row-dblclick="handleRowDoubleClick"
       >
@@ -96,6 +96,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { h, reactive, ref } from 'vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import { Message } from '@arco-design/web-vue';

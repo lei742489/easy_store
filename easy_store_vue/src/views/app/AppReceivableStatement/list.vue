@@ -90,7 +90,7 @@
         :columns="columns"
         :data="tableData"
         :bordered="{ cell: true }"
-        :scroll="{ x: 1420, y: 560 }"
+        :scroll="{ x: 1420, y: getAdaptiveTableScrollY(560) }"
         :row-class="rowClass"
       >
         <template #empty>
@@ -102,6 +102,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, onMounted, reactive, ref } from 'vue';
   import { useRoute } from 'vue-router';
   import { Message } from '@arco-design/web-vue';

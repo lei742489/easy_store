@@ -81,7 +81,7 @@
         :columns="columns"
         :data="tableData"
         :bordered="{ cell: true }"
-        :scroll="{ x: 1180, y: 500 }"
+        :scroll="{ x: 1180, y: getAdaptiveTableScrollY(500) }"
         :row-class="rowClass"
       />
     </a-card>
@@ -89,6 +89,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, onMounted, reactive, ref } from 'vue';
   import { Message } from '@arco-design/web-vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';

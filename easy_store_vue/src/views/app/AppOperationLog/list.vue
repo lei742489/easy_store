@@ -59,7 +59,7 @@
         :columns="columns"
         :pagination="pagination"
         :bordered="true"
-        :scroll="{ x: 1250, y: 560 }"
+        :scroll="{ x: 1250, y: getAdaptiveTableScrollY(560) }"
         @page-change="onPageChange"
         @page-size-change="onPageSizeChange"
       >
@@ -91,6 +91,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, onMounted, reactive, ref } from 'vue';
   import dayjs from 'dayjs';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';

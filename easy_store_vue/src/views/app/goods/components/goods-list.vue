@@ -158,7 +158,7 @@
         :bordered="{ cell: true }"
         :size="size"
         :scrollbar="true"
-        :scroll="{ x: '100%', y: 540 }"
+        :scroll="{ x: '100%', y: getAdaptiveTableScrollY(540) }"
         :row-selection="rowSelection"
         @selection-change="selectChange"
         @page-change="onPageChange"
@@ -220,6 +220,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, nextTick, reactive, ref } from 'vue';
   import { Pagination } from '@/types/global';
   import useLoading from '@/hooks/loading';

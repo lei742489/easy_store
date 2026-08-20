@@ -105,7 +105,7 @@
         :columns="columns"
         :data="tableData"
         :bordered="{ cell: true }"
-        :scroll="{ x: 920, y: 560 }"
+        :scroll="{ x: 920, y: getAdaptiveTableScrollY(560) }"
         :row-class="rowClass"
       >
         <template #operations="{ record }">
@@ -184,6 +184,7 @@
 </template>
 
 <script lang="ts" setup>
+  import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, onMounted, reactive, ref } from 'vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
