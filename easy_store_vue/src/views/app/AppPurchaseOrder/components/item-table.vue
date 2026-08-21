@@ -1,6 +1,8 @@
 <template>
   <order-item-table
     ref="tableRef"
+    goods-search-panel
+    goods-search-type="purchase"
     v-model:order-type="orderType"
     @change="emit('change', $event)"
   />

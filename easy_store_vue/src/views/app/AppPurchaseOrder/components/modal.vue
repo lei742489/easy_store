@@ -45,15 +45,14 @@
                   </a-form-item>
                 </a-col>
                 <a-col :span="8">
-                  <div
-                    v-if="
-                      form.supplierId !== undefined && form.supplierId !== null
-                    "
-                    class="counterparty-payable"
-                  >
+                  <div class="counterparty-payable">
+                    
                     应付款：<span
                       >￥{{ formatPrice(currentSupplierPayable) }}</span
                     >
+                    <a-button style="margin-left: 4rpx;"  size="mini" type="outline" @click="openSupplierModal">
+                      新增
+                    </a-button>
                   </div>
                   <!--                  <div style="margin-top: 6px; font-size: 13px; color: #69778a"
                     >欠款:￥58555.12</div
@@ -160,12 +159,18 @@
             </a-col>
             <a-col :span="6">
               <a-form-item field="paidAmount" label="实付金额">
-                <a-input-number
-                  v-model="form.paidAmount"
-                  placeholder="0.00"
-                  :precision="2"
-                  :max-length="10"
-                />
+                <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                  <a-input-number
+                    v-model="form.paidAmount"
+                    placeholder="0.00"
+                    :precision="2"
+                    :max-length="10"
+                    style="flex: 1; min-width: 0;"
+                  />
+                  <a-button size="mini" type="outline" @click="fillPaidAmount">
+                    已付
+                  </a-button>
+                </div>
               </a-form-item>
             </a-col>
             <a-col :span="6">
@@ -219,6 +224,7 @@
         >
       </template>
     </a-modal>
+    <supplier-modal ref="supplierModalRef" @ok="handleSupplierSaved" />
   </div>
 </template>
 
@@ -228,6 +234,7 @@
   import { useUserStore } from '@/store';
   import { AppSupplier } from '@/views/app/AppSupplier/types/AppSupplier';
   import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
+  import SupplierModal from '@/views/app/AppSupplier/components/modal.vue';
   import { list as getSettleList } from '@/views/app/AppAccountSettle/api/api-AppAccountSettle';
   import { AppAccountSettle } from '@/views/app/AppAccountSettle/types/AppAccountSettle';
   import { list as getUserList } from '@/views/app/AppUser/api/api-AppUser';
@@ -255,6 +262,7 @@
   const settleList = ref<AppAccountSettle[]>([]);
   const cashierList = ref<AppUser[]>([]);
   const itemTableRef = ref<InstanceType<typeof ItemTable> | null>(null);
+  const supplierModalRef = ref<InstanceType<typeof SupplierModal> | null>(null);
 
   const userStore = useUserStore();
   const userInfo = computed(() => {
@@ -275,7 +283,7 @@
     status: 1,
     totalAmount: 0,
     payableAmount: undefined,
-    paidAmount: undefined,
+    paidAmount: 0,
     freightAmount: undefined,
     discountedAmount: undefined,
     discountRate: 100.0,
@@ -306,18 +314,54 @@
     }
   };
 
+  const selectSupplier = (supplier?: AppSupplier) => {
+    if (!supplier) return;
+    form.supplierId = supplier.id;
+    form.supplierId_dictText = supplier.name;
+  };
+
+  const findSavedSupplier = (savedItem: AppSupplier) => {
+    if (savedItem.id !== undefined && savedItem.id !== null) {
+      const item = supplierList.value.find(
+        (supplier) => String(supplier.id) === String(savedItem.id)
+      );
+      if (item) return item;
+    }
+    const matchedList = supplierList.value.filter(
+      (supplier) => supplier.name === savedItem.name
+    );
+    return matchedList[matchedList.length - 1];
+  };
+
+  const reloadSupplierData = async (savedItem?: AppSupplier) => {
+    supplierLoading.value = true;
+    try {
+      supplierList.value = (await getSupplierList()).data.sort(
+        (left, right) => Number(left.id) - Number(right.id)
+      );
+      if (savedItem) {
+        selectSupplier(findSavedSupplier(savedItem));
+      } else {
+        selectDefaultSupplier();
+      }
+    } finally {
+      supplierLoading.value = false;
+    }
+  };
+
   const fetchSupplierData = async () => {
     if (supplierList.value.length === 0) {
-      supplierLoading.value = true;
-      try {
-        supplierList.value = (await getSupplierList()).data.sort(
-          (left, right) => Number(left.id) - Number(right.id)
-        );
-      } finally {
-        supplierLoading.value = false;
-      }
+      await reloadSupplierData();
     }
     selectDefaultSupplier();
+  };
+
+  const openSupplierModal = () => {
+    supplierModalRef.value?.showModal({} as AppSupplier);
+  };
+
+  const handleSupplierSaved = async (savedItem: AppSupplier) => {
+    await reloadSupplierData(savedItem);
   };
 
   const fetchCashierList = async () => {
@@ -451,9 +495,10 @@
     const ac = mulPrice(form.totalAmount || 0, rate);
     const bc = addPrice(ac, form.freightAmount || 0);
     form.payableAmount = bc;
-    if (!form.id) {
-      form.paidAmount = bc;
-    }
+  };
+
+  const fillPaidAmount = () => {
+    form.paidAmount = form.payableAmount || 0;
   };
 
   const updateDiscountRate = () => {
@@ -549,6 +594,9 @@
 
   .counterparty-payable {
     margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     color: var(--color-text-2);
     font-size: 13px;
     white-space: nowrap;

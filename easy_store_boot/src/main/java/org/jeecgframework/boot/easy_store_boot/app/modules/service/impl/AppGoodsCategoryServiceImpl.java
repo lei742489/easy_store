@@ -34,15 +34,11 @@ public class AppGoodsCategoryServiceImpl extends ServiceImpl<AppGoodsCategoryMap
     @Override
     public List<AppGoodsCategory> getList() {
 
-        AppGoodsCategory root =getOne(new LambdaQueryWrapper<AppGoodsCategory>().eq(AppGoodsCategory::getRoot,1).last("limit 1"));
-        if(root == null) {
-            root=  new AppGoodsCategory();
-            root.setParentId(-1);
-            root.setId(0);
-            root.setTitle("全部分类");
-            root.setRoot(1);
-            mapper.insertWithId(root);
-        }
+        AppGoodsCategory root = new AppGoodsCategory();
+        root.setParentId(-1);
+        root.setId(0);
+        root.setTitle("全部分类");
+        root.setRoot(1);
         List<AppGoodsCategory> rootList = new ArrayList<>();
         rootList.add(root);
 

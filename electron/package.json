@@ -11,7 +11,8 @@
   },
   "devDependencies": {
     "@electron/asar": "^4.2.1",
-    "electron": "^36.4.0"
+    "electron": "^36.4.0",
+    "rcedit": "^5.0.2"
   },
   "dependencies": {
     "electron-is-dev": "^3.0.1",

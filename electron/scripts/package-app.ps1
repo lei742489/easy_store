@@ -25,12 +25,75 @@ function Assert-InsideRoot {
   }
 }
 
+function Convert-PngToIco {
+  param(
+    [string]$PngPath,
+    [string]$IcoPath
+  )
+
+  Add-Type -AssemblyName System.Drawing
+
+  $source = [System.Drawing.Image]::FromFile($PngPath)
+  try {
+    $bitmap = New-Object System.Drawing.Bitmap 256, 256
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    try {
+      $graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+      $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+      $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+      $graphics.Clear([System.Drawing.Color]::Transparent)
+      $graphics.DrawImage($source, 0, 0, 256, 256)
+
+      $pngStream = New-Object System.IO.MemoryStream
+      try {
+        $bitmap.Save($pngStream, [System.Drawing.Imaging.ImageFormat]::Png)
+        $pngBytes = $pngStream.ToArray()
+      } finally {
+        $pngStream.Dispose()
+      }
+    } finally {
+      $graphics.Dispose()
+      $bitmap.Dispose()
+    }
+  } finally {
+    $source.Dispose()
+  }
+
+  $outputDir = Split-Path -Parent $IcoPath
+  if ($outputDir) {
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+  }
+
+  $stream = [System.IO.File]::Create($IcoPath)
+  $writer = New-Object System.IO.BinaryWriter $stream
+  try {
+    $writer.Write([UInt16]0)
+    $writer.Write([UInt16]1)
+    $writer.Write([UInt16]1)
+    $writer.Write([Byte]0)
+    $writer.Write([Byte]0)
+    $writer.Write([Byte]0)
+    $writer.Write([Byte]0)
+    $writer.Write([UInt16]1)
+    $writer.Write([UInt16]32)
+    $writer.Write([UInt32]$pngBytes.Length)
+    $writer.Write([UInt32]22)
+    $writer.Write($pngBytes)
+  } finally {
+    $writer.Dispose()
+    $stream.Dispose()
+  }
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ElectronDir = Resolve-FullPath (Join-Path $ScriptDir "..")
 $RepoRoot = Resolve-FullPath (Join-Path $ElectronDir "..")
 $BackendDir = Join-Path $RepoRoot "easy_store_boot"
 $FrontendDir = Join-Path $RepoRoot "easy_store_vue"
 $FrontendPackageSource = Join-Path $ElectronDir "web"
+$FrontendIconSource = Join-Path $FrontendDir "src\assets\icon.png"
+$ElectronIconTarget = Join-Path $ElectronDir "assets\icon.png"
+$ElectronIconIco = Join-Path $ElectronDir "assets\icon.ico"
 $ReleaseRoot = Join-Path $RepoRoot "release"
 if (-not $OutputDir) {
   $OutputDir = Join-Path $ReleaseRoot "easy-store"
@@ -42,6 +105,12 @@ Assert-InsideRoot -RootPath $RepoRoot -TargetPath $OutputDir
 $AsarCmd = Join-Path $ElectronDir "node_modules\.bin\asar.cmd"
 if (-not (Test-Path -LiteralPath $AsarCmd)) {
   throw "asar command not found: $AsarCmd"
+}
+
+if (Test-Path -LiteralPath $FrontendIconSource) {
+  New-Item -ItemType Directory -Path (Split-Path -Parent $ElectronIconTarget) -Force | Out-Null
+  Copy-Item -LiteralPath $FrontendIconSource -Destination $ElectronIconTarget -Force
+  Convert-PngToIco -PngPath $FrontendIconSource -IcoPath $ElectronIconIco
 }
 
 if (-not $SkipBuild) {
@@ -95,7 +164,15 @@ if (Test-Path -LiteralPath $OutputDir) {
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 Copy-Item -Path (Join-Path $ElectronDist "*") -Destination $OutputDir -Recurse -Force
+$OutputExe = Join-Path $OutputDir "Easy Store.exe"
 Rename-Item -LiteralPath (Join-Path $OutputDir "electron.exe") -NewName "Easy Store.exe"
+$RceditCmd = Join-Path $ElectronDir "node_modules\rcedit\bin\rcedit-x64.exe"
+if (Test-Path -LiteralPath $RceditCmd) {
+  & $RceditCmd $OutputExe "--set-icon" $ElectronIconIco
+  if ($LASTEXITCODE -ne 0) {
+    throw "Set exe icon failed."
+  }
+}
 $DefaultAppAsar = Join-Path $OutputDir "resources\default_app.asar"
 if (Test-Path -LiteralPath $DefaultAppAsar) {
   Remove-Item -LiteralPath $DefaultAppAsar -Force

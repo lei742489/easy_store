@@ -16,7 +16,6 @@ import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppHomeMenuS
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppPaymentVoucherService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppPurchaseOrderService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppReceivePaymentVoucherService;
-import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppRoleMenuService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppRolePermissionService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppSaleOrderService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppUserService;
@@ -35,8 +34,6 @@ public class AppHomeMenuController {
 
     @Autowired
     private IAppHomeMenuService homeMenuService;
-    @Autowired
-    private IAppRoleMenuService roleMenuService;
     @Autowired
     private IAppRolePermissionService rolePermissionService;
     @Autowired
@@ -69,20 +66,11 @@ public class AppHomeMenuController {
                 .orderByAsc(AppHomeMenu::getSortNo);
 
         if(user.getIsRoot() == null || user.getIsRoot() != 1){
-            List<Integer> menuIds = roleMenuService.listMenuIdsByRoleId(user.getRoleId());
             List<String> permissionCodes = rolePermissionService.listPermissionCodesByRoleId(user.getRoleId());
-            Set<String> visibleMenuCodes = getActionVisibleMenuCodes(new HashSet<>(permissionCodes));
-            if(menuIds.isEmpty() && visibleMenuCodes.isEmpty()) return Result.ok(Collections.emptyList());
+            Set<String> visibleMenuCodes = getVisibleMenuCodes(new HashSet<>(permissionCodes));
+            if(visibleMenuCodes.isEmpty()) return Result.ok(Collections.emptyList());
             wrapper.eq(AppHomeMenu::getRootOnly, 0);
-            if (!menuIds.isEmpty() && !visibleMenuCodes.isEmpty()) {
-                wrapper.and(item -> item.in(AppHomeMenu::getId, menuIds)
-                        .or()
-                        .in(AppHomeMenu::getCode, visibleMenuCodes));
-            } else if (!menuIds.isEmpty()) {
-                wrapper.in(AppHomeMenu::getId, menuIds);
-            } else {
-                wrapper.in(AppHomeMenu::getCode, visibleMenuCodes);
-            }
+            wrapper.in(AppHomeMenu::getCode, visibleMenuCodes);
         }
 
         List<AppHomeMenu> menus = homeMenuService.list(wrapper);
@@ -108,16 +96,15 @@ public class AppHomeMenuController {
         return Result.ok(counts);
     }
 
-    private String getActionMenuCode(String menuCode) {
-        if ("sale_order_add".equals(menuCode)) return "sale_order_list";
-        if ("purchase_order_add".equals(menuCode)) return "purchase_order_list";
-        if ("receive_payment_add".equals(menuCode)) return "receive_payment_list";
-        if ("payment_add".equals(menuCode)) return "payment_list";
-        return null;
-    }
-
-    private Set<String> getActionVisibleMenuCodes(Set<String> permissionCodeSet) {
+    private Set<String> getVisibleMenuCodes(Set<String> permissionCodeSet) {
         Set<String> visibleMenuCodes = new HashSet<>();
+        for (String permissionCode : permissionCodeSet) {
+            if (permissionCode != null
+                    && permissionCode.endsWith(":" + AppPermissionDefinition.ACTION_VIEW)) {
+                visibleMenuCodes.add(permissionCode.substring(
+                        0, permissionCode.length() - AppPermissionDefinition.ACTION_VIEW.length() - 1));
+            }
+        }
         if (permissionCodeSet.contains(AppPermissionDefinition.buildCode("sale_order_list", AppPermissionDefinition.ACTION_ADD))) {
             visibleMenuCodes.add("sale_order_add");
         }
@@ -175,7 +162,7 @@ public class AppHomeMenuController {
                 menuNode.put("menuCode", menu.getCode());
 
                 List<JSONObject> actionNodes = new ArrayList<>();
-                for (String action : AppPermissionDefinition.getActions()) {
+                for (String action : AppPermissionDefinition.getActions(menu.getCode())) {
                     JSONObject actionNode = new JSONObject();
                     actionNode.put("key", AppPermissionDefinition.buildCode(menu.getCode(), action));
                     actionNode.put("title", getActionTitle(action));
@@ -203,9 +190,11 @@ public class AppHomeMenuController {
     }
 
     private String getActionTitle(String action) {
+        if (AppPermissionDefinition.ACTION_VIEW.equals(action)) return "查看";
         if (AppPermissionDefinition.ACTION_ADD.equals(action)) return "添加";
         if (AppPermissionDefinition.ACTION_EDIT.equals(action)) return "编辑";
         if (AppPermissionDefinition.ACTION_REMOVE.equals(action)) return "删除";
+        if (AppPermissionDefinition.ACTION_AUDIT.equals(action)) return "审核";
         return action;
     }
 

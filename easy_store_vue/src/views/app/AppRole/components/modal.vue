@@ -152,23 +152,32 @@
   function buildMenuMaps(nodes: AppPermissionTreeNode[]) {
     const menuIdMap = new Map<string, number>();
     const menuCodeMap = new Map<number, string>();
+    const menuActionMap = new Map<string, string[]>();
     const walk = (treeNodes: AppPermissionTreeNode[]) => {
       treeNodes.forEach((node) => {
         if (node.menuCode && node.menuId) {
           menuIdMap.set(node.menuCode, node.menuId);
           menuCodeMap.set(node.menuId, node.menuCode);
+          if (node.children?.length) {
+            menuActionMap.set(
+              node.menuCode,
+              node.children.map((child) => child.key)
+            );
+          }
         }
         if (node.children) walk(node.children);
       });
     };
     walk(nodes);
-    return { menuIdMap, menuCodeMap };
+    return { menuIdMap, menuCodeMap, menuActionMap };
   }
 
   function applyCheckedKeys() {
     const menuIdsSet = new Set<number>();
     const permissionCodesSet = new Set<string>();
-    const { menuIdMap, menuCodeMap } = buildMenuMaps(permissionTree.value);
+    const { menuIdMap, menuCodeMap, menuActionMap } = buildMenuMaps(
+      permissionTree.value
+    );
 
     checkedKeys.value.forEach((key) => {
       if (key.startsWith('menu:')) {
@@ -177,9 +186,9 @@
           menuIdsSet.add(menuId);
           const menuCode = menuCodeMap.get(menuId);
           if (menuCode) {
-            ['add', 'edit', 'remove'].forEach((action) => {
-              permissionCodesSet.add(`${menuCode}:${action}`);
-            });
+            (menuActionMap.get(menuCode) || []).forEach((permissionCode) =>
+              permissionCodesSet.add(permissionCode)
+            );
           }
         }
         return;

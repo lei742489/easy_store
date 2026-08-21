@@ -1,5 +1,5 @@
 <template>
-  <div class="frame-menu">
+  <div v-if="isElectron" class="frame-menu">
     <div class="f-item" @click="windowMinimize()">
       <icon-minus :size="20" class="icon" />
     </div>
@@ -16,6 +16,7 @@
 <script lang="ts" setup>
   import { ref, computed, defineProps, defineEmits } from 'vue';
   import {
+    isElectronRuntime,
     windowMinimize,
     windowClose,
     windowMaximize,
@@ -24,6 +25,7 @@
   const props = defineProps<{ modelValue: boolean }>();
 
   const isMax = ref(false);
+  const isElectron = isElectronRuntime();
   const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void;
   }>();

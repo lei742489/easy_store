@@ -112,15 +112,22 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
 
     @Override
     public List<GoodsSearchResult> searchByKey(Integer pageNo, String key) {
+        return searchByKey(pageNo, key, null);
+    }
+
+    @Override
+    public List<GoodsSearchResult> searchByKey(Integer pageNo, String key, Boolean hideZeroStock) {
        if(pageNo ==null) pageNo = 1;
        /* if(StringUtils.isEmpty(key))
-            return new ArrayList<>();*/
+             return new ArrayList<>();*/
 
+        if(key == null) key = "";
         String pyCode = null;
         if(key.matches("^[a-zA-Z0-9]+$"))
             pyCode = key;
 
-        return mapper.searchByKey(key,pyCode,pageNo,CommonConstant.AUTO_COMPLETE_MAX_SEARCH_COUNT);
+        return mapper.searchByKey(key, pyCode, pageNo,
+                CommonConstant.AUTO_COMPLETE_MAX_SEARCH_COUNT, hideZeroStock);
     }
 
 

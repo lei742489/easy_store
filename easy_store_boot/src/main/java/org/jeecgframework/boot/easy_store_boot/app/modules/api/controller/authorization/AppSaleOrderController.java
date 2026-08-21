@@ -140,6 +140,14 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
      *
      * @param request
      */
+    @PostMapping("recalculateProfit")
+    public Result<?> recalculateProfit(@RequestBody JSONObject param) {
+        assertRootForApprove(param);
+        List<Integer> ids = getApproveIds(param);
+        service.recalculateGrossProfit(ids);
+        return Result.ok();
+    }
+
     @RequestMapping(value = "/exportXls")
     public ModelAndView exportXls(HttpServletRequest request, AppSaleOrder object,  String title) {
         // 过滤选中数据

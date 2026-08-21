@@ -161,6 +161,23 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         super.updateById(order);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void recalculateGrossProfit(List<Integer> ids) {
+        if(ids == null || ids.isEmpty()) return;
+        for(Integer id : ids) {
+            AppSaleOrder order = getById(id);
+            if(order == null) continue;
+            List<AppSaleOrderItem> items = appSaleOrderItemService.listByOrderId(order.getId());
+            order.setItems(items);
+            setItemsByEntity(order);
+            if(!items.isEmpty()) {
+                appSaleOrderItemService.updateBatchById(items);
+            }
+            super.updateById(order);
+        }
+    }
+
     private void  setItemsByEntity(AppSaleOrder entity){
         if(entity == null) return;
         if( entity.getItems()==null) {
@@ -216,10 +233,24 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         BigDecimal saleAmount = decimal(item.getTotalAmount())
                 .multiply(discountRate)
                 .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
-        BigDecimal costAmount = decimal(item.getQuantity()).multiply(decimal(goods == null ? null : goods.getCostPrice()));
+        BigDecimal costAmount = decimal(item.getQuantity()).multiply(resolveCostPrice(goods));
         BigDecimal grossProfit = saleAmount.subtract(costAmount);
         item.setGrossProfit(money(grossProfit));
         return grossProfit;
+    }
+
+    private BigDecimal resolveCostPrice(AppGoods goods) {
+        if(goods == null) return BigDecimal.ZERO;
+        BigDecimal costPrice = decimal(goods.getCostPrice());
+        Integer stock = goods.getStock();
+        if(costPrice.compareTo(BigDecimal.ZERO) != 0 || stock == null || stock > 0) {
+            return costPrice;
+        }
+        BigDecimal purchasePrice = decimal(goods.getPurPrc());
+        if(purchasePrice.compareTo(BigDecimal.ZERO) != 0) {
+            return purchasePrice;
+        }
+        return decimal(goods.getInitCost());
     }
 
     private Double money(BigDecimal value) {

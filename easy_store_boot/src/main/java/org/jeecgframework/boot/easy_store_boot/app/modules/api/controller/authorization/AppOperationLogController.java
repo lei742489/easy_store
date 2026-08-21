@@ -83,6 +83,7 @@ public class AppOperationLogController {
         StringBuilder sql = new StringBuilder("1 = 1");
         List<Object> params = new ArrayList<>();
         appendLike(sql, params, "operator_name", param.getString("operatorName"));
+        appendLike(sql, params, "menu_name", param.getString("menuName"));
         appendLike(sql, params, "client_ip", param.getString("clientIp"));
         appendEquals(sql, params, "operation_type", param.getString("operationType"));
 

@@ -44,6 +44,19 @@
                       @popup-visible-change="fetchSupplierData"
                     ></a-tree-select>
                   </a-form-item>
+                  <div class="counterparty-payable">
+                    欠款：<span
+                      >￥{{ formatPrice(currentCustomerPayable) }}</span
+                    >
+                    <a-button
+                      size="mini"
+                      type="outline"
+                      :disabled="form.id !== undefined"
+                      @click="openCustomerModal"
+                    >
+                      新增
+                    </a-button>
+                  </div>
                 </a-col>
                 <a-col :span="10">
                   <a-form-item field="createTime" label="日期">
@@ -131,6 +144,7 @@
         </div>
       </template>
     </a-modal>
+    <customer-modal ref="customerModalRef" @ok="handleCustomerSaved" />
   </div>
 </template>
 
@@ -140,8 +154,9 @@
   import { useUserStore } from '@/store';
   import { Customer } from '@/views/app/customer/types/customer';
   import { list as getCustomerList } from '@/views/app/customer/api/api-customer';
+  import CustomerModal from '@/views/app/customer/components/customer-modal.vue';
   import SettlerItemTable from '@/views/app/AppReceivePaymentVoucher/components/settler-item-table.vue';
-  import { addPrice } from '@/api/common';
+  import { addPrice, formatPrice } from '@/api/common';
 
   import { useRouter } from 'vue-router';
   import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
@@ -169,6 +184,7 @@
   const purchaseOrderTableRef = ref<InstanceType<
     typeof PurchaseOrderTable
   > | null>(null);
+  const customerModalRef = ref<InstanceType<typeof CustomerModal> | null>(null);
   const userStore = useUserStore();
   const isRoot = computed(() => userStore.isRoot === 1);
 
@@ -182,6 +198,12 @@
     createTime: new Date(),
   };
   const form = reactive<AppReceivePaymentVoucher>({ ...defaultForm });
+  const currentCustomerPayable = computed(() => {
+    const customer = customerList.value.find(
+      (item) => String(item.id) === String(form.customerId)
+    );
+    return customer?.payable || 0;
+  });
   const loading = ref(false);
   const clodopLoading = ref(false);
 
@@ -261,12 +283,50 @@
     }
   };
 
-  const fetchSupplierData = async (e: any) => {
-    if (customerList.value.length !== 0) return;
+  const selectCustomer = (customer?: Customer) => {
+    if (!customer) return;
+    form.customerId = String(customer.id);
+    form.customerId_dictText = customer.name;
+  };
 
+  const findSavedCustomer = (savedItem: Customer) => {
+    if (savedItem.id !== undefined && savedItem.id !== null) {
+      const item = customerList.value.find(
+        (customer) => String(customer.id) === String(savedItem.id)
+      );
+      if (item) return item;
+    }
+    const matchedList = customerList.value.filter(
+      (customer) => customer.name === savedItem.name
+    );
+    return matchedList[matchedList.length - 1];
+  };
+
+  const reloadCustomerData = async (savedItem?: Customer) => {
     customerLoading.value = true;
-    customerList.value = (await getCustomerList()).data;
-    customerLoading.value = false;
+    try {
+      customerList.value = (await getCustomerList()).data.sort(
+        (left, right) => Number(left.id) - Number(right.id)
+      );
+      if (savedItem) {
+        selectCustomer(findSavedCustomer(savedItem));
+      }
+    } finally {
+      customerLoading.value = false;
+    }
+  };
+
+  const fetchSupplierData = async () => {
+    if (customerList.value.length !== 0) return;
+    await reloadCustomerData();
+  };
+
+  const openCustomerModal = () => {
+    customerModalRef.value?.showModal({} as Customer);
+  };
+
+  const handleCustomerSaved = async (savedItem: Customer) => {
+    await reloadCustomerData(savedItem);
   };
 
   const filterCustomerTreeNode = (searchValue: string, nodeData: Customer) => {
@@ -350,5 +410,20 @@
 
 <style lang="less" scoped>
   .drawer {
+  }
+
+  .counterparty-payable {
+    margin-top: -8px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-2);
+    font-size: 13px;
+    white-space: nowrap;
+
+    span {
+      color: rgb(var(--arcoblue-6));
+    }
   }
 </style>

@@ -33,7 +33,7 @@ export interface AppPermissionTreeNode {
   title: string;
   menuId?: number;
   menuCode?: string;
-  action?: 'add' | 'edit' | 'remove';
+  action?: 'view' | 'add' | 'edit' | 'remove' | 'audit';
   checkable?: boolean;
   children?: AppPermissionTreeNode[];
 }

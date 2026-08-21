@@ -75,15 +75,24 @@
       const baseImgUrl = ref(`${apiBaseUrl}/api/upload/static`);
       const actionUrl = ref(`${apiBaseUrl}/api/file/upload`);
 
+      const fixedImageUrl = (url?: string) => {
+        if (!url) return '';
+        if (/^(https?:)?\/\//i.test(url) || /^(blob|data):/i.test(url)) {
+          return url;
+        }
+        return `${baseImgUrl.value}${url.startsWith('/') ? url : `/${url}`}`;
+      };
+
       watch(
         () => props.modelValue,
         (val) => {
-          file.value = { url: baseImgUrl.value + val };
-        }
+          file.value = val ? { url: fixedImageUrl(val), status: 'done' } : undefined;
+        },
+        { immediate: true }
       );
 
       const init = (url: string) => {
-        if (url) file.value = { url: baseImgUrl.value + url };
+        file.value = url ? { url: fixedImageUrl(url), status: 'done' } : undefined;
       };
 
       const onChange = (_: unknown, currentFile: unknown) => {};
@@ -92,6 +101,7 @@
       };
       const uploadSuccess = (e: any) => {
         if (e.response.success) {
+          file.value = { url: fixedImageUrl(e.response.data), status: 'done' };
           emit('update:modelValue', e.response.data);
         } else {
           Message.error({

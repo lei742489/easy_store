@@ -23,6 +23,8 @@ public interface IAppGoodsService extends IService<AppGoods> {
 
     List<GoodsSearchResult> searchByKey(Integer pageNo,String key);
 
+    List<GoodsSearchResult> searchByKey(Integer pageNo, String key, Boolean hideZeroStock);
+
     IPage<AppGoods> search(ApiQuery query);
 
     void setDefCategoryId(String categoryId);

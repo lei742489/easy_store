@@ -139,7 +139,7 @@
   const loading = ref(false);
 
   const emit = defineEmits<{
-    (e: 'ok', data: 1): void;
+    (e: 'ok', data: AppSupplier): void;
   }>();
 
   const showModal = (item: AppSupplier) => {
@@ -175,9 +175,10 @@
         loading.value = false;
       }
 
+      const savedItem = { ...form };
       Message.success('操作成功');
       handleCancel();
-      emit('ok', 1);
+      emit('ok', savedItem);
     }
   };
 

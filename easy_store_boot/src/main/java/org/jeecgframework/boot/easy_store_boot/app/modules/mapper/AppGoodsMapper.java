@@ -17,7 +17,9 @@ import java.util.List;
 */
 public interface AppGoodsMapper extends BaseMapper<AppGoods> {
 
-    List<GoodsSearchResult> searchByKey(@Param("key")String key,@Param("pyCode")String pyCode,@Param("pageNo") Integer pageNo,@Param("pageSize") Integer pageSize);
+    List<GoodsSearchResult> searchByKey(@Param("key")String key, @Param("pyCode")String pyCode,
+                                        @Param("pageNo") Integer pageNo, @Param("pageSize") Integer pageSize,
+                                        @Param("hideZeroStock") Boolean hideZeroStock);
 
     IPage<AppGoods> search(IPage page, @Param("query")ApiQuery query);
 }

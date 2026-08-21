@@ -3,7 +3,7 @@
     <a-card class="general-card" title="操作日志">
       <a-form :model="form" auto-label-width>
         <a-row :gutter="20">
-          <a-col :span="6">
+          <a-col :span="5">
             <a-form-item field="operatorName" label="操作员">
               <a-input
                 v-model="form.operatorName"
@@ -14,6 +14,16 @@
             </a-form-item>
           </a-col>
           <a-col :span="5">
+            <a-form-item field="menuName" label="菜单名称">
+              <a-input
+                v-model="form.menuName"
+                placeholder="请输入菜单名称"
+                allow-clear
+                @press-enter="search"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
             <a-form-item field="operationType" label="操作类型">
               <a-select
                 v-model="form.operationType"
@@ -35,7 +45,7 @@
               />
             </a-form-item>
           </a-col>
-          <a-col :span="2" class="search-actions">
+          <a-col :span="4" class="search-actions">
             <a-space>
               <a-button type="primary" :loading="loading" @click="search">
                 <template #icon><icon-search /></template>
@@ -109,6 +119,7 @@
   const selectedJson = ref('');
   const form = reactive({
     operatorName: '',
+    menuName: '',
     operationType: undefined as string | undefined,
     clientIp: '',
     dates: [
@@ -190,6 +201,7 @@
     try {
       const { data } = await listPage({
         operatorName: form.operatorName || undefined,
+        menuName: form.menuName || undefined,
         operationType: form.operationType,
         clientIp: form.clientIp || undefined,
         startDate: form.dates?.[0],
@@ -212,6 +224,7 @@
 
   const reset = () => {
     form.operatorName = '';
+    form.menuName = '';
     form.operationType = undefined;
     form.clientIp = '';
     form.dates = [

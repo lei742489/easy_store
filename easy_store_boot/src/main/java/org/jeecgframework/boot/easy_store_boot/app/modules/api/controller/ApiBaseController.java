@@ -12,9 +12,11 @@ import org.apache.ibatis.annotations.Param;
 import org.jeecgframework.boot.easy_store_boot.app.common.DateUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
 import org.jeecgframework.boot.easy_store_boot.app.modules.mapper.CommonDictMapper;
+import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppRolePermissionService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppUserService;
 import org.jeecgframework.poi.excel.ExcelImportUtil;
 import org.jeecgframework.poi.excel.annotation.Excel;
@@ -48,6 +50,8 @@ public class ApiBaseController<T, S extends IService<T>> {
     private CommonDictMapper commonDictMapper;
     @Autowired
     protected IAppUserService appUserService;
+    @Autowired
+    protected IAppRolePermissionService appRolePermissionService;
 
     @PostMapping("listPage")
     public Result<?> listPage(@RequestBody JSONObject param) {
@@ -311,13 +315,23 @@ public class ApiBaseController<T, S extends IService<T>> {
             Field statusField = entity.getClass().getDeclaredField("status");
             statusField.setAccessible(true);
             if (!isRoot(user)) {
-                statusField.set(entity, 0);
+                statusField.set(entity, shouldAuditDocument(entity, user) ? 0 : 1);
             } else if (statusField.get(entity) == null) {
                 statusField.set(entity, oldStatus == null ? 1 : Integer.valueOf(oldStatus));
             }
         } catch (Exception e) {
             throw new AppRunTimeException("设置单据状态失败");
         }
+    }
+
+    private boolean shouldAuditDocument(T entity, AppUser user) {
+        String menuCode = AppPermissionDefinition.getMenuCodeByEntityClass(entity.getClass());
+        if (StringUtils.isEmpty(menuCode)) {
+            return false;
+        }
+        return appRolePermissionService.hasPermission(
+                user.getRoleId(),
+                AppPermissionDefinition.buildCode(menuCode, AppPermissionDefinition.ACTION_AUDIT));
     }
 
     private void fillCashierInfo(T entity, AppUser user, String userId) {

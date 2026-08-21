@@ -36,12 +36,17 @@ export function importExcel(file: File) {
   return uploadFile('api/user/appGoods/importExcel', file);
 }
 
-export async function searchKey(key: string, pageNo?: number) {
+export async function searchKey(
+  key: string,
+  pageNo?: number,
+  hideZeroStock?: boolean
+) {
   const response = await axios.post<GoodsSearchResult[]>(
     'api/user/appGoods/searchKey',
     {
       key,
       pageNo,
+      hideZeroStock,
     }
   );
   return {

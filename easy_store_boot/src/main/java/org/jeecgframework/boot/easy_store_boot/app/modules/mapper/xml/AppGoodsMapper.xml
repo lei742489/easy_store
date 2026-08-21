@@ -26,6 +26,9 @@
         WHERE
         g.status = 1
         and g.is_del = 0
+        <if test="hideZeroStock != null and hideZeroStock">
+            AND COALESCE(g.stock, 0) &lt;&gt; 0
+        </if>
         <if test="key!=null and key!=''">
             <bind name="likeKey" value="'%' + key + '%'"/>
             AND (

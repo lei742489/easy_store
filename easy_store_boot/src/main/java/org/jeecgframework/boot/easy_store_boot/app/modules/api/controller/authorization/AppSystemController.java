@@ -158,12 +158,12 @@ public class AppSystemController extends ApiBaseController<AppUser, IAppUserServ
         String categorySql = databaseDialect.isMySql()
                 ? "INSERT INTO app_goods_category " +
                 "(id, title, py_code, parent_id, root, is_del, create_time) " +
-                "VALUES (?, ?, ?, 0, 1, 0, " + databaseDialect.currentTimestamp() + ") " +
+                "VALUES (?, ?, ?, 0, 0, 0, " + databaseDialect.currentTimestamp() + ") " +
                 "ON DUPLICATE KEY UPDATE title = VALUES(title), py_code = VALUES(py_code), " +
-                "parent_id = 0, root = 1, is_del = 0, create_time = VALUES(create_time)"
+                "parent_id = 0, root = 0, is_del = 0, create_time = VALUES(create_time)"
                 : "INSERT OR REPLACE INTO app_goods_category " +
                 "(id, title, py_code, parent_id, root, is_del, create_time) " +
-                "VALUES (?, ?, ?, 0, 1, 0, datetime('now', 'localtime'))";
+                "VALUES (?, ?, ?, 0, 0, 0, datetime('now', 'localtime'))";
         jdbcTemplate.update(categorySql,
                 1,
                 "\u9ed8\u8ba4\u5206\u7c7b",

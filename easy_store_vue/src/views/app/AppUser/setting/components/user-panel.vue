@@ -3,9 +3,9 @@
     <a-space :size="8">
       <div class="head-url">
         <image-upload
-          v-if="userStore.avatar"
           ref="uploadRef"
-          v-model="userStore.avatar"
+          :model-value="userStore.avatar"
+          @update:model-value="handleAvatarChange"
         />
       </div>
 
@@ -43,6 +43,7 @@
   import { BasicInfoModel } from '@/api/user-center';
   import ImageUpload from '@/components/upload/image-upload.vue';
   import { edit as userEdit } from '@/api/user';
+  import { Message } from '@arco-design/web-vue';
 
   const userStore = useUserStore();
   const isRoot = computed(() => userStore.isRoot === 1);
@@ -103,15 +104,20 @@
     ];
   });
 
-  watch(
-    () => userStore.avatar,
-    async (newValue) => {
+  const handleAvatarChange = async (newValue: string) => {
+    const oldValue = userStore.avatar;
+    userStore.setInfo({ avatar: newValue });
+
+    try {
       await userEdit({
         id: userStore.id,
         avatar: newValue,
       } as BasicInfoModel);
+    } catch (error) {
+      userStore.setInfo({ avatar: oldValue });
+      Message.error('头像保存失败');
     }
-  );
+  };
 </script>
 
 <style scoped lang="less">

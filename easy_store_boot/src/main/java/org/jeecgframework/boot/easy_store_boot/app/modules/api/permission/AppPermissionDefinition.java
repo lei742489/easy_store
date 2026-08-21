@@ -4,9 +4,11 @@ import java.util.*;
 
 public final class AppPermissionDefinition {
 
+    public static final String ACTION_VIEW = "view";
     public static final String ACTION_ADD = "add";
     public static final String ACTION_EDIT = "edit";
     public static final String ACTION_REMOVE = "remove";
+    public static final String ACTION_AUDIT = "audit";
     public static final String DATA_VIEW_COST_PRICE = "data_view:cost_price";
     public static final String DATA_VIEW_PURCHASE_PRICE = "data_view:purchase_price";
     public static final String DATA_VIEW_TRADE_PRICE = "data_view:trade_price";
@@ -44,6 +46,23 @@ public final class AppPermissionDefinition {
         return menuCode + ":" + action;
     }
 
+    public static boolean isAuditMenu(String menuCode) {
+        return "sale_order_list".equals(menuCode)
+                || "purchase_order_list".equals(menuCode)
+                || "receive_payment_list".equals(menuCode)
+                || "payment_list".equals(menuCode);
+    }
+
+    public static String getMenuCodeByEntityClass(Class<?> entityClass) {
+        if (entityClass == null) return null;
+        String simpleName = entityClass.getSimpleName();
+        if ("AppSaleOrder".equals(simpleName)) return "sale_order_list";
+        if ("AppPurchaseOrder".equals(simpleName)) return "purchase_order_list";
+        if ("AppReceivePaymentVoucher".equals(simpleName)) return "receive_payment_list";
+        if ("AppPaymentVoucher".equals(simpleName)) return "payment_list";
+        return null;
+    }
+
     public static String getMenuCodeByRequestUri(String requestUri) {
         if (requestUri == null) return null;
         String matched = null;
@@ -64,7 +83,10 @@ public final class AppPermissionDefinition {
         if ("add".equals(path)) {
             return ACTION_ADD;
         }
-        if ("edit".equals(path) || path.startsWith("approve") || path.startsWith("batchUpdate") || path.startsWith("batchChange")) {
+        if (path.startsWith("approve")) {
+            return ACTION_AUDIT;
+        }
+        if ("edit".equals(path) || path.startsWith("batchUpdate") || path.startsWith("batchChange")) {
             return ACTION_EDIT;
         }
         if ("remove".equals(path) || path.startsWith("batchRemove")) {
@@ -74,7 +96,15 @@ public final class AppPermissionDefinition {
     }
 
     public static List<String> getActions() {
-        return Arrays.asList(ACTION_ADD, ACTION_EDIT, ACTION_REMOVE);
+        return Arrays.asList(ACTION_VIEW, ACTION_ADD, ACTION_EDIT, ACTION_REMOVE);
+    }
+
+    public static List<String> getActions(String menuCode) {
+        List<String> actions = new ArrayList<>(getActions());
+        if (isAuditMenu(menuCode)) {
+            actions.add(ACTION_AUDIT);
+        }
+        return actions;
     }
 
     public static List<String> getDataViewPermissions() {

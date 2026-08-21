@@ -115,6 +115,13 @@
             >
               批量审核
             </a-button>
+            <a-button
+              v-if="isRoot"
+              :loading="profitLoading"
+              @click="handleBatchRecalculateProfit"
+            >
+              重新统计
+            </a-button>
           </a-space>
         </a-col>
 
@@ -234,6 +241,7 @@
     listPage,
     remove,
     approve,
+    recalculateProfit,
     exportXlsFile,
     importExcel,
   } from './api/api-AppSaleOrder';
@@ -248,6 +256,7 @@
 
   const uploadLoading = ref<boolean>(false);
   const approveLoading = ref<boolean>(false);
+  const profitLoading = ref<boolean>(false);
   const exportLoading = ref<boolean>(false);
   const selectedRowKeys = ref<Array<number | string>>([]);
   const rowSelection = reactive({
@@ -598,6 +607,29 @@
       search();
     } finally {
       approveLoading.value = false;
+    }
+  };
+
+  const handleBatchRecalculateProfit = async () => {
+    const selectedSet = new Set(selectedRowKeys.value.map((id) => String(id)));
+    const ids = renderData.value
+      .filter(
+        (item) =>
+          item.id !== undefined &&
+          selectedSet.has(String(item.id))
+      )
+      .map((item) => item.id as number);
+    if (ids.length === 0) {
+      Message.warning('请选择需要重新统计的销售单');
+      return;
+    }
+    profitLoading.value = true;
+    try {
+      await recalculateProfit({ ids });
+      Message.success('重新统计成功');
+      search();
+    } finally {
+      profitLoading.value = false;
     }
   };
 

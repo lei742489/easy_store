@@ -2,6 +2,7 @@ import axios from 'axios';
 
 export interface OperationLogQuery {
   operatorName?: string;
+  menuName?: string;
   operationType?: string;
   clientIp?: string;
   startDate?: string;

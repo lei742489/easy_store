@@ -20,11 +20,17 @@
       </template>
 
       <template #amount="{ rowIndex }">
-        <a-input-number
-          v-model="renderData[rowIndex].amount"
-          :precision="2"
-          :min="0"
-        ></a-input-number>
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          <a-input-number
+            v-model="renderData[rowIndex].amount"
+            :precision="2"
+            :min="0"
+            style="flex: 1; min-width: 0;"
+          ></a-input-number>
+          <a-button size="mini" type="outline" @click="fillAmount(rowIndex)">
+            已收
+          </a-button>
+        </div>
       </template>
 
       <template #note="{ rowIndex }">
@@ -64,7 +70,7 @@
   const renderData = ref<AppReceivePaymentAmountItem[]>([]);
   const customerId = defineModel<string>('customerId');
   const orderId = defineModel<number>('orderId');
-  const selectedRowKeys = ref([]);
+  const selectedRowKeys = ref<(string | number)[]>([]);
 
   const rowSelection = reactive({
     selectedRowKeys,
@@ -101,7 +107,7 @@
       align: 'center',
     },
     {
-      title: '应付金额',
+      title: '应收金额',
       dataIndex: 'payableAmount',
       align: 'center',
       render: (record) => {
@@ -110,7 +116,7 @@
       },
     },
     {
-      title: '已付金额',
+      title: '已收金额',
       dataIndex: 'paidAmount',
       align: 'center',
       render: (record) => {
@@ -119,7 +125,7 @@
       },
     },
     {
-      title: '未付金额',
+      title: '未收金额',
       dataIndex: 'unpaidAmount',
       align: 'center',
       render: (record) => {
@@ -128,7 +134,7 @@
       },
     },
     {
-      title: '本次付款',
+      title: '本次收款',
       dataIndex: 'amount',
       align: 'center',
       slotName: 'amount',
@@ -173,17 +179,28 @@
     } as unknown as PolicyParams);
   };
 
-  const selectChange = (e: []) => {
+  const selectChange = (e: (string | number)[]) => {
+    const selectedKeys = new Set(e.map((key) => String(key)));
     renderData.value.forEach((item) => {
-      item.amount = undefined;
-      e.forEach((id) => {
-        if (item.id === id) {
-          item.amount = item.unpaidAmount;
-        }
-      });
+      if (!item.id) return;
+      if (selectedKeys.has(String(item.id))) {
+        item.amount = item.amount ?? 0;
+      } else {
+        item.amount = undefined;
+      }
     });
-
     selectedRowKeys.value = e;
+  };
+
+  const fillAmount = (rowIndex: number) => {
+    const row = renderData.value[rowIndex];
+    row.amount = row.unpaidAmount || 0;
+    if (row.id !== undefined && row.id !== null) {
+      const key = String(row.id);
+      if (!selectedRowKeys.value.some((item) => String(item) === key)) {
+        selectedRowKeys.value = [...selectedRowKeys.value, row.id];
+      }
+    }
   };
 
   const getItemsList = () => {

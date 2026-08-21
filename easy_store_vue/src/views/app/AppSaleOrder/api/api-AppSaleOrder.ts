@@ -19,6 +19,10 @@ export function approve(data: { id?: number; ids?: number[] }) {
   return axios.post<any>('api/user/appSaleOrder/approve', data);
 }
 
+export function recalculateProfit(data: { id?: number; ids?: number[] }) {
+  return axios.post<any>('api/user/appSaleOrder/recalculateProfit', data);
+}
+
 export function listPage(param: PolicyParams) {
   return axios.post<pageRecords>('api/user/appSaleOrder/listPage', param);
 }

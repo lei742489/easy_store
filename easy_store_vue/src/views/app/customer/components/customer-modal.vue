@@ -98,7 +98,7 @@
               :fallback-option="categoryFallback"
             ></a-tree-select>
           </a-form-item>
-
+          <!--
           <a-form-item field="categoryId" label="客户等级">
             <div
               style="
@@ -127,6 +127,7 @@
               >
             </div>
           </a-form-item>
+          -->
 
           <a-form-item field="status" label="状态">
             <a-select v-model="form.status" placeholder="请选择 ...">
@@ -183,7 +184,7 @@
   const loading = ref(false);
 
   const emit = defineEmits<{
-    (e: 'ok', data: 1): void;
+    (e: 'ok', data: Customer): void;
   }>();
 
   const fetchCategoryData = async () => {
@@ -241,9 +242,10 @@
         loading.value = false;
       }
 
+      const savedItem = { ...form };
       Message.success('操作成功');
       handleCancel();
-      emit('ok', 1);
+      emit('ok', savedItem);
     }
   };
 

@@ -45,15 +45,13 @@
                   </a-form-item>
                 </a-col>
                 <a-col :span="8">
-                  <div
-                    v-if="
-                      form.customerId !== undefined && form.customerId !== null
-                    "
-                    class="counterparty-payable"
-                  >
+                  <div class="counterparty-payable">
                     欠款：<span
                       >￥{{ formatPrice(currentCustomerPayable) }}</span
                     >
+                    <a-button style="margin-left: 4rpx;" size="mini" type="outline" @click="openCustomerModal">
+                      新增
+                    </a-button>
                   </div>
                   <!--                  <div style="margin-top: 6px; font-size: 13px; color: #69778a"
                     >欠款:￥58555.12</div
@@ -149,7 +147,7 @@
           </a-row>
           <a-row :gutter="24">
             <a-col :span="5">
-              <a-form-item field="payableAmount" label="应付金额">
+              <a-form-item field="payableAmount" label="应收金额">
                 <a-input-number
                   v-model="form.payableAmount"
                   placeholder="0.00"
@@ -160,13 +158,19 @@
               </a-form-item>
             </a-col>
             <a-col :span="5">
-              <a-form-item field="paidAmount" label="实付金额">
-                <a-input-number
-                  v-model="form.paidAmount"
-                  placeholder="0.00"
-                  :precision="2"
-                  :max-length="10"
-                />
+              <a-form-item field="paidAmount" label="实收金额">
+                <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                  <a-input-number
+                    v-model="form.paidAmount"
+                    placeholder="0.00"
+                    :precision="2"
+                    :max-length="10"
+                    style="flex: 1; min-width: 0;"
+                  />
+                  <a-button size="mini" type="outline" @click="fillPaidAmount">
+                    已收
+                  </a-button>
+                </div>
               </a-form-item>
             </a-col>
             <a-col :span="5">
@@ -249,6 +253,7 @@
         </div>
       </template>
     </a-modal>
+    <customer-modal ref="customerModalRef" @ok="handleCustomerSaved" />
   </div>
 </template>
 
@@ -258,6 +263,7 @@
   import { useUserStore } from '@/store';
   import { Customer } from '@/views/app/customer/types/customer';
   import { list as getCustomList } from '@/views/app/customer/api/api-customer';
+  import CustomerModal from '@/views/app/customer/components/customer-modal.vue';
   import { list as getSettleList } from '@/views/app/AppAccountSettle/api/api-AppAccountSettle';
   import { AppAccountSettle } from '@/views/app/AppAccountSettle/types/AppAccountSettle';
   import { list as getUserList } from '@/views/app/AppUser/api/api-AppUser';
@@ -286,6 +292,7 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
   const settleList = ref<AppAccountSettle[]>([]);
   const cashierList = ref<AppUser[]>([]);
   const itemTableRef = ref<InstanceType<typeof ItemTable> | null>(null);
+  const customerModalRef = ref<InstanceType<typeof CustomerModal> | null>(null);
   const showHistory = defineModel<boolean>('showHistory');
   const router = useRouter();
 
@@ -309,7 +316,7 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     status: 1,
     totalAmount: 0,
     payableAmount: undefined,
-    paidAmount: undefined,
+    paidAmount: 0,
     freightAmount: undefined,
     grossProfit: undefined,
     discountedAmount: undefined,
@@ -341,18 +348,54 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     }
   };
 
+  const selectCustomer = (customer?: Customer) => {
+    if (!customer) return;
+    form.customerId = customer.id;
+    form.customerId_dictText = customer.name;
+  };
+
+  const findSavedCustomer = (savedItem: Customer) => {
+    if (savedItem.id !== undefined && savedItem.id !== null) {
+      const item = customerList.value.find(
+        (customer) => String(customer.id) === String(savedItem.id)
+      );
+      if (item) return item;
+    }
+    const matchedList = customerList.value.filter(
+      (customer) => customer.name === savedItem.name
+    );
+    return matchedList[matchedList.length - 1];
+  };
+
+  const reloadCustomerData = async (savedItem?: Customer) => {
+    customerLoading.value = true;
+    try {
+      customerList.value = (await getCustomList()).data.sort(
+        (left, right) => Number(left.id) - Number(right.id)
+      );
+      if (savedItem) {
+        selectCustomer(findSavedCustomer(savedItem));
+      } else {
+        selectDefaultCustomer();
+      }
+    } finally {
+      customerLoading.value = false;
+    }
+  };
+
   const fetchSupplierData = async () => {
     if (customerList.value.length === 0) {
-      customerLoading.value = true;
-      try {
-        customerList.value = (await getCustomList()).data.sort(
-          (left, right) => Number(left.id) - Number(right.id)
-        );
-      } finally {
-        customerLoading.value = false;
-      }
+      await reloadCustomerData();
     }
     selectDefaultCustomer();
+  };
+
+  const openCustomerModal = () => {
+    customerModalRef.value?.showModal({} as Customer);
+  };
+
+  const handleCustomerSaved = async (savedItem: Customer) => {
+    await reloadCustomerData(savedItem);
   };
 
   const fetchCashierList = async () => {
@@ -475,9 +518,10 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     const ac = mulPrice(form.totalAmount || 0, rate);
     const bc = addPrice(ac, form.freightAmount || 0);
     form.payableAmount = bc;
-    if (!form.id) {
-      form.paidAmount = bc;
-    }
+  };
+
+  const fillPaidAmount = () => {
+    form.paidAmount = form.payableAmount || 0;
   };
 
   const updateDiscountRate = () => {
@@ -601,6 +645,9 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
 
   .counterparty-payable {
     margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     color: var(--color-text-2);
     font-size: 13px;
     white-space: nowrap;

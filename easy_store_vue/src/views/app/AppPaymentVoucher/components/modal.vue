@@ -44,6 +44,19 @@
                       @popup-visible-change="fetchSupplierData"
                     ></a-tree-select>
                   </a-form-item>
+                  <div class="counterparty-payable">
+                    应付款：<span
+                      >￥{{ formatPrice(currentSupplierPayable) }}</span
+                    >
+                    <a-button
+                      size="mini"
+                      type="outline"
+                      :disabled="form.id !== undefined"
+                      @click="openSupplierModal"
+                    >
+                      新增
+                    </a-button>
+                  </div>
                 </a-col>
                 <a-col :span="10">
                   <a-form-item field="createTime" label="日期">
@@ -131,6 +144,7 @@
         </div>
       </template>
     </a-modal>
+    <supplier-modal ref="supplierModalRef" @ok="handleSupplierSaved" />
   </div>
 </template>
 
@@ -140,8 +154,9 @@
   import { useUserStore } from '@/store';
   import { AppSupplier } from '@/views/app/AppSupplier/types/AppSupplier';
   import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
+  import SupplierModal from '@/views/app/AppSupplier/components/modal.vue';
   import SettlerItemTable from '@/views/app/AppPaymentVoucher/components/settler-item-table.vue';
-  import { addPrice } from '@/api/common';
+  import { addPrice, formatPrice } from '@/api/common';
 
   import { useRouter } from 'vue-router';
   import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
@@ -169,6 +184,7 @@
   const purchaseOrderTableRef = ref<InstanceType<
     typeof PurchaseOrderTable
   > | null>(null);
+  const supplierModalRef = ref<InstanceType<typeof SupplierModal> | null>(null);
   const userStore = useUserStore();
   const isRoot = computed(() => userStore.isRoot === 1);
 
@@ -182,6 +198,12 @@
     createTime: new Date(),
   };
   const form = reactive<AppPaymentVoucher>({ ...defaultForm });
+  const currentSupplierPayable = computed(() => {
+    const supplier = supplierList.value.find(
+      (item) => String(item.id) === String(form.supplierId)
+    );
+    return supplier?.payable || 0;
+  });
   const loading = ref(false);
   const clodopLoading = ref(false);
 
@@ -260,12 +282,50 @@
     }
   };
 
-  const fetchSupplierData = async (e: any) => {
-    if (supplierList.value.length !== 0) return;
+  const selectSupplier = (supplier?: AppSupplier) => {
+    if (!supplier) return;
+    form.supplierId = String(supplier.id);
+    form.supplierId_dictText = supplier.name;
+  };
 
+  const findSavedSupplier = (savedItem: AppSupplier) => {
+    if (savedItem.id !== undefined && savedItem.id !== null) {
+      const item = supplierList.value.find(
+        (supplier) => String(supplier.id) === String(savedItem.id)
+      );
+      if (item) return item;
+    }
+    const matchedList = supplierList.value.filter(
+      (supplier) => supplier.name === savedItem.name
+    );
+    return matchedList[matchedList.length - 1];
+  };
+
+  const reloadSupplierData = async (savedItem?: AppSupplier) => {
     supplierLoading.value = true;
-    supplierList.value = (await getSupplierList()).data;
-    supplierLoading.value = false;
+    try {
+      supplierList.value = (await getSupplierList()).data.sort(
+        (left, right) => Number(left.id) - Number(right.id)
+      );
+      if (savedItem) {
+        selectSupplier(findSavedSupplier(savedItem));
+      }
+    } finally {
+      supplierLoading.value = false;
+    }
+  };
+
+  const fetchSupplierData = async () => {
+    if (supplierList.value.length !== 0) return;
+    await reloadSupplierData();
+  };
+
+  const openSupplierModal = () => {
+    supplierModalRef.value?.showModal({} as AppSupplier);
+  };
+
+  const handleSupplierSaved = async (savedItem: AppSupplier) => {
+    await reloadSupplierData(savedItem);
   };
 
   const filterSupplierTreeNode = (
@@ -352,5 +412,20 @@
 
 <style lang="less" scoped>
   .drawer {
+  }
+
+  .counterparty-payable {
+    margin-top: -8px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-2);
+    font-size: 13px;
+    white-space: nowrap;
+
+    span {
+      color: rgb(var(--arcoblue-6));
+    }
   }
 </style>

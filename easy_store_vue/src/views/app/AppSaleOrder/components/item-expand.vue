@@ -80,7 +80,7 @@
       dataIndex: 'categoryId_dictText',
       align: 'center',
       slotName: 'category',
-      width: 200,
+      width: 150,
     },
     {
       title: '数量',
