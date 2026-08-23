@@ -282,6 +282,7 @@ public class AppMiniApiController {
 
         List<JSONObject> goodsList = new ArrayList<>();
         List<AppSaleOrderItem> items = appSaleOrderItemService.listByOrderId(order.getId());
+        appSaleOrderService.fillPendingGoodsNames(order.getId(), items);
         for (AppSaleOrderItem item : items) {
             JSONObject goods = new JSONObject();
             goods.put("id", item.getId() == null ? null : String.valueOf(item.getId()));
@@ -389,14 +390,12 @@ public class AppMiniApiController {
                     : JSONObject.parseObject(JSONObject.toJSONString(value));
             String title = sourceItem.getString("title");
             String goodsCode = sourceItem.getString("goodCode");
-            AppGoods goods = findGoods(goodsCode, title);
-            if (goods == null) {
-                throw new AppRunTimeException("商品信息未入库：" +
-                        (StringUtils.isBlank(title) ? goodsCode : title));
-            }
+            String sourceGoodsId = firstNotBlank(sourceItem.getString("goodsId"), sourceItem.getString("id"));
+            AppGoods goods = findGoods(sourceGoodsId, goodsCode, title);
+            String displayGoodsName = goods == null ? title : goods.getTitle();
             Integer sourceQuantity = sourceItem.getInteger("num");
             if (sourceQuantity == null || sourceQuantity == 0) {
-                throw new AppRunTimeException("商品数量不能为空：" + goods.getTitle());
+                throw new AppRunTimeException("商品数量不能为空：" + displayGoodsName);
             }
             int quantity = Math.abs(sourceQuantity);
             if (orderType != null && orderType == 2) {
@@ -413,10 +412,22 @@ public class AppMiniApiController {
             }
 
             AppSaleOrderItem item = new AppSaleOrderItem();
-            item.setGoodsId(String.valueOf(goods.getId()));
-            item.setGoodsName(title);
-            item.setCategoryId(goods.getCategoryId());
-            item.setUnit(goods.getUnit());
+            if (goods != null) {
+                item.setGoodsId(String.valueOf(goods.getId()));
+                item.setGoodsName(goods.getTitle());
+                item.setCategoryId(goods.getCategoryId());
+                item.setUnit(StringUtils.isBlank(sourceItem.getString("unit"))
+                        ? goods.getUnit()
+                        : sourceItem.getString("unit"));
+            } else {
+                if (StringUtils.isBlank(title)) {
+                    throw new AppRunTimeException("请输入商品名称");
+                }
+                item.setGoodsId(null);
+                item.setGoodsName(title.trim());
+                item.setCategoryId(firstNotBlank(sourceItem.getString("categoryId"), "1"));
+                item.setUnit(sourceItem.getString("unit"));
+            }
             item.setQuantity(quantity);
             item.setUnitPrice(unitPrice);
             item.setTotalAmount(totalAmount);
@@ -426,7 +437,13 @@ public class AppMiniApiController {
         return items;
     }
 
-    private AppGoods findGoods(String goodsCode, String title) {
+    private AppGoods findGoods(String goodsId, String goodsCode, String title) {
+        if (StringUtils.isNotBlank(goodsId) && StringUtils.isNumeric(goodsId.trim())) {
+            AppGoods goods = appGoodsService.getById(goodsId.trim());
+            if (goods != null) {
+                return goods;
+            }
+        }
         if (StringUtils.isNotBlank(goodsCode)) {
             AppGoods goods = appGoodsService.getOne(new LambdaQueryWrapper<AppGoods>()
                     .eq(AppGoods::getGoodsCode, goodsCode.trim())
@@ -439,6 +456,18 @@ public class AppMiniApiController {
             return appGoodsService.getOne(new LambdaQueryWrapper<AppGoods>()
                     .eq(AppGoods::getTitle, title.trim())
                     .last("limit 1"));
+        }
+        return null;
+    }
+
+    private String firstNotBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.isNotBlank(value)) {
+                return value.trim();
+            }
         }
         return null;
     }

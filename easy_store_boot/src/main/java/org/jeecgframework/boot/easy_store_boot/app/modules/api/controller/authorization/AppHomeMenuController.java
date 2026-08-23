@@ -181,7 +181,9 @@ public class AppHomeMenuController {
     }
 
     private boolean isPermissionMenu(AppHomeMenu menu) {
-        return menu.getUrl() != null && !menu.getUrl().trim().isEmpty();
+        return menu.getUrl() != null
+                && !menu.getUrl().trim().isEmpty()
+                && !menu.getCode().endsWith("_add");
     }
 
     private String getPermissionMenuTitle(String title) {

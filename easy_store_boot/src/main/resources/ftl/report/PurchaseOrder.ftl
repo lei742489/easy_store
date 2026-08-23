@@ -30,15 +30,15 @@
         }
 
         .mt10 {
-            margin-top: 4mm;
+            margin-top: 2mm;
         }
 
         .mt15 {
-            margin-top: 6mm;
+            margin-top: 3mm;
         }
 
         .mt20 {
-            margin-top: 8mm;
+            margin-top: 4mm;
         }
 
         .title {
@@ -55,13 +55,13 @@
         }
 
         .m-item {
-            padding: 1.2mm 1.5mm;
+            padding: 0.8mm 1.5mm;
             font-size: 10.5pt;
             color: #000;
         }
 
         .tb2 .m-item {
-            height: 7mm;
+            height: 6mm;
             vertical-align: middle;
             text-align: center;
         }

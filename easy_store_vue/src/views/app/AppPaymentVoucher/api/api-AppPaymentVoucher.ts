@@ -23,6 +23,10 @@ export function exportPdfFile(data: AppPaymentVoucher) {
   return axios.post<any>('api/user/appPaymentVoucher/exportPdf', data);
 }
 
+export function exportHtmlFile(data: AppPaymentVoucher) {
+  return axios.post<any>('api/user/appPaymentVoucher/exportHtml', data);
+}
+
 export function exportEscpFile(data: AppPaymentVoucher) {
   return axios.post<any>('api/user/appPaymentVoucher/exportEscp', data);
 }

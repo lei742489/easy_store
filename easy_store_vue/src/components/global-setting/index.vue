@@ -68,7 +68,7 @@
       </a-space>
     </div>
 
-    <div v-if="isElectron" class="printer-block">
+    <div v-if="false" class="printer-block">
       <h5 class="theme-title">打印机设置</h5>
       <div class="printer-row">
         <span>当前打印机</span>

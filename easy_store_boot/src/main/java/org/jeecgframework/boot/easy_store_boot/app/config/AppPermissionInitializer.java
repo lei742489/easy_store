@@ -46,6 +46,7 @@ public class AppPermissionInitializer {
         repairStockStatisticsMenu();
         repairStockWarningMenu();
         repairStockCheckMenu();
+        repairOrderEntryMenus();
     }
 
     private void createTables() {
@@ -324,10 +325,10 @@ public class AppPermissionInitializer {
     }
 
     private void initHomeMenus() {
-        insertMenu("sale_order_add", "common", "常用功能", "销售单", "sm1.png", "", "SaleOrderModalRef", 10, 1, 0, 0);
-        insertMenu("receive_payment_add", "common", "常用功能", "收款单", "sm2.png", "", "ReceivePaymentVoucherModal", 20, 1, 0, 0);
-        insertMenu("purchase_order_add", "common", "常用功能", "进货单", "sm3.png", "", "PurchaseOrderModal", 30, 1, 0, 0);
-        insertMenu("payment_add", "common", "常用功能", "付款单", "sm4.png", "", "PaymentVoucherModal", 40, 1, 0, 0);
+        insertMenu("sale_order_add", "common", "常用功能", "销售单", "sm1.png", "/custom/salesOrder/add", "", 10, 1, 0, 0);
+        insertMenu("receive_payment_add", "common", "常用功能", "收款单", "sm2.png", "/custom/receivePaymentVoucher/add", "", 20, 1, 0, 0);
+        insertMenu("purchase_order_add", "common", "常用功能", "进货单", "sm3.png", "/custom/purchaseOrder/add", "", 30, 1, 0, 0);
+        insertMenu("payment_add", "common", "常用功能", "付款单", "sm4.png", "/custom/paymentVoucher/add", "", 40, 1, 0, 0);
         insertMenu("goods", "common", "常用功能", "库存管理", "sm5.png", "/custom/goods", "", 50, 1, 0, 0);
         insertMenu("customer", "common", "常用功能", "客户管理", "sm6.png", "/custom/customer", "", 60, 1, 0, 0);
         insertMenu("supplier", "common", "常用功能", "供应商管理", "sm7.png", "/custom/supplier", "", 70, 1, 0, 0);
@@ -430,5 +431,16 @@ public class AppPermissionInitializer {
                 "/custom/stockCheck", "stock_check");
         jdbcTemplate.update("UPDATE app_home_menu SET name = ? WHERE code = ? AND name = ?",
                 "库存盘点", "stock_check", "盘点查询");
+    }
+
+    private void repairOrderEntryMenus() {
+        updateOrderEntryMenu("sale_order_add", "/custom/salesOrder/add");
+        updateOrderEntryMenu("receive_payment_add", "/custom/receivePaymentVoucher/add");
+        updateOrderEntryMenu("purchase_order_add", "/custom/purchaseOrder/add");
+        updateOrderEntryMenu("payment_add", "/custom/paymentVoucher/add");
+    }
+
+    private void updateOrderEntryMenu(String code, String url) {
+        jdbcTemplate.update("UPDATE app_home_menu SET url = ?, action = '' WHERE code = ?", url, code);
     }
 }

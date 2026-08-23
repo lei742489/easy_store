@@ -1,12 +1,16 @@
 <template>
-  <div class="drawer">
+  <div class="drawer" :class="{ 'order-entry-page': pageMode }">
     <a-modal
       width="90%"
-      :visible="visible"
+      :visible="pageMode || visible"
+      :mask="!pageMode"
+      :closable="!pageMode"
+      :render-to-body="!pageMode"
+      :modal-class="{ 'order-entry-page-modal': pageMode }"
       unmount-on-close
-      :mask-closable="true"
+      :mask-closable="!pageMode"
       :ok-loading="loading"
-      @cancel="handleCancel"
+      @cancel="() => handleCancel()"
     >
       <template #title> {{ title }} </template>
       <div>
@@ -197,40 +201,55 @@
       </div>
 
       <!-- modal 内容 -->
-      <template #footer>
-        <a-button @click="handlePrint">
-          <template #icon>
-            <icon-printer />
-          </template>
-          <template #default> 打印 </template>
-        </a-button>
+  <template #footer>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          "
+        >
+          <div>
+            <a-button type="primary" @click="handleList"
+              ><template #icon>
+                <icon-history />
+              </template>
+              <template #default>历史记录</template>
+            </a-button>
+          </div>
+          <div style="display: flex; flex-direction: row; gap: 14px">
+            <a-button @click="handleCLodopPrint">
+              <template #icon>
+                <icon-printer />
+              </template>
+              <template #default> 打印 </template>
+            </a-button>
 
-        <a-button @click="handlePdfPreview">
-          <template #icon>
-            <icon-file-pdf />
-          </template>
-          <template #default> PDF预览 </template>
-        </a-button>
-        <a-button @click="handleCancel">取消</a-button>
-        <a-button type="primary" :loading="loading" @click="handleOk(0)"
-          >保存</a-button
-        >
-        <a-button
-          v-if="form.id === undefined"
-          type="primary"
-          :loading="loading"
-          @click="handleOk(1)"
-          >保存并继续</a-button
-        >
+          
+
+            <a-button @click="handlePdfPreview">
+              <template #icon>
+                <icon-file-pdf />
+              </template>
+              <template #default> PDF预览 </template>
+            </a-button>
+            <a-button @click="handleReset">重置</a-button>
+            <a-button type="primary" :loading="loading" @click="handleOk(1)"
+              >保存</a-button
+            >
+           
+          </div>
+        </div>
       </template>
     </a-modal>
     <supplier-modal ref="supplierModalRef" @ok="handleSupplierSaved" />
+    <clodop-print-modal ref="clodopPrintModalRef" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { computed, reactive, ref, nextTick } from 'vue';
-  import { Message, FormItem } from '@arco-design/web-vue';
+  import { Message, Modal, FormItem } from '@arco-design/web-vue';
   import { useUserStore } from '@/store';
   import { AppSupplier } from '@/views/app/AppSupplier/types/AppSupplier';
   import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
@@ -241,16 +260,25 @@
   import { AppUser } from '@/views/app/AppUser/types/AppUser';
   import { mulPrice, divPrice, addPrice, formatPrice } from '@/api/common';
   import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
-  import { printPdfWithCLodop } from '@/utils/clodop';
+  import ClodopPrintModal from '@/components/clodop-print-modal/index.vue';
+  import { useRoute, useRouter } from 'vue-router';
   import type { AppPurchaseOrder } from '../types/AppPurchaseOrder';
   import {
     add,
     edit,
     createOrderNo,
+    exportHtmlFile,
     exportEscpFile,
     exportPdfFile,
   } from '../api/api-AppPurchaseOrder';
   import ItemTable from './item-table.vue';
+
+  defineProps({
+    pageMode: {
+      type: Boolean,
+      default: false,
+    },
+  });
 
   const visible = ref(false);
   const formRef = ref();
@@ -263,6 +291,11 @@
   const cashierList = ref<AppUser[]>([]);
   const itemTableRef = ref<InstanceType<typeof ItemTable> | null>(null);
   const supplierModalRef = ref<InstanceType<typeof SupplierModal> | null>(null);
+  const clodopPrintModalRef = ref<InstanceType<
+    typeof ClodopPrintModal
+  > | null>(null);
+  const router = useRouter();
+  const route = useRoute();
 
   const userStore = useUserStore();
   const userInfo = computed(() => {
@@ -301,7 +334,8 @@
     return supplier?.payable || 0;
   });
   const emit = defineEmits<{
-    (e: 'ok', data: 1): void;
+    (e: 'ok', state: number): void;
+    (e: 'cancel'): void;
   }>();
 
   const selectDefaultSupplier = () => {
@@ -377,7 +411,21 @@
     if (form.id === undefined) form.orderNo = (await createOrderNo()).data;
   };
 
+  const resetForm = () => {
+    Object.keys(form).forEach((key) => {
+      delete (form as Record<string, unknown>)[key];
+    });
+    Object.assign(form, {
+      ...defaultForm,
+      cashierId: userInfo.value.id,
+      createTime: new Date(),
+    });
+    itemTableRef.value?.clearAll();
+    formRef.value?.clearValidate?.();
+  };
+
   const showModal = (item: AppPurchaseOrder) => {
+    resetForm();
     visible.value = true;
     if (item.id) {
       title.value = '编辑-进货单';
@@ -406,9 +454,36 @@
     fetchCashierList();
   };
 
-  const handleCancel = () => {
+  const closeForm = (notify = true) => {
     visible.value = false;
-    Object.assign(form, defaultForm);
+    resetForm();
+    if (notify) emit('cancel');
+  };
+
+  const handleCancel = (notify = true, confirmCancel = true) => {
+    if (!confirmCancel) {
+      closeForm(notify);
+      return;
+    }
+    Modal.confirm({
+      title: '确认取消',
+      content: '确认取消并清空当前表单数据吗？',
+      onOk: () => closeForm(notify),
+    });
+  };
+
+  const executeReset = async () => {
+    resetForm();
+    selectDefaultSupplier();
+    form.orderNo = (await createOrderNo()).data;
+  };
+
+  const handleReset = () => {
+    Modal.confirm({
+      title: '确认重置',
+      content: '确认清空当前表单数据并重新生成单号吗？',
+      onOk: () => executeReset(),
+    });
   };
 
   const hasItemWithoutCategory = (items?: AppPurchaseOrder['items']) => {
@@ -446,15 +521,14 @@
 
         Message.success('操作成功');
         if (state === 0) {
-          handleCancel();
+          handleCancel(false, false);
         } else {
-          Object.assign(form, defaultForm);
-          itemTableRef.value?.clearAll();
+          resetForm();
           selectDefaultSupplier();
           form.orderNo = (await createOrderNo()).data;
         }
 
-        emit('ok', 1);
+      emit('ok', state);
       }
     }
   };
@@ -570,14 +644,14 @@
     if (!preparePrintData()) return;
     clodopLoading.value = true;
     try {
-      const result = await exportPdfFile(form);
-      if (!result.data?.subPath) {
-        throw new Error('PDF 文件生成失败');
+      const result = await exportHtmlFile(form);
+      if (!result.data?.html) {
+        throw new Error('HTML 文件生成失败');
       }
-      await printPdfWithCLodop(
-        buildPdfPath(result),
-        `进货单_${form.orderNo || ''}`
-      );
+      clodopPrintModalRef.value?.show({
+        htmlContent: result.data.html,
+        jobName: result.data.jobName || `进货单_${form.orderNo || ''}`,
+      });
     } catch (error) {
       Message.error(error instanceof Error ? error.message : 'C-Lodop 打印失败');
     } finally {
@@ -585,7 +659,16 @@
     }
   };
 
-  defineExpose({ showModal });
+  const handleList = () => {
+    const targetPath = '/custom/appSaleOrder';
+    if (route.path === targetPath) {
+      handleCancel();
+      return;
+    }
+    router.push(targetPath);
+  };
+
+  defineExpose({ showModal, visible });
 </script>
 
 <style lang="less" scoped>
@@ -603,6 +686,23 @@
 
     span {
       color: rgb(var(--arcoblue-6));
+    }
+  }
+
+  :global(.order-entry-page-modal) {
+    box-shadow: var(--shadow2-center);
+  }
+
+  &.order-entry-page {
+    :deep(.arco-modal-container),
+    :deep(.arco-modal-wrapper) {
+      position: static;
+      overflow: visible;
+    }
+
+    :deep(.arco-modal) {
+      top: 0;
+      margin: 24px auto;
     }
   }
 </style>

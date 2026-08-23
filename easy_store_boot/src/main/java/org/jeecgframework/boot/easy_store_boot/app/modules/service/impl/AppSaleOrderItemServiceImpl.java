@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSaleOrderItem;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppGoodsService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppSaleOrderItemService;
@@ -73,7 +74,9 @@ public class AppSaleOrderItemServiceImpl extends ServiceImpl<AppSaleOrderItemMap
     public   void batchUpdateGoodsStore(List<AppSaleOrderItem> updateList){
         if(!updateList.isEmpty()){
             for(AppSaleOrderItem item:updateList){
-                appGoodsService.updateStock(item.getGoodsId());
+                if(StringUtils.isNotBlank(item.getGoodsId()) && StringUtils.isNumeric(item.getGoodsId().trim())){
+                    appGoodsService.updateStock(item.getGoodsId());
+                }
             }
         }
     }

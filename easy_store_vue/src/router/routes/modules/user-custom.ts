@@ -31,6 +31,15 @@ const FORM: AppRouteRecordRaw = {
       },
     },
     {
+      path: 'salesOrder/add',
+      name: 'SalesOrderAdd',
+      component: () => import('@/views/app/AppSaleOrder/entry.vue'),
+      meta: {
+        locale: '销售单',
+        requiresAuth: false,
+      },
+    },
+    {
       path: 'salesStatistics',
       name: 'SalesStatistics',
       component: () => import('@/views/app/AppSaleStatistics/list.vue'),
@@ -157,6 +166,15 @@ const FORM: AppRouteRecordRaw = {
       },
     },
     {
+      path: 'purchaseOrder/add',
+      name: 'PurchaseOrderAdd',
+      component: () => import('@/views/app/AppPurchaseOrder/entry.vue'),
+      meta: {
+        locale: '进货单',
+        requiresAuth: false,
+      },
+    },
+    {
       path: 'appUnit',
       name: 'AppUnit',
       component: () => import('@/views/app/AppUnit/list.vue'),
@@ -193,11 +211,29 @@ const FORM: AppRouteRecordRaw = {
       },
     },
     {
+      path: 'paymentVoucher/add',
+      name: 'PaymentAdd',
+      component: () => import('@/views/app/AppPaymentVoucher/entry.vue'),
+      meta: {
+        locale: '付款单',
+        requiresAuth: false,
+      },
+    },
+    {
       path: 'appReceivePaymentVoucher',
       name: 'AppReceivePaymentVoucher',
       component: () => import('@/views/app/AppReceivePaymentVoucher/list.vue'),
       meta: {
         locale: 'menu.custom.receivePaymentOrderList',
+        requiresAuth: false,
+      },
+    },
+    {
+      path: 'receivePaymentVoucher/add',
+      name: 'ReceivePaymentAdd',
+      component: () => import('@/views/app/AppReceivePaymentVoucher/entry.vue'),
+      meta: {
+        locale: '收款单',
         requiresAuth: false,
       },
     },

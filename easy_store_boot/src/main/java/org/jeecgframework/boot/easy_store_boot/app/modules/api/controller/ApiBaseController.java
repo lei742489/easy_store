@@ -307,6 +307,36 @@ public class ApiBaseController<T, S extends IService<T>> {
         queryWrapper.eq("cashier_id", param.getString("userId"));
     }
 
+    protected JSONObject getDefaultAuditSortQueryParam(JSONObject param) {
+        if (!isDefaultCreateTimeSort(param)) {
+            return param;
+        }
+        JSONObject queryParam = new JSONObject(param);
+        queryParam.remove("column");
+        queryParam.remove("order");
+        return queryParam;
+    }
+
+    protected void applyDefaultAuditSort(QueryWrapper<?> queryWrapper, JSONObject param) {
+        if (isDefaultCreateTimeSort(param)) {
+            queryWrapper.orderByAsc("status")
+                    .orderByDesc("create_time")
+                    .orderByDesc("id");
+            return;
+        }
+        queryWrapper.orderByDesc("id");
+    }
+
+    private boolean isDefaultCreateTimeSort(JSONObject param) {
+        if (param == null) {
+            return true;
+        }
+        String column = param.getString("column");
+        String order = param.getString("order");
+        return StringUtils.isEmpty(column)
+                || ("createTime".equals(column) && "desc".equalsIgnoreCase(order));
+    }
+
     private void setDocumentStatus(T entity, AppUser user, String oldStatus) {
         if (!hasField(entity, "status")) {
             return;

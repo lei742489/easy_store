@@ -63,7 +63,7 @@
             :filter-option="() => true"
             @select="(value:any) => selectGoods(data[rowIndex], value)"
             @search="handleSearchKey"
-            @dropdown-reach-bottom="(value:any) => loadGoodsMore(data[rowIndex], value)"
+            @dropdown-reach-bottom="() => loadGoodsMore(data[rowIndex])"
           >
           </a-auto-complete>
         </div>
@@ -190,7 +190,6 @@
           <template v-if="!isPurchaseGoodsSearch">
             <div>零售价</div>
             <div>批发价</div>
-            <div>大客户价</div>
           </template>
           <div>库存</div>
         </div>
@@ -211,9 +210,6 @@
             <template v-if="!isPurchaseGoodsSearch">
               <div class="price">{{ formatPrice(goods.salePrc || 0) }}</div>
               <div class="price">{{ formatPrice(goods.tradePrc || 0) }}</div>
-              <div class="price">
-                {{ formatPrice(getLargeCustomerPrice(goods)) }}
-              </div>
             </template>
             <div class="price">{{ formatPrice(goods.stock || 0) }}</div>
           </div>
@@ -261,7 +257,7 @@
 
   export interface OrderItemRow {
     id?: number;
-    goodsId?: number;
+    goodsId?: number | string;
     goodsId_dictText?: string;
     goodsName?: string;
     categoryId?: number;
@@ -469,6 +465,9 @@
     activeGoodsRowIndex.value = rowIndex;
     updateGoodsPanelPosition(rowIndex);
     data.value[rowIndex].goodsId_dictText = value;
+    data.value[rowIndex].goodsId = undefined;
+    data.value[rowIndex].goodsName = value;
+    data.value[rowIndex].stock = undefined;
     data.value[rowIndex].panelSelectedGoods = false;
     if (!value || !value.trim()) {
       clearSearchData();
@@ -502,22 +501,6 @@
     }
   };
 
-  const getLargeCustomerPrice = (goods: GoodsSearchResult) => {
-    const record = goods as GoodsSearchResult & {
-      customerPrice?: number;
-      customerPrc?: number;
-      quotePrice?: number;
-      largeCustomerPrice?: number;
-    };
-    return (
-      record.customerPrice ||
-      record.customerPrc ||
-      record.quotePrice ||
-      record.largeCustomerPrice ||
-      0
-    );
-  };
-
   const getPanelUnitPrice = (goods: GoodsSearchResult) => {
     if (isPurchaseGoodsSearch) {
       return goods.purPrc ?? goods.tradePrc ?? goods.salePrc;
@@ -548,7 +531,29 @@
   const initData = async (itemList: OrderItemRow[]) => {
     fetchUnitData();
     if (itemList.length > 0) {
-      data.value = itemList;
+      data.value = itemList.map((item) => {
+        const { goodsId } = item;
+        const goodsName = (item.goodsName || '').trim();
+        if (!item.goodsId_dictText && goodsName) {
+          return {
+            ...item,
+            goodsId_dictText: goodsName,
+          };
+        }
+        if (
+          !item.goodsId_dictText &&
+          typeof goodsId === 'string' &&
+          goodsId.trim() &&
+          !/^\d+$/.test(goodsId.trim())
+        ) {
+          return {
+            ...item,
+            goodsName: goodsId.trim(),
+            goodsId_dictText: goodsId.trim(),
+          };
+        }
+        return item;
+      });
       initItemList(itemList.length);
     } else {
       data.value = [];
@@ -755,7 +760,7 @@
 
   .goods-search-row {
     display: grid;
-    grid-template-columns: 16% minmax(160px, 1fr) 13% 13% 14% 12%;
+    grid-template-columns: 18.8% minmax(160px, 1fr) 15.8% 15.8% 14.8%;
     min-height: 30px;
 
     > div {

@@ -1,12 +1,16 @@
 <template>
-  <div class="drawer">
+  <div class="drawer" :class="{ 'order-entry-page': pageMode }">
     <a-modal
       width="90%"
-      :visible="visible"
+      :visible="pageMode || visible"
+      :mask="!pageMode"
+      :closable="!pageMode"
+      :render-to-body="!pageMode"
+      :modal-class="{ 'order-entry-page-modal': pageMode }"
       unmount-on-close
-      :mask-closable="true"
+      :mask-closable="!pageMode"
       :ok-loading="loading"
-      @cancel="handleCancel"
+      @cancel="() => handleCancel()"
     >
       <template #title> {{ title }} </template>
       <div>
@@ -217,7 +221,7 @@
           "
         >
           <div>
-            <a-button v-if="showHistory" type="primary" @click="handleList"
+            <a-button type="primary" @click="handleList"
               ><template #icon>
                 <icon-history />
               </template>
@@ -225,7 +229,7 @@
             </a-button>
           </div>
           <div style="display: flex; flex-direction: row; gap: 14px">
-            <a-button @click="handlePrint">
+            <a-button :loading="clodopLoading" @click="handlePrint">
               <template #icon>
                 <icon-printer />
               </template>
@@ -238,28 +242,23 @@
               </template>
               <template #default> PDF预览 </template>
             </a-button>
-            <a-button @click="handleCancel">取消</a-button>
-            <a-button type="primary" :loading="loading" @click="handleOk(0)"
+            <a-button @click="handleReset">重置</a-button>
+            <a-button type="primary" :loading="loading" @click="handleOk(1)"
               >保存</a-button
             >
-            <a-button
-              v-if="form.id === undefined"
-              type="primary"
-              :loading="loading"
-              @click="handleOk(1)"
-              >保存并继续</a-button
-            >
+            
           </div>
         </div>
       </template>
     </a-modal>
     <customer-modal ref="customerModalRef" @ok="handleCustomerSaved" />
+    <clodop-print-modal ref="clodopPrintModalRef" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { computed, reactive, ref, nextTick, watch } from 'vue';
-  import { Message, FormItem } from '@arco-design/web-vue';
+  import { Message, Modal, FormItem } from '@arco-design/web-vue';
   import { useUserStore } from '@/store';
   import { Customer } from '@/views/app/customer/types/customer';
   import { list as getCustomList } from '@/views/app/customer/api/api-customer';
@@ -269,18 +268,25 @@
   import { list as getUserList } from '@/views/app/AppUser/api/api-AppUser';
   import { AppUser } from '@/views/app/AppUser/types/AppUser';
   import { mulPrice, divPrice, addPrice, formatPrice } from '@/api/common';
-import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
-  import { printPdfWithCLodop } from '@/utils/clodop';
-  import { useRouter } from 'vue-router';
+  import { openPdf } from '@/api/electron/electron-api';
+  import ClodopPrintModal from '@/components/clodop-print-modal/index.vue';
+  import { useRoute, useRouter } from 'vue-router';
   import type { AppSaleOrder } from '../types/AppSaleOrder';
   import {
     add,
     edit,
     createOrderNo,
-    exportEscpFile,
+    exportHtmlFile,
     exportPdfFile,
   } from '../api/api-AppSaleOrder';
   import ItemTable from './item-table.vue';
+
+  defineProps({
+    pageMode: {
+      type: Boolean,
+      default: false,
+    },
+  });
 
   const visible = ref(false);
   const formRef = ref();
@@ -293,8 +299,11 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
   const cashierList = ref<AppUser[]>([]);
   const itemTableRef = ref<InstanceType<typeof ItemTable> | null>(null);
   const customerModalRef = ref<InstanceType<typeof CustomerModal> | null>(null);
-  const showHistory = defineModel<boolean>('showHistory');
+  const clodopPrintModalRef = ref<InstanceType<
+    typeof ClodopPrintModal
+  > | null>(null);
   const router = useRouter();
+  const route = useRoute();
 
   const userStore = useUserStore();
   const userInfo = computed(() => {
@@ -335,7 +344,8 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     return customer?.payable || 0;
   });
   const emit = defineEmits<{
-    (e: 'ok', data: 1): void;
+    (e: 'ok', state: number): void;
+    (e: 'cancel'): void;
   }>();
 
   const selectDefaultCustomer = () => {
@@ -411,7 +421,21 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     if (form.id === undefined) form.orderNo = (await createOrderNo()).data;
   };
 
+  const resetForm = () => {
+    Object.keys(form).forEach((key) => {
+      delete (form as Record<string, unknown>)[key];
+    });
+    Object.assign(form, {
+      ...defaultForm,
+      cashierId: userInfo.value.id,
+      createTime: new Date(),
+    });
+    itemTableRef.value?.clearAll();
+    formRef.value?.clearValidate?.();
+  };
+
   const showModal = (item: AppSaleOrder) => {
+    resetForm();
     visible.value = true;
     if (item.id) {
       title.value = '编辑-销售单';
@@ -432,9 +456,36 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
     fetchCashierList();
   };
 
-  const handleCancel = () => {
+  const closeForm = (notify = true) => {
     visible.value = false;
-    Object.assign(form, defaultForm);
+    resetForm();
+    if (notify) emit('cancel');
+  };
+
+  const handleCancel = (notify = true, confirmCancel = true) => {
+    if (!confirmCancel) {
+      closeForm(notify);
+      return;
+    }
+    Modal.confirm({
+      title: '确认取消',
+      content: '确认取消并清空当前表单数据吗？',
+      onOk: () => closeForm(notify),
+    });
+  };
+
+  const executeReset = async () => {
+    resetForm();
+    selectDefaultCustomer();
+    form.orderNo = (await createOrderNo()).data;
+  };
+
+  const handleReset = () => {
+    Modal.confirm({
+      title: '确认重置',
+      content: '确认清空当前表单数据并重新生成单号吗？',
+      onOk: () => executeReset(),
+    });
   };
 
   const hasItemWithoutCategory = (items?: AppSaleOrder['items']) => {
@@ -472,15 +523,14 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
 
         Message.success('操作成功');
         if (state === 0) {
-          handleCancel();
+          handleCancel(false, false);
         } else {
-          Object.assign(form, defaultForm);
-          itemTableRef.value?.clearAll();
+          resetForm();
           selectDefaultCustomer();
           form.orderNo = (await createOrderNo()).data;
         }
 
-        emit('ok', 1);
+      emit('ok', state);
       }
     }
   };
@@ -602,41 +652,35 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
 
   const handlePrint = async () => {
     if (!preparePrintData()) return;
-    if (!window.electronAPI?.rawPrintEscp) {
-      await handlePdfPreview();
-      return;
-    }
-    const result = await exportEscpFile(form);
-    if (result.data?.data) {
-      await rawPrintEscp(result.data.data, result.data.jobName);
-      Message.success('打印任务已发送');
-    }
-  };
-
-  const handleCLodopPrint = async () => {
-    if (!preparePrintData()) return;
     clodopLoading.value = true;
     try {
-      const result = await exportPdfFile(form);
-      if (!result.data?.subPath) {
-        throw new Error('PDF 文件生成失败');
+      const result = await exportHtmlFile(form);
+      if (!result.data?.html) {
+        throw new Error('HTML 文件生成失败');
       }
-      await printPdfWithCLodop(
-        buildPdfPath(result),
-        `销售单_${form.orderNo || ''}`
-      );
+      clodopPrintModalRef.value?.show({
+        htmlContent: result.data.html,
+        jobName: result.data.jobName || `销售单_${form.orderNo || ''}`,
+      });
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : 'C-Lodop 打印失败');
+      Message.error(
+        error instanceof Error ? error.message : 'HTML 文件生成失败'
+      );
     } finally {
       clodopLoading.value = false;
     }
   };
 
   const handleList = () => {
-    router.push('/custom/salesOrder');
+    const targetPath = '/custom/salesOrder';
+    if (route.path === targetPath) {
+      handleCancel();
+      return;
+    }
+    router.push(targetPath);
   };
 
-  defineExpose({ showModal });
+  defineExpose({ showModal, visible });
 </script>
 
 <style lang="less" scoped>
@@ -654,6 +698,23 @@ import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
 
     span {
       color: rgb(var(--arcoblue-6));
+    }
+  }
+
+  :global(.order-entry-page-modal) {
+    box-shadow: var(--shadow2-center);
+  }
+
+  &.order-entry-page {
+    :deep(.arco-modal-container),
+    :deep(.arco-modal-wrapper) {
+      position: static;
+      overflow: visible;
+    }
+
+    :deep(.arco-modal) {
+      top: 0;
+      margin: 24px auto;
     }
   }
 </style>

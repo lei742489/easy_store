@@ -84,7 +84,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         if (StringUtils.isNotEmpty(customerId)) {
             entity.setCustomerId(null);
         }
-        QueryWrapper<AppSaleOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity,param);
+        QueryWrapper<AppSaleOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity, getDefaultAuditSortQueryParam(param));
         applyOwnerFilter(queryWrapper, param);
         if (StringUtils.isNotEmpty(customerId)) {
             queryWrapper.eq("customer_id", customerId);
@@ -96,14 +96,21 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
 
 
         if(StringUtils.isNotEmpty(searchKey)){
-            queryWrapper.and(w -> w.like("order_no",searchKey).or().like("note",searchKey));
+            queryWrapper.and(w -> w.like("order_no",searchKey)
+                    .or().like("note",searchKey)
+                    .or().apply("exists (select 1 from app_sale_order_item soi " +
+                            "left join app_goods g on g.id = soi.goods_id " +
+                            "left join app_sale_pending_goods pg on pg.order_item_id = soi.id and COALESCE(pg.is_del, 0) = 0 " +
+                            "where soi.order_id = app_sale_order.id and (g.title like {0} or CAST(soi.goods_id AS CHAR) like {0} or pg.goods_name like {0}))", "%" + searchKey + "%"));
         }
-        queryWrapper.orderByDesc("id");
+        applyDefaultAuditSort(queryWrapper, param);
         Page<AppSaleOrder> page = new Page<>(current, pageSize);
         IPage<AppSaleOrder> pageList = service.page(page, queryWrapper);
         boolean rootUser = isRootUser(param);
         for(AppSaleOrder appPurchaseOrder : pageList.getRecords()){
             appPurchaseOrder.setItems(appPurchaseOrderItemService.listByOrderId(appPurchaseOrder.getId()));
+            service.fillPendingGoodsNames(appPurchaseOrder.getId(), appPurchaseOrder.getItems());
+            fillSaleOrderItemGoodsText(appPurchaseOrder.getItems());
             if(!rootUser){
                 hideGrossProfit(appPurchaseOrder);
             }
@@ -165,6 +172,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         for(AppSaleOrder order : list){
             translateSaleOrderForExport(order);
             order.setItems(appPurchaseOrderItemService.listByOrderId(order.getId()));
+            service.fillPendingGoodsNames(order.getId(), order.getItems());
             if(!rootUser){
                 hideGrossProfit(order);
             }
@@ -236,7 +244,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
 
 
         for (AppSaleOrderItem item : entity.getItems()) {
-            item.setGoodsId(appGoodsService.getTitleById(item.getGoodsId()));
+            item.setGoodsId(resolveSaleOrderItemGoodsText(item));
         }
 
         if (entity.getPaidAmount() == null)
@@ -274,6 +282,47 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         return result;
     }
 
+    @PostMapping(value = "/exportHtml")
+    public Result<?> exportHtml(@RequestBody JSONObject param) {
+        AppSaleOrder entity = JSONObject.toJavaObject(param, AppSaleOrder.class);
+        Result<Object> result = new Result<>();
+
+        if (entity == null || entity.getItems() == null || entity.getItems().isEmpty()) {
+            throw new AppRunTimeException("数据输入不完整，请检查");
+        }
+
+        for (AppSaleOrderItem item : entity.getItems()) {
+            item.setGoodsId(resolveSaleOrderItemGoodsText(item));
+        }
+
+        if (entity.getPaidAmount() == null) {
+            entity.setPaidAmount(0.00);
+        }
+
+        if(entity.getFreightAmount()==null)entity.setFreightAmount(0.00);
+        entity.setUnpaidAmount(DoubleUtil.sub(entity.getPayableAmount(), entity.getPaidAmount()));
+        entity.setTotalAmountChinese(AmountToChineseUtil.toChinese(BigDecimal.valueOf(entity.getTotalAmount())));
+
+        JSONObject htmlObj = new JSONObject();
+        htmlObj.putIfAbsent("obj",entity);
+        htmlObj.put("customer",appCustomerService.getById(entity.getCustomerId()));
+        htmlObj.put("userInfo",appUserService.getById(param.getInteger("userId")));
+        translateDictValue(entity);
+
+        try {
+            String html = PdfReportUtils.generateHtml("SaleOrder.ftl",htmlObj );
+            JSONObject obj = new JSONObject();
+            obj.put("html", html);
+            obj.put("jobName", "销售单_" + entity.getOrderNo());
+            result.setData(obj);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new AppRunTimeException("html文件导出异常：" + e.getMessage());
+        }
+
+        return result;
+    }
+
     @PostMapping(value = "/exportEscp")
     public Result<?> exportEscp(@RequestBody JSONObject param) {
         AppSaleOrder entity = JSONObject.toJavaObject(param, AppSaleOrder.class);
@@ -281,7 +330,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
             throw new AppRunTimeException("数据输入不完整，请检查");
         }
         for (AppSaleOrderItem item : entity.getItems()) {
-            item.setGoodsId(appGoodsService.getTitleById(item.getGoodsId()));
+            item.setGoodsId(resolveSaleOrderItemGoodsText(item));
         }
         if (entity.getPaidAmount() == null) entity.setPaidAmount(0.00);
         if (entity.getFreightAmount() == null) entity.setFreightAmount(0.00);
@@ -361,6 +410,23 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         for(AppSaleOrderItem item : order.getItems()){
             item.setGrossProfit(null);
         }
+    }
+
+    private void fillSaleOrderItemGoodsText(List<AppSaleOrderItem> items) {
+        if(items == null) return;
+        for(AppSaleOrderItem item : items) {
+            String goodsText = resolveSaleOrderItemGoodsText(item);
+            if(StringUtils.isNotEmpty(goodsText)) {
+                item.setGoodsName(goodsText);
+            }
+        }
+    }
+
+    private String resolveSaleOrderItemGoodsText(AppSaleOrderItem item) {
+        if(item == null) return "";
+        String title = appGoodsService.getTitleById(item.getGoodsId());
+        if(StringUtils.isNotEmpty(title)) return title;
+        return item.getGoodsName();
     }
 
     private boolean isRootRequest(HttpServletRequest request) {

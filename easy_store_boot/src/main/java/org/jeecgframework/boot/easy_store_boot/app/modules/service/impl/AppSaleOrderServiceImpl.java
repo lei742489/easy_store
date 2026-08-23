@@ -20,6 +20,7 @@ import org.jeecgframework.boot.easy_store_boot.app.modules.mapper.AppSaleOrderMa
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,16 +54,20 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     @Autowired
     @Lazy
     public IAppCustomerService appCustomerService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean save(AppSaleOrder entity){
         setUnpaidAmount(entity);
-        setItemsByEntity(entity);
+        List<PendingGoodsDraft> pendingGoodsDrafts = setItemsByEntity(entity);
         boolean flag = super.save(entity);
         entity.getItems().forEach(item -> item.setOrderId(entity.getId()));
-        if(!entity.getItems().isEmpty())
+        if(!entity.getItems().isEmpty()) {
             appSaleOrderItemService.saveBatch(entity.getItems());
+        }
+        refreshPendingGoods(entity.getId(), entity.getItems(), pendingGoodsDrafts, isActive(entity));
 
         if (isActive(entity)) {
             appSaleOrderItemService.batchUpdateGoodsStore(entity.getItems());
@@ -76,7 +82,8 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     public boolean updateById(AppSaleOrder entity) {
         entity.setOrderNo(null);
 
-        setItemsByEntity(entity);
+        fillPendingGoodsNames(entity.getId(), entity.getItems());
+        List<PendingGoodsDraft> pendingGoodsDrafts = setItemsByEntity(entity);
         setUnpaidAmount(entity);
         List<AppSaleOrderItem> oldItems = appSaleOrderItemService.listByOrderId(entity.getId());
         AppSaleOrder oldOrder = getById(entity.getId());
@@ -92,6 +99,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         if(!entity.getItems().isEmpty()){
             appSaleOrderItemService.saveOrUpdateBatch(entity.getItems());
         }
+        refreshPendingGoods(entity.getId(), entity.getItems(), pendingGoodsDrafts, isActive(entity));
         appSaleOrderItemService.batchUpdateGoodsStore(oldItems);
         appSaleOrderItemService.batchUpdateGoodsStore(entity.getItems());
 
@@ -116,6 +124,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         boolean flag = super.removeById(id);
         if(flag && db!=null){
             appSaleOrderItemService.removeByOrderId(db.getId());
+            deletePendingGoods(db.getId());
             if (isActive(db)) {
                 updateAccountSettle(db, -1);
             }
@@ -169,29 +178,143 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             AppSaleOrder order = getById(id);
             if(order == null) continue;
             List<AppSaleOrderItem> items = appSaleOrderItemService.listByOrderId(order.getId());
+            fillPendingGoodsNames(order.getId(), items);
             order.setItems(items);
             setItemsByEntity(order);
             if(!items.isEmpty()) {
                 appSaleOrderItemService.updateBatchById(items);
             }
+            refreshPendingGoods(order.getId(), items, new ArrayList<>(), isActive(order));
             super.updateById(order);
         }
     }
 
-    private void  setItemsByEntity(AppSaleOrder entity){
-        if(entity == null) return;
+    @Override
+    public void fillPendingGoodsNames(Integer orderId, List<AppSaleOrderItem> items) {
+        if(orderId == null || items == null || items.isEmpty()) return;
+        Map<Integer, String> pendingNames = queryPendingGoodsNameMap(orderId);
+        if(pendingNames.isEmpty()) return;
+        for(AppSaleOrderItem item : items) {
+            if(item == null || item.getId() == null) continue;
+            String pendingName = pendingNames.get(item.getId());
+            if(StringUtils.isNotBlank(pendingName) && StringUtils.isBlank(item.getGoodsName())) {
+                item.setGoodsName(pendingName);
+            }
+        }
+    }
+
+    private List<PendingGoodsDraft> setItemsByEntity(AppSaleOrder entity){
+        List<PendingGoodsDraft> pendingGoodsDrafts = new ArrayList<>();
+        if(entity == null) return pendingGoodsDrafts;
         if( entity.getItems()==null) {
             entity.setItems(new ArrayList<>());
         }else{
             BigDecimal totalGrossProfit = BigDecimal.ZERO;
             for(AppSaleOrderItem item:entity.getItems()){
-                AppGoods goods = resolveSaleOrderItemGoods(item);
+                AppGoods goods = resolveSaleOrderItemGoodsForSave(entity, item);
+                if(goods == null && !isActive(entity) && StringUtils.isNotBlank(item.getGoodsName())) {
+                    pendingGoodsDrafts.add(new PendingGoodsDraft(item, item.getGoodsName().trim()));
+                }
                 totalGrossProfit = totalGrossProfit.add(calculateItemGrossProfit(entity, item, goods));
                 item.setOrderId(entity.getId());
             }
             entity.setGrossProfit(money(totalGrossProfit));
         }
+        return pendingGoodsDrafts;
+    }
 
+    private AppGoods resolveSaleOrderItemGoodsForSave(AppSaleOrder entity, AppSaleOrderItem item) {
+        if(item == null) return null;
+        if(isEmptyCategory(item.getCategoryId())) {
+            throw new AppRunTimeException("\u6240\u6709\u5546\u54c1\u5fc5\u987b\u9009\u62e9\u5206\u7c7b");
+        }
+        String goodsName = resolveItemGoodsName(item);
+        String unitName = appUnitService.normalizeName(item.getUnit());
+        item.setUnit(unitName);
+        appUnitService.updateByName(unitName);
+
+        AppGoods goods = findGoodsForSale(item.getGoodsId(), goodsName);
+        if(goods == null) {
+            if(StringUtils.isBlank(goodsName)) {
+                throw new AppRunTimeException("\u8bf7\u8f93\u5165\u5546\u54c1\u540d\u79f0");
+            }
+            if(isActive(entity)) {
+                goods = createGoodsFromSaleOrderItem(item, goodsName, unitName);
+            } else {
+                item.setGoodsId(null);
+                item.setGoodsName(goodsName);
+                return null;
+            }
+        }
+        item.setGoodsId(goods.getId().toString());
+        item.setGoodsName(goods.getTitle());
+        return goods;
+    }
+
+    private void refreshPendingGoods(Integer orderId, List<AppSaleOrderItem> items,
+                                     List<PendingGoodsDraft> pendingGoodsDrafts, boolean activeOrder) {
+        if(orderId == null) return;
+        if(activeOrder) {
+            assertItemsLinkedToGoods(items);
+            deletePendingGoods(orderId);
+            return;
+        }
+        deletePendingGoods(orderId);
+        if(pendingGoodsDrafts == null || pendingGoodsDrafts.isEmpty()) return;
+        for(PendingGoodsDraft draft : pendingGoodsDrafts) {
+            AppSaleOrderItem item = draft.item;
+            if(item == null || item.getId() == null || StringUtils.isBlank(draft.goodsName)) continue;
+            jdbcTemplate.update("INSERT INTO app_sale_pending_goods " +
+                            "(order_id, order_item_id, goods_name, category_id, unit, unit_price, status, create_time, update_time, is_del) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)",
+                    orderId, item.getId(), draft.goodsName, item.getCategoryId(), item.getUnit(), item.getUnitPrice());
+        }
+    }
+
+    private void deletePendingGoods(Integer orderId) {
+        if(orderId == null) return;
+        jdbcTemplate.update("DELETE FROM app_sale_pending_goods WHERE order_id = ?", orderId);
+    }
+
+    private void assertItemsLinkedToGoods(List<AppSaleOrderItem> items) {
+        if(items == null || items.isEmpty()) return;
+        for(AppSaleOrderItem item : items) {
+            if(item == null) continue;
+            String goodsId = item.getGoodsId();
+            String goodsName = StringUtils.isBlank(item.getGoodsName()) ? "该" : item.getGoodsName().trim();
+            if(StringUtils.isBlank(goodsId) || !StringUtils.isNumeric(goodsId.trim())) {
+                throw new AppRunTimeException(goodsName + "商品信息未入库，请先入库");
+            }
+            if(appGoodsService.getById(goodsId.trim()) == null) {
+                throw new AppRunTimeException(goodsName + "商品信息未入库，请先入库");
+            }
+        }
+    }
+
+    private Map<Integer, String> queryPendingGoodsNameMap(Integer orderId) {
+        Map<Integer, String> result = new HashMap<>();
+        if(orderId == null) return result;
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT order_item_id, goods_name FROM app_sale_pending_goods " +
+                        "WHERE order_id = ? AND COALESCE(is_del, 0) = 0 ORDER BY id",
+                orderId);
+        for(Map<String, Object> row : rows) {
+            Object itemIdObj = row.get("order_item_id");
+            Object goodsNameObj = row.get("goods_name");
+            if(itemIdObj == null || goodsNameObj == null) continue;
+            result.put(Integer.valueOf(itemIdObj.toString()), goodsNameObj.toString());
+        }
+        return result;
+    }
+
+    private static class PendingGoodsDraft {
+        private final AppSaleOrderItem item;
+        private final String goodsName;
+
+        private PendingGoodsDraft(AppSaleOrderItem item, String goodsName) {
+            this.item = item;
+            this.goodsName = goodsName;
+        }
     }
 
     private AppGoods resolveSaleOrderItemGoods(AppSaleOrderItem item) {
@@ -219,6 +342,48 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             return appGoodsService.getById(goodsId);
         }
         return null;
+    }
+
+    private String resolveItemGoodsName(AppSaleOrderItem item) {
+        if(item == null) return "";
+        if(StringUtils.isNotBlank(item.getGoodsName())) {
+            return item.getGoodsName().trim();
+        }
+        String goodsId = item.getGoodsId();
+        if(StringUtils.isNotBlank(goodsId) && !StringUtils.isNumeric(goodsId.trim())) {
+            item.setGoodsId(null);
+            return goodsId.trim();
+        }
+        return "";
+    }
+
+    private AppGoods findGoodsForSale(String goodsId, String goodsName) {
+        if(StringUtils.isNotBlank(goodsId) && StringUtils.isNumeric(goodsId.trim())) {
+            AppGoods goods = appGoodsService.getById(goodsId.trim());
+            if(goods != null) return goods;
+        }
+        if(StringUtils.isNotBlank(goodsName)) {
+            return appGoodsService.getOne(new LambdaQueryWrapper<AppGoods>()
+                    .eq(AppGoods::getTitle, goodsName.trim())
+                    .last("limit 1"));
+        }
+        return null;
+    }
+
+    private AppGoods createGoodsFromSaleOrderItem(AppSaleOrderItem item, String goodsName, String unitName) {
+        AppGoods goods = new AppGoods();
+        goods.setTitle(goodsName);
+        goods.setSupplierTitle(goodsName);
+        goods.setCategoryId(item.getCategoryId());
+        goods.setUnit(unitName);
+        goods.setSalePrc(item.getUnitPrice());
+        goods.setTradePrc(item.getUnitPrice());
+        goods.setPurPrc(0.0);
+        goods.setInitCost(0);
+        goods.setStock(0);
+        goods.setStatus(1);
+        appGoodsService.save(goods);
+        return goods;
     }
 
     private boolean isEmptyCategory(String categoryId) {

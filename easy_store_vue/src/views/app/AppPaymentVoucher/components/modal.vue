@@ -1,12 +1,16 @@
 <template>
-  <div class="drawer">
+  <div class="drawer" :class="{ 'order-entry-page': pageMode }">
     <a-modal
       width="80%"
-      :visible="visible"
+      :visible="pageMode || visible"
+      :mask="!pageMode"
+      :closable="!pageMode"
+      :render-to-body="!pageMode"
+      :modal-class="{ 'order-entry-page-modal': pageMode }"
       unmount-on-close
-      :mask-closable="true"
+      :mask-closable="!pageMode"
       :ok-loading="loading"
-      @cancel="handleCancel"
+      @cancel="() => handleCancel()"
     >
       <template #title> {{ title }} </template>
       <div>
@@ -108,7 +112,7 @@
           "
         >
           <div>
-            <a-button v-if="showHistory" type="primary" @click="handleList"
+            <a-button type="primary" @click="handleList"
               ><template #icon>
                 <icon-history />
               </template>
@@ -116,7 +120,7 @@
             </a-button>
           </div>
           <div style="display: flex; flex-direction: row; gap: 14px">
-            <a-button @click="handlePrint">
+            <a-button @click="handleCLodopPrint">
               <template #icon>
                 <icon-printer />
               </template>
@@ -129,28 +133,23 @@
               </template>
               <template #default> PDF预览 </template>
             </a-button>
-            <a-button @click="handleCancel">取消</a-button>
-            <a-button type="primary" :loading="loading" @click="handleOk(0)"
+            <a-button @click="handleReset">重置</a-button>
+            <a-button type="primary" :loading="loading" @click="handleOk(1)"
               >保存</a-button
             >
-            <a-button
-              v-if="form.id === undefined"
-              type="primary"
-              :loading="loading"
-              @click="handleOk(1)"
-              >保存并继续</a-button
-            >
+            
           </div>
         </div>
       </template>
     </a-modal>
     <supplier-modal ref="supplierModalRef" @ok="handleSupplierSaved" />
+    <clodop-print-modal ref="clodopPrintModalRef" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { computed, nextTick, reactive, ref } from 'vue';
-  import { Message } from '@arco-design/web-vue';
+  import { Message, Modal } from '@arco-design/web-vue';
   import { useUserStore } from '@/store';
   import { AppSupplier } from '@/views/app/AppSupplier/types/AppSupplier';
   import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
@@ -158,24 +157,32 @@
   import SettlerItemTable from '@/views/app/AppPaymentVoucher/components/settler-item-table.vue';
   import { addPrice, formatPrice } from '@/api/common';
 
-  import { useRouter } from 'vue-router';
+  import { useRoute, useRouter } from 'vue-router';
   import { openPdf, rawPrintEscp } from '@/api/electron/electron-api';
-  import { printPdfWithCLodop } from '@/utils/clodop';
+  import ClodopPrintModal from '@/components/clodop-print-modal/index.vue';
   import type { AppPaymentVoucher } from '../types/AppPaymentVoucher';
   import {
     add,
     edit,
     createOrderNo,
+    exportHtmlFile,
     exportEscpFile,
     exportPdfFile,
   } from '../api/api-AppPaymentVoucher';
   import PurchaseOrderTable from './purchase-order-table.vue';
 
+  defineProps({
+    pageMode: {
+      type: Boolean,
+      default: false,
+    },
+  });
+
   const router = useRouter();
+  const route = useRoute();
   const visible = ref(false);
   const formRef = ref();
   const title = ref('');
-  const showHistory = defineModel<boolean>('showHistory');
   const supplierLoading = ref(false);
   const supplierList = ref<AppSupplier[]>([]);
   const settlerItemTableRef = ref<InstanceType<typeof SettlerItemTable> | null>(
@@ -185,6 +192,9 @@
     typeof PurchaseOrderTable
   > | null>(null);
   const supplierModalRef = ref<InstanceType<typeof SupplierModal> | null>(null);
+  const clodopPrintModalRef = ref<InstanceType<
+    typeof ClodopPrintModal
+  > | null>(null);
   const userStore = useUserStore();
   const isRoot = computed(() => userStore.isRoot === 1);
 
@@ -208,14 +218,29 @@
   const clodopLoading = ref(false);
 
   const emit = defineEmits<{
-    (e: 'ok', data: 1): void;
+    (e: 'ok', state: number): void;
+    (e: 'cancel'): void;
   }>();
 
   const initOrderNo = async () => {
     if (form.id === undefined) form.orderNo = (await createOrderNo()).data;
   };
 
+  const resetForm = () => {
+    Object.keys(form).forEach((key) => {
+      delete (form as Record<string, unknown>)[key];
+    });
+    Object.assign(form, {
+      ...defaultForm,
+      createTime: new Date(),
+    });
+    settlerItemTableRef.value?.clearAll();
+    purchaseOrderTableRef.value?.clearAll();
+    formRef.value?.clearValidate?.();
+  };
+
   const showModal = (item: AppPaymentVoucher) => {
+    resetForm();
     visible.value = true;
     if (item.id) {
       title.value = '编辑-付款单';
@@ -233,9 +258,36 @@
     if (Object.keys(item).length !== 0) Object.assign(form, item);
   };
 
-  const handleCancel = () => {
+  const closeForm = (notify = true) => {
     visible.value = false;
-    Object.assign(form, defaultForm);
+    resetForm();
+    if (notify) emit('cancel');
+  };
+
+  const handleCancel = (notify = true, confirmCancel = true) => {
+    if (!confirmCancel) {
+      closeForm(notify);
+      return;
+    }
+    Modal.confirm({
+      title: '确认取消',
+      content: '确认取消并清空当前表单数据吗？',
+      onOk: () => closeForm(notify),
+    });
+  };
+
+  const executeReset = async () => {
+    resetForm();
+    form.orderNo = (await createOrderNo()).data;
+    settlerItemTableRef.value?.initData();
+  };
+
+  const handleReset = () => {
+    Modal.confirm({
+      title: '确认重置',
+      content: '确认清空当前表单数据并重新生成单号吗？',
+      onOk: () => executeReset(),
+    });
   };
 
   const handleOk = async (state: number) => {
@@ -271,14 +323,12 @@
 
       Message.success('操作成功');
       if (state === 0) {
-        handleCancel();
+        handleCancel(false, false);
       } else {
-        Object.assign(form, defaultForm);
+        resetForm();
         form.orderNo = (await createOrderNo()).data;
-        settlerItemTableRef.value?.clearAll();
-        purchaseOrderTableRef.value?.clearAll();
       }
-      emit('ok', 1);
+      emit('ok', state);
     }
   };
 
@@ -345,7 +395,12 @@
     };
   };
   const handleList = () => {
-    router.push('/custom/appPaymentVoucher');
+    const targetPath = '/custom/appPaymentVoucher';
+    if (route.path === targetPath) {
+      handleCancel();
+      return;
+    }
+    router.push(targetPath);
   };
 
   const preparePrintData = () => {
@@ -392,14 +447,14 @@
     if (!preparePrintData()) return;
     clodopLoading.value = true;
     try {
-      const result = await exportPdfFile(form);
-      if (!result.data?.subPath) {
-        throw new Error('PDF 文件生成失败');
+      const result = await exportHtmlFile(form);
+      if (!result.data?.html) {
+        throw new Error('HTML 文件生成失败');
       }
-      await printPdfWithCLodop(
-        buildPdfPath(result),
-        `付款单_${form.orderNo || ''}`
-      );
+      clodopPrintModalRef.value?.show({
+        htmlContent: result.data.html,
+        jobName: result.data.jobName || `付款单_${form.orderNo || ''}`,
+      });
     } catch (error) {
       Message.error(error instanceof Error ? error.message : 'C-Lodop 打印失败');
     } finally {
@@ -407,7 +462,7 @@
     }
   };
 
-  defineExpose({ showModal });
+  defineExpose({ showModal, visible });
 </script>
 
 <style lang="less" scoped>
@@ -426,6 +481,23 @@
 
     span {
       color: rgb(var(--arcoblue-6));
+    }
+  }
+
+  :global(.order-entry-page-modal) {
+    box-shadow: var(--shadow2-center);
+  }
+
+  &.order-entry-page {
+    :deep(.arco-modal-container),
+    :deep(.arco-modal-wrapper) {
+      position: static;
+      overflow: visible;
+    }
+
+    :deep(.arco-modal) {
+      top: 0;
+      margin: 24px auto;
     }
   }
 </style>

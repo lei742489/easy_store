@@ -30,10 +30,10 @@
                 </a-form-item>
               </a-col>
               <a-col :span="10">
-                <a-form-item field="searchKey" label="单号查询">
+                <a-form-item field="searchKey" label="查询">
                   <a-input
                     v-model="formModel.searchKey"
-                    placeholder="单号 / 备注"
+                    placeholder="单号 / 备注 / 货品名称"
                   ></a-input>
                 </a-form-item>
               </a-col>
@@ -84,7 +84,7 @@
       <a-row style="margin-bottom: 16px">
         <a-col :span="12">
           <a-space>
-            <a-button type="primary" @click="handelEdit({})">
+            <a-button type="primary" @click="handleAdd">
               <template #icon>
                 <icon-plus />
               </template>
@@ -214,6 +214,7 @@
 <script lang="ts" setup>
   import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, nextTick, reactive, ref } from 'vue';
+  import { useRouter } from 'vue-router';
   import { useUserStore } from '@/store';
   import { Pagination } from '@/types/global';
   import useLoading from '@/hooks/loading';
@@ -237,6 +238,7 @@
   import type { AppPurchaseOrder } from './types/AppPurchaseOrder';
 
   const { loading, setLoading } = useLoading(false);
+  const router = useRouter();
   type SizeProps = 'mini' | 'small' | 'medium' | 'large';
   const modalRef = ref<InstanceType<typeof FormModal> | null>(null);
   const timeSelectRef = ref<InstanceType<typeof TimeSelect> | null>(null);
@@ -561,12 +563,22 @@
     }
   };
 
+  const handleAdd = () => {
+    router.push({
+      name: 'PurchaseOrderAdd',
+      state: { editItem: '', openAt: Date.now() },
+    });
+  };
+
   const handelEdit = (item: AppPurchaseOrder) => {
-    modalRef.value?.showModal(item);
+    router.push({
+      name: 'PurchaseOrderAdd',
+      state: { editItem: JSON.stringify(item), openAt: Date.now() },
+    });
   };
 
   const dbRowClick = (record: AppPurchaseOrder, rowIndex: number) => {
-    handelEdit(record);
+    modalRef.value?.showModal(record);
   };
 
   const uploadExcel = async (e: any) => {
@@ -612,6 +624,12 @@
         exportLoading.value = false;
       }, 3000);
     }
+  };
+</script>
+
+<script lang="ts">
+  export default {
+    name: 'AppSaleOrder',
   };
 </script>
 

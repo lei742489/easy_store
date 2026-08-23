@@ -40,13 +40,6 @@
     </template>
     <a-empty v-else description="暂无可用功能" />
 
-    <purchase-order-modal ref="purchaseOrderModalRef" />
-    <payment-voucher-modal ref="paymentVoucherModalRef" :show-history="true" />
-    <receive-payment-voucher-modal
-      ref="receivePaymentVoucherModalRef"
-      :show-history="true"
-    />
-    <sale-order-modal ref="saleOrderModalRef" :show-history="true" />
   </a-spin>
 </template>
 
@@ -54,10 +47,6 @@
   import { computed, onActivated, onMounted, ref } from 'vue';
   import { useRouter } from 'vue-router';
   import { useUserStore } from '@/store';
-  import PaymentVoucherModal from '@/views/app/AppPaymentVoucher/components/modal.vue';
-  import ReceivePaymentVoucherModal from '@/views/app/AppReceivePaymentVoucher/components/modal.vue';
-  import SaleOrderModal from '@/views/app/AppSaleOrder/components/modal.vue';
-  import PurchaseOrderModal from '@/views/app/AppPurchaseOrder/components/modal.vue';
   import type {
     AppHomeMenu,
     AppHomeMenuGroup,
@@ -78,18 +67,12 @@
   const loading = ref(false);
   const menuGroups = ref<AppHomeMenuGroup[]>([]);
   const pendingCounts = ref<Record<string, number>>({});
-  const purchaseOrderModalRef = ref<InstanceType<
-    typeof PurchaseOrderModal
-  > | null>(null);
-  const paymentVoucherModalRef = ref<InstanceType<
-    typeof PaymentVoucherModal
-  > | null>(null);
-  const receivePaymentVoucherModalRef = ref<InstanceType<
-    typeof ReceivePaymentVoucherModal
-  > | null>(null);
-  const saleOrderModalRef = ref<InstanceType<typeof SaleOrderModal> | null>(
-    null
-  );
+  const legacyEntryRoutes: Record<string, string> = {
+    SaleOrderModalRef: '/custom/salesOrder/add',
+    ReceivePaymentVoucherModal: '/custom/receivePaymentVoucher/add',
+    PurchaseOrderModal: '/custom/purchaseOrder/add',
+    PaymentVoucherModal: '/custom/paymentVoucher/add',
+  };
 
   const isImageIcon = (icon?: string) => !!icon && icon.endsWith('.png');
 
@@ -103,25 +86,10 @@
     return pendingCounts.value[item.code] || 0;
   };
 
-  const openAction = (action?: string) => {
-    if (action === 'PurchaseOrderModal') {
-      purchaseOrderModalRef.value?.showModal({});
-    } else if (action === 'PaymentVoucherModal') {
-      paymentVoucherModalRef.value?.showModal({});
-    } else if (action === 'ReceivePaymentVoucherModal') {
-      receivePaymentVoucherModalRef.value?.showModal({});
-    } else if (action === 'SaleOrderModalRef') {
-      saleOrderModalRef.value?.showModal({});
-    }
-  };
-
   const itemClick = (item: AppHomeMenu) => {
-    if (item.action) {
-      openAction(item.action);
-      return;
-    }
-    if (item.url) {
-      router.push(item.url);
+    const targetUrl = item.url || legacyEntryRoutes[item.action || ''];
+    if (targetUrl) {
+      router.push(targetUrl);
     }
   };
 

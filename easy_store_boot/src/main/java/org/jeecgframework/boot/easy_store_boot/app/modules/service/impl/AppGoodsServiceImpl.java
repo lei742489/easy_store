@@ -154,6 +154,10 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
 
     @Override
     public void updateStock(String goodsId) {
+        if(StringUtils.isBlank(goodsId) || !StringUtils.isNumeric(goodsId.trim())) {
+            return;
+        }
+        goodsId = goodsId.trim();
         clearStockStatisticsCache();
         AppGoods appGoods = getById(goodsId);
         if(appGoods!=null){
@@ -178,7 +182,9 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
 
     @Override
     public String getTitleById(String goodsId) {
-       AppGoods appGoods = getById(goodsId);
+       if(StringUtils.isBlank(goodsId)) return "";
+       if(!StringUtils.isNumeric(goodsId.trim())) return goodsId;
+       AppGoods appGoods = getById(goodsId.trim());
         return appGoods!=null ? appGoods.getTitle() : "";
     }
 

@@ -3,10 +3,10 @@ BEGIN TRANSACTION;
 INSERT INTO app_home_menu
     (code, group_code, group_title, name, icon, url, action, sort_no, status, root_only, create_time, is_del)
 VALUES
-    ('sale_order_add', 'common', '常用功能', '销售单', 'sm1.png', '', 'SaleOrderModalRef', 10, 1, 0, '2026-08-11 05:04:51.000', 0),
-    ('receive_payment_add', 'common', '常用功能', '收款单', 'sm2.png', '', 'ReceivePaymentVoucherModal', 20, 1, 0, '2026-08-11 05:04:51.000', 0),
-    ('purchase_order_add', 'common', '常用功能', '进货单', 'sm3.png', '', 'PurchaseOrderModal', 30, 1, 0, '2026-08-11 05:04:51.000', 0),
-    ('payment_add', 'common', '常用功能', '付款单', 'sm4.png', '', 'PaymentVoucherModal', 40, 1, 0, '2026-08-11 05:04:51.000', 0),
+    ('sale_order_add', 'common', '常用功能', '销售单', 'sm1.png', '/custom/salesOrder/add', '', 10, 1, 0, '2026-08-11 05:04:51.000', 0),
+    ('receive_payment_add', 'common', '常用功能', '收款单', 'sm2.png', '/custom/receivePaymentVoucher/add', '', 20, 1, 0, '2026-08-11 05:04:51.000', 0),
+    ('purchase_order_add', 'common', '常用功能', '进货单', 'sm3.png', '/custom/purchaseOrder/add', '', 30, 1, 0, '2026-08-11 05:04:51.000', 0),
+    ('payment_add', 'common', '常用功能', '付款单', 'sm4.png', '/custom/paymentVoucher/add', '', 40, 1, 0, '2026-08-11 05:04:51.000', 0),
     ('goods', 'common', '常用功能', '库存管理', 'sm5.png', '/custom/goods', '', 50, 1, 0, '2026-08-11 05:04:51.000', 0),
     ('customer', 'common', '常用功能', '客户管理', 'sm6.png', '/custom/customer', '', 60, 1, 0, '2026-08-11 05:04:51.000', 0),
     ('supplier', 'common', '常用功能', '供应商管理', 'sm7.png', '/custom/supplier', '', 70, 1, 0, '2026-08-11 05:04:51.000', 0),

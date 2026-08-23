@@ -77,12 +77,12 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
         }
 
         QueryWrapper<AppReceivePaymentVoucher> queryWrapper =
-                QueryGenerator.initQueryWrapper(entity, param);
+                QueryGenerator.initQueryWrapper(entity, getDefaultAuditSortQueryParam(param));
         applyOwnerFilter(queryWrapper, param);
         if (StringUtils.isNotEmpty(customerId)) {
             queryWrapper.eq("customer_id", customerId);
         }
-        queryWrapper.orderByDesc("id");
+        applyDefaultAuditSort(queryWrapper, param);
         IPage<AppReceivePaymentVoucher> pageList =
                 service.page(new Page<>(current, pageSize), queryWrapper);
         return Result.ok(pageList);
@@ -205,6 +205,43 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
 
         return result;
 
+    }
+
+    @PostMapping(value = "/exportHtml")
+    public Result<?> exportHtml(@RequestBody JSONObject param) {
+        AppReceivePaymentVoucher entity = JSONObject.parseObject(param.toJSONString(), AppReceivePaymentVoucher.class);
+        if (entity == null || entity.getSettleItems() == null || entity.getSettleItems().isEmpty()) {
+            throw new AppRunTimeException("数据输入不完整，请检查");
+        }
+        AtomicReference<Double> totalAmount = new AtomicReference<>(0.0);
+        entity.getSettleItems().forEach(item -> {
+            item.setSettleId(accountSettleService.getNameById(item.getSettleId()));
+            totalAmount.set(DoubleUtil.add(totalAmount.get(), item.getAmount()));
+        });
+        entity.setTotalAmountChinese(AmountToChineseUtil.toChinese(BigDecimal.valueOf(totalAmount.get())));
+
+        Map<String,Object> map = new HashMap<>();
+        map.put("obj", entity);
+        map.put("total", totalAmount.get());
+        if(entity.getCustomerId() == null) {
+            throw new AppRunTimeException("请选择客户名称");
+        }
+        AppCustomer customer = customerService.getById(entity.getCustomerId());
+        map.put("customer", customer);
+        map.put("userInfo", appUserService.getById(param.getInteger("userId")));
+
+        Result<Object> result = new Result<>();
+        try {
+            String html = PdfReportUtils.generateHtml("ReceivePaymentVoucher.ftl", map);
+            JSONObject obj = new JSONObject();
+            obj.put("html", html);
+            obj.put("jobName", "收款单_" + entity.getOrderNo());
+            result.setData(obj);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new AppRunTimeException("html文件导出异常：" + e.getMessage());
+        }
+        return result;
     }
 
     @PostMapping(value = "/exportEscp")

@@ -92,7 +92,7 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         if (StringUtils.isNotEmpty(supplierId)) {
             entity.setSupplierId(null);
         }
-        QueryWrapper<AppPurchaseOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity,param);
+        QueryWrapper<AppPurchaseOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity, getDefaultAuditSortQueryParam(param));
         applyOwnerFilter(queryWrapper, param);
         if (StringUtils.isNotEmpty(supplierId)) {
             queryWrapper.eq("supplier_id", supplierId);
@@ -104,9 +104,11 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
 
 
         if(StringUtils.isNotEmpty(searchKey)){
-            queryWrapper.and(w -> w.like("order_no",searchKey).or().like("note",searchKey));
+            queryWrapper.and(w -> w.like("order_no",searchKey)
+                    .or().like("note",searchKey)
+                    .or().apply("exists (select 1 from app_purchase_order_item poi left join app_goods g on g.id = poi.goods_id where poi.order_id = app_purchase_order.id and (g.title like {0} or poi.goods_id like {0}))", "%" + searchKey + "%"));
         }
-        queryWrapper.orderByDesc("id");
+        applyDefaultAuditSort(queryWrapper, param);
         Page<AppPurchaseOrder> page = new Page<>(current, pageSize);
         IPage<AppPurchaseOrder> pageList = service.page(page, queryWrapper);
         for(AppPurchaseOrder appPurchaseOrder : pageList.getRecords()){
@@ -253,6 +255,44 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         } catch (Exception e) {
             e.printStackTrace();
             throw new AppRunTimeException("pdf文件导出异常：" + e.getMessage());
+        }
+
+        return result;
+    }
+
+    @PostMapping(value = "/exportHtml")
+    public Result<?> exportHtml(@RequestBody JSONObject param) {
+        AppPurchaseOrder entity = JSONObject.toJavaObject(param, AppPurchaseOrder.class);
+        Result<Object> result = new Result<>();
+
+        if (entity == null || entity.getItems() == null || entity.getItems().isEmpty()) {
+            throw new AppRunTimeException("数据输入不完整，请检查");
+        }
+
+        for (AppPurchaseOrderItem item : entity.getItems()) {
+            item.setGoodsId(appGoodsService.getTitleById(item.getGoodsId()));
+        }
+        entity.setCreateTime(new Date());
+        if (entity.getPaidAmount() == null) entity.setPaidAmount(0.00);
+        if (entity.getFreightAmount() == null) entity.setFreightAmount(0.00);
+        entity.setUnpaidAmount(DoubleUtil.sub(entity.getPayableAmount(), entity.getPaidAmount()));
+        entity.setTotalAmountChinese(AmountToChineseUtil.toChinese(BigDecimal.valueOf(entity.getTotalAmount())));
+
+        JSONObject htmlObj = new JSONObject();
+        htmlObj.putIfAbsent("obj", entity);
+        htmlObj.put("supplier", appSupplierService.getById(entity.getSupplierId()));
+        htmlObj.put("userInfo", appUserService.getById(param.getInteger("userId")));
+
+        translateDictValue(entity);
+        try {
+            String html = PdfReportUtils.generateHtml("PurchaseOrder.ftl", htmlObj);
+            JSONObject obj = new JSONObject();
+            obj.put("html", html);
+            obj.put("jobName", "进货单_" + entity.getOrderNo());
+            result.setData(obj);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new AppRunTimeException("html文件导出异常：" + e.getMessage());
         }
 
         return result;

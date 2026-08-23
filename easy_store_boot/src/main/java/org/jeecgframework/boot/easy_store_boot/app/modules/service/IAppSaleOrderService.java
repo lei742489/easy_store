@@ -1,6 +1,7 @@
 package org.jeecgframework.boot.easy_store_boot.app.modules.service;
 
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSaleOrder;
+import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSaleOrderItem;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import java.io.Serializable;
@@ -28,4 +29,6 @@ public interface IAppSaleOrderService extends IService<AppSaleOrder> {
     void updatePayAmount(String orderNo, Double payAmount);
 
     void recalculateGrossProfit(List<Integer> ids);
+
+    void fillPendingGoodsNames(Integer orderId, List<AppSaleOrderItem> items);
 }

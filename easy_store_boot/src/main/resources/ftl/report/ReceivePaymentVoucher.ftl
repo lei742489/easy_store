@@ -29,10 +29,10 @@
             width: 100%;
         }
 
-        .mt10 { margin-top: 4mm; }
-        .mt15 { margin-top: 6mm; }
-        .mt20 { margin-top: 8mm; }
-        .mt30 { margin-top: 12mm; }
+        .mt10 { margin-top: 2mm; }
+        .mt15 { margin-top: 3mm; }
+        .mt20 { margin-top: 4mm; }
+        .mt30 { margin-top: 6mm; }
 
         .title {
             font-size: 16pt;
@@ -48,13 +48,13 @@
         }
 
         .m-item {
-            padding: 1.2mm 1.5mm;
+            padding: 0.8mm 1.5mm;
             font-size: 10.5pt;
             color: #000;
         }
 
         .tb2 .m-item {
-            height: 7mm;
+            height: 6mm;
             vertical-align: middle;
             text-align: center;
         }

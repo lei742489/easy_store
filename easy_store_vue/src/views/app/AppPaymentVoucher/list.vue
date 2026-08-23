@@ -84,7 +84,7 @@
       <a-row style="margin-bottom: 16px">
         <a-col :span="12">
           <a-space>
-            <a-button type="primary" @click="handelEdit({})">
+            <a-button type="primary" @click="handleAdd">
               <template #icon>
                 <icon-plus />
               </template>
@@ -201,6 +201,7 @@
 <script lang="ts" setup>
   import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, nextTick, reactive, ref } from 'vue';
+  import { useRouter } from 'vue-router';
   import dayjs from 'dayjs';
   import { useUserStore } from '@/store';
   import { Pagination } from '@/types/global';
@@ -224,6 +225,7 @@
   import type { AppPaymentVoucher } from './types/AppPaymentVoucher';
 
   const { loading, setLoading } = useLoading(false);
+  const router = useRouter();
   type SizeProps = 'mini' | 'small' | 'medium' | 'large';
   const modalRef = ref<InstanceType<typeof FormModal> | null>(null);
   const userStore = useUserStore();
@@ -475,12 +477,22 @@
     }
   };
 
+  const handleAdd = () => {
+    router.push({
+      name: 'PaymentAdd',
+      state: { editItem: '', openAt: Date.now() },
+    });
+  };
+
   const handelEdit = (item: AppPaymentVoucher) => {
-    modalRef.value?.showModal(item);
+    router.push({
+      name: 'PaymentAdd',
+      state: { editItem: JSON.stringify(item), openAt: Date.now() },
+    });
   };
 
   const dbRowClick = (record: AppPaymentVoucher, rowIndex: number) => {
-    handelEdit(record);
+    modalRef.value?.showModal(record);
   };
 
   const uploadExcel = async (e: any) => {
@@ -526,6 +538,12 @@
         exportLoading.value = false;
       }, 3000);
     }
+  };
+</script>
+
+<script lang="ts">
+  export default {
+    name: 'AppPaymentVoucher',
   };
 </script>
 
