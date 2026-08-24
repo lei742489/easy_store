@@ -248,8 +248,14 @@ public class AppPermissionInitializer {
     private void addSaleGrossProfitColumns() {
         addColumnIfAbsent("app_sale_order", "gross_profit", "REAL DEFAULT 0");
         addColumnIfAbsent("app_sale_order_item", "gross_profit", "REAL DEFAULT 0");
+        addColumnIfAbsent("app_sale_order_item", "cost_amount", "REAL DEFAULT 0");
+        addColumnIfAbsent("app_sale_order_item", "cost_adjust_amount", "REAL DEFAULT 0");
+        addColumnIfAbsent("app_sale_order_item", "cost_status", "TEXT DEFAULT 'NORMAL'");
         jdbcTemplate.update("UPDATE app_sale_order SET gross_profit = 0 WHERE gross_profit IS NULL");
         jdbcTemplate.update("UPDATE app_sale_order_item SET gross_profit = 0 WHERE gross_profit IS NULL");
+        jdbcTemplate.update("UPDATE app_sale_order_item SET cost_amount = 0 WHERE cost_amount IS NULL");
+        jdbcTemplate.update("UPDATE app_sale_order_item SET cost_adjust_amount = 0 WHERE cost_adjust_amount IS NULL");
+        jdbcTemplate.update("UPDATE app_sale_order_item SET cost_status = 'NORMAL' WHERE cost_status IS NULL OR cost_status = ''");
     }
 
     private void repairUnitNames() {
@@ -284,6 +290,14 @@ public class AppPermissionInitializer {
     }
 
     private void repairDateColumns() {
+        repairDateColumn("app_sale_order", "create_time");
+        repairDateColumn("app_sale_order", "update_time");
+        repairDateColumn("app_purchase_order", "create_time");
+        repairDateColumn("app_purchase_order", "update_time");
+        repairDateColumn("app_receive_payment_voucher", "create_time");
+        repairDateColumn("app_receive_payment_voucher", "update_time");
+        repairDateColumn("app_payment_voucher", "create_time");
+        repairDateColumn("app_payment_voucher", "update_time");
         repairDateColumn("app_role", "create_time");
         repairDateColumn("app_home_menu", "create_time");
         repairDateColumn("app_role_menu", "create_time");
@@ -301,11 +315,15 @@ public class AppPermissionInitializer {
         if (databaseDialect.isMySql()) {
             return;
         }
-        jdbcTemplate.update("UPDATE " + tableName + " SET " + columnName + " = " +
-                "strftime('%Y-%m-%d %H:%M:%f', " + columnName + ") " +
-                "WHERE " + columnName + " IS NOT NULL " +
-                "AND " + columnName + " <> '' " +
-                "AND instr(" + columnName + ", '.') = 0");
+        try {
+            jdbcTemplate.update("UPDATE " + tableName + " SET " + columnName + " = " +
+                    "strftime('%Y-%m-%d %H:%M:%f', " + columnName + ") " +
+                    "WHERE " + columnName + " IS NOT NULL " +
+                    "AND " + columnName + " <> '' " +
+                    "AND instr(" + columnName + ", '.') = 0");
+        } catch (Exception ignored) {
+            // Table may not exist in some trimmed dev databases.
+        }
     }
 
     private void repairLegacyUsers() {

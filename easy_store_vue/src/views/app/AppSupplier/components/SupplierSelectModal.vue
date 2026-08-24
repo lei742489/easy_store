@@ -1,75 +1,53 @@
 <template>
-  <div class="su-search" @click="fetchList">
-    <a-select
+  <div class="su-search">
+    <a-auto-complete
       v-model="supplierId"
-      :options="dataList"
+      :data="searchData"
       :placeholder="placeholder"
       :loading="loading"
-      :allow-search="true"
-      :field-names="{ value: 'id', label: 'name' }"
+      :allow-clear="true"
       :filter-option="() => true"
       @search="handleSearch"
+      @select="handleSelect"
     >
-    </a-select>
+      <template #option="{ data }">
+        <span>{{ data.value }}</span>
+      </template>
+    </a-auto-complete>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { onMounted, ref, watch } from 'vue';
-  import { list } from '@/views/app/AppSupplier/api/api-AppSupplier';
-  import { AppSupplier } from '@/views/app/AppSupplier/types/AppSupplier';
+  import { ref, watch } from 'vue';
+  import { searchKey } from '@/views/app/AppSupplier/api/api-AppSupplier';
 
-  type SelectSupplier = Omit<AppSupplier, 'id'> & {
-    id?: number | string;
-  };
-
-  const dataList = ref<SelectSupplier[]>([]);
-  const supplierId = defineModel<number | string>('supplierId');
+  const searchData = ref<string[]>([]);
+  const supplierId = defineModel<string>('supplierId');
   const loading = ref(false);
 
-  const normalizeOptions = (items: AppSupplier[] = []): SelectSupplier[] =>
-    items.map((item) => ({
-      ...item,
-      id: item.id === undefined || item.id === null ? item.id : String(item.id),
-    }));
-
-  const syncSelectedValue = () => {
-    if (supplierId.value === undefined || supplierId.value === null) return;
-    const selected = dataList.value.find(
-      (item) => String(item.id) === String(supplierId.value)
-    );
-    if (selected?.id !== undefined) {
-      supplierId.value = selected.id;
+  const handleSearch = async (key: string) => {
+    const keyword = String(key ?? '').trim();
+    supplierId.value = keyword;
+    if (!keyword) {
+      searchData.value = [];
+      return;
     }
-  };
-
-  const fetchList = async () => {
-    if (dataList.value.length > 0) return;
     loading.value = true;
     try {
-      const res = await list();
-      dataList.value = normalizeOptions(res.data);
-      syncSelectedValue();
+      const res = await searchKey(keyword);
+      searchData.value = res.data || [];
     } finally {
       loading.value = false;
     }
   };
 
-  const handleSearch = async (e: any) => {
-    const res = await list(e);
-    dataList.value = normalizeOptions(res.data);
-    syncSelectedValue();
+  const handleSelect = (value: string) => {
+    supplierId.value = String(value || '').trim();
   };
 
-  onMounted(() => {
-    if (supplierId.value !== undefined && supplierId.value !== null) {
-      fetchList();
-    }
-  });
-
   watch(supplierId, (value) => {
-    if (value !== undefined && value !== null) {
-      fetchList();
+    if (!value) {
+      searchData.value = [];
     }
   });
 

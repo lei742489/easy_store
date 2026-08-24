@@ -56,6 +56,10 @@
               <template #icon><icon-refresh /></template>
               重置
             </a-button>
+            <a-button :loading="rebuildLoading" @click="handleRebuildAll">
+              <template #icon><icon-refresh /></template>
+              重新核算全部
+            </a-button>
           </a-space>
         </a-col>
       </a-row>
@@ -131,12 +135,14 @@
   import type { GoodsSearchResult } from '@/views/app/goods/types/GoodsSearchResult';
   import type { AppGoods } from '@/views/app/goods/types/AppGoods';
   import {
+    rebuildAllStockLedger,
     listStockStatistics,
     StockStatisticsRecord,
     StockStatisticsResult,
   } from './api';
 
   const loading = ref(false);
+  const rebuildLoading = ref(false);
   const records = ref<StockStatisticsRecord[]>([]);
   const result = reactive<StockStatisticsResult>({});
   const categoryText = ref('');
@@ -153,7 +159,7 @@
   });
   const pagination = reactive({
     current: 1,
-    pageSize: 50,
+    pageSize: 30,
     total: 0,
   });
 
@@ -328,6 +334,16 @@
   const search = () => {
     pagination.current = 1;
     fetchData();
+  };
+
+  const handleRebuildAll = async () => {
+    rebuildLoading.value = true;
+    try {
+      await rebuildAllStockLedger();
+      await fetchData();
+    } finally {
+      rebuildLoading.value = false;
+    }
   };
 
   const reset = () => {

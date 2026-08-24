@@ -92,7 +92,6 @@
         <a-input-number
           v-if="orderType == 1"
           v-model="data[rowIndex].quantity"
-          :min="1"
           @change="updateTotalAmount(data[rowIndex])"
         ></a-input-number>
 
@@ -108,7 +107,6 @@
         <a-input-number
           v-model="data[rowIndex].unitPrice"
           :precision="2"
-          :min="0"
           @change="updateTotalAmount(data[rowIndex])"
         ></a-input-number>
       </template>
@@ -118,7 +116,6 @@
           v-if="orderType == 1"
           v-model="data[rowIndex].totalAmount"
           :precision="2"
-          :min="0"
           @change="updateUnitPrice(data[rowIndex])"
         ></a-input-number>
 
@@ -310,7 +307,7 @@
       dataIndex: 'index',
       slotName: 'index',
       align: 'center',
-      width: 70,
+      width: 60,
     },
     {
       title: '货品名称',
@@ -331,28 +328,28 @@
       dataIndex: 'categoryId',
       align: 'center',
       slotName: 'category',
-      width: 200,
+      width: 160,
     },
     {
       title: '数量',
       dataIndex: 'quantity',
       align: 'center',
       slotName: 'quantity',
-      width: 140,
+      width: 100,
     },
     {
       title: '单价',
       dataIndex: 'unitPrice',
       align: 'center',
       slotName: 'unitPrice',
-      width: 200,
+      width: 150,
     },
     {
       title: '总金额',
       dataIndex: 'totalAmount',
       align: 'center',
       slotName: 'totalAmount',
-      width: 200,
+      width: 150,
     },
     {
       title: '备注',
@@ -422,11 +419,10 @@
       if (!root || !inputWrap) return;
       const rootRect = root.getBoundingClientRect();
       const inputRect = inputWrap.getBoundingClientRect();
-      const preferredWidth =
-        props.goodsSearchType === 'purchase'
-          ? inputRect.width
-          : inputRect.width * 1.3;
-      const width = Math.min(preferredWidth, rootRect.width);
+      const tableRect =
+        (goodsTableRef.value?.$el as HTMLElement | undefined)
+          ?.getBoundingClientRect?.() || rootRect;
+      const width = Math.min(tableRect.width * 0.5, rootRect.width);
       const left = Math.max(
         0,
         Math.min(inputRect.left - rootRect.left, rootRect.width - width)

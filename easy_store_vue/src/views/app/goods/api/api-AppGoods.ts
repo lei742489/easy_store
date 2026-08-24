@@ -66,6 +66,14 @@ export function stockDetail(data: {
   return axios.post<any>('api/user/appGoods/stockDetail', data);
 }
 
+export function rebuildStockLedger(goodsId: number) {
+  return axios.post<any>('api/user/appGoods/rebuildStockLedger', { goodsId });
+}
+
+export function rebuildAllStockLedger() {
+  return axios.post<any>('api/user/appGoods/rebuildAllStockLedger', {});
+}
+
 export function batchUpdateCategory(categoryId: number, ids: string) {
   return axios.post<any>('api/user/appGoods/batchUpdateCategory', {
     ids,

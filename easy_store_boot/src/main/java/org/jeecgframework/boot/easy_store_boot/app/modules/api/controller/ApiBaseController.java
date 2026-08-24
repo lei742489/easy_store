@@ -10,6 +10,7 @@ import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.ibatis.annotations.Param;
 import org.jeecgframework.boot.easy_store_boot.app.common.DateUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.CustomerSupplierKeywordResolver;
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
@@ -52,6 +53,8 @@ public class ApiBaseController<T, S extends IService<T>> {
     protected IAppUserService appUserService;
     @Autowired
     protected IAppRolePermissionService appRolePermissionService;
+    @Autowired
+    private CustomerSupplierKeywordResolver customerSupplierKeywordResolver;
 
     @PostMapping("listPage")
     public Result<?> listPage(@RequestBody JSONObject param) {
@@ -237,6 +240,30 @@ public class ApiBaseController<T, S extends IService<T>> {
 
     protected boolean isRootUser(JSONObject param) {
         return isRoot(getCurrentUser(param));
+    }
+
+    protected void applyCustomerKeywordFilter(QueryWrapper<?> queryWrapper, String customerId) {
+        if (StringUtils.isBlank(customerId)) {
+            return;
+        }
+        List<String> customerIds = customerSupplierKeywordResolver.resolveCustomerIds(customerId);
+        if (customerIds.isEmpty()) {
+            queryWrapper.apply("1 = 0");
+            return;
+        }
+        queryWrapper.in("customer_id", customerIds);
+    }
+
+    protected void applySupplierKeywordFilter(QueryWrapper<?> queryWrapper, String supplierId) {
+        if (StringUtils.isBlank(supplierId)) {
+            return;
+        }
+        List<String> supplierIds = customerSupplierKeywordResolver.resolveSupplierIds(supplierId);
+        if (supplierIds.isEmpty()) {
+            queryWrapper.apply("1 = 0");
+            return;
+        }
+        queryWrapper.in("supplier_id", supplierIds);
     }
 
     protected void prepareDocumentForAdd(T entity, JSONObject param) {

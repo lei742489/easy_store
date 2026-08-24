@@ -61,6 +61,15 @@ public class AppSaleOrderItem implements Serializable {
     @Excel(name = "销售毛利", width = 15,numFormat = "0.00")
     private Double grossProfit;
 
+    @ApiModelProperty("销售成本金额")
+    private Double costAmount;
+
+    @ApiModelProperty("成本调整金额")
+    private Double costAdjustAmount;
+
+    @ApiModelProperty("成本状态：NORMAL/TEMP/ADJUSTED")
+    private String costStatus;
+
     @ApiModelProperty("单号")
     private Integer orderId;
 

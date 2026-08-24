@@ -48,3 +48,7 @@ export function listStockStatistics(data: StockStatisticsQuery) {
     { timeout: 60000 }
   );
 }
+
+export function rebuildAllStockLedger() {
+  return axios.post<any>('api/user/appGoods/rebuildAllStockLedger', {});
+}

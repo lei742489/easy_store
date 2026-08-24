@@ -100,7 +100,7 @@ public class AppPurchaseOrder implements Serializable {
 
     @TableField(fill = FieldFill.INSERT)
     @ApiModelProperty("建立时间")
-    @JsonFormat(timezone = "GMT+8",pattern = "yyyy-MM-dd")
+    @JsonFormat(timezone = "GMT+8",pattern = "yyyy-MM-dd HH:mm:ss")
     @Excel(name = "建立时间", width = 30, format = "yyyy-MM-dd HH:mm:ss",needMerge = true)
     private Date createTime;
 

@@ -29,8 +29,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
 * @author Administrator
@@ -174,6 +176,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     @Transactional(rollbackFor = Exception.class)
     public void recalculateGrossProfit(List<Integer> ids) {
         if(ids == null || ids.isEmpty()) return;
+        Set<String> goodsIds = new HashSet<>();
         for(Integer id : ids) {
             AppSaleOrder order = getById(id);
             if(order == null) continue;
@@ -183,9 +186,17 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             setItemsByEntity(order);
             if(!items.isEmpty()) {
                 appSaleOrderItemService.updateBatchById(items);
+                for(AppSaleOrderItem item : items) {
+                    if(item != null && StringUtils.isNotBlank(item.getGoodsId()) && StringUtils.isNumeric(item.getGoodsId().trim())) {
+                        goodsIds.add(item.getGoodsId().trim());
+                    }
+                }
             }
             refreshPendingGoods(order.getId(), items, new ArrayList<>(), isActive(order));
             super.updateById(order);
+        }
+        for(String goodsId : goodsIds) {
+            appGoodsService.updateStock(goodsId);
         }
     }
 

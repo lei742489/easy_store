@@ -82,9 +82,7 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
         QueryWrapper<AppPaymentVoucher> queryWrapper =
                 QueryGenerator.initQueryWrapper(entity, getDefaultAuditSortQueryParam(param));
         applyOwnerFilter(queryWrapper, param);
-        if (StringUtils.isNotEmpty(supplierId)) {
-            queryWrapper.eq("supplier_id", supplierId);
-        }
+        applySupplierKeywordFilter(queryWrapper, supplierId);
         applyDefaultAuditSort(queryWrapper, param);
         IPage<AppPaymentVoucher> pageList =
                 service.page(new Page<>(current, pageSize), queryWrapper);

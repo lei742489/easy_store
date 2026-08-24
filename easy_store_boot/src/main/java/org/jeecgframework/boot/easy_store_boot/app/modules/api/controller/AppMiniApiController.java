@@ -324,6 +324,7 @@ public class AppMiniApiController {
         if (StringUtils.isBlank(realName)) {
             throw new AppRunTimeException("营业员姓名不能为空");
         }
+
         AppUser cashier = appUserService.getByName(realName.trim());
         if (cashier == null || cashier.getId() == null) {
             throw new AppRunTimeException("未找到营业员：" + realName);

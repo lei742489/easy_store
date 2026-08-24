@@ -60,8 +60,8 @@ public class AppStockCheck implements Serializable {
     private String note;
 
     @TableField(fill = FieldFill.INSERT)
-    @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd")
-    @Excel(name = "单据日期", width = 15, format = "yyyy-MM-dd", needMerge = true)
+    @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "单据日期", width = 15, format = "yyyy-MM-dd HH:mm:ss", needMerge = true)
     private Date createTime;
 
     @TableField(fill = FieldFill.UPDATE)

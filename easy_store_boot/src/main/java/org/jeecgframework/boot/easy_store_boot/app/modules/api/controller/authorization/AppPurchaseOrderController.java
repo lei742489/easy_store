@@ -94,9 +94,7 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         }
         QueryWrapper<AppPurchaseOrder> queryWrapper = QueryGenerator.initQueryWrapper(entity, getDefaultAuditSortQueryParam(param));
         applyOwnerFilter(queryWrapper, param);
-        if (StringUtils.isNotEmpty(supplierId)) {
-            queryWrapper.eq("supplier_id", supplierId);
-        }
+        applySupplierKeywordFilter(queryWrapper, supplierId);
 
         if(unpaidOnly!=null){
             queryWrapper.ne("unpaid_amount",0).eq("status", 1);

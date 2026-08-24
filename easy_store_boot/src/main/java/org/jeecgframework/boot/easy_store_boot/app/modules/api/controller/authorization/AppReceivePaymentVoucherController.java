@@ -79,9 +79,7 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
         QueryWrapper<AppReceivePaymentVoucher> queryWrapper =
                 QueryGenerator.initQueryWrapper(entity, getDefaultAuditSortQueryParam(param));
         applyOwnerFilter(queryWrapper, param);
-        if (StringUtils.isNotEmpty(customerId)) {
-            queryWrapper.eq("customer_id", customerId);
-        }
+        applyCustomerKeywordFilter(queryWrapper, customerId);
         applyDefaultAuditSort(queryWrapper, param);
         IPage<AppReceivePaymentVoucher> pageList =
                 service.page(new Page<>(current, pageSize), queryWrapper);

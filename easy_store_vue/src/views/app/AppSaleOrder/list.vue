@@ -11,6 +11,7 @@
             label-align="center"
             auto-label-width
             style="margin-top: 10px"
+            @keyup.enter="search()"
           >
             <a-row :gutter="24">
               <a-col :span="7">
@@ -115,6 +116,7 @@
             >
               批量审核
             </a-button>
+            <!--
             <a-button
               v-if="isRoot"
               :loading="profitLoading"
@@ -122,6 +124,7 @@
             >
               重新统计
             </a-button>
+            -->
           </a-space>
         </a-col>
 
@@ -176,7 +179,6 @@
         :scroll="{ x: '100%', y: getAdaptiveTableScrollY(540) }"
         :expandable="expandable"
         @page-change="onPageChange"
-        @row-dblclick="dbRowClick"
         @selection-change="handleSelectionChange"
         @sorter-change="onSorterChange"
       >
@@ -217,7 +219,6 @@
         </template>
       </a-table>
     </a-card>
-    <form-modal ref="modalRef" @ok="search(pagination)"></form-modal>
   </div>
 </template>
 
@@ -235,7 +236,6 @@
   import SearchModal from '@/views/app/customer/components/customer-select-modal.vue';
   import userSelect from '@/views/app/AppUser/components/UserSelectModel.vue';
   import TimeSelect from '@/components/menu/time-select.vue';
-  import FormModal from './components/modal.vue';
   import ItemExpand from './components/item-expand.vue';
 
   import {
@@ -251,7 +251,6 @@
   const { loading, setLoading } = useLoading(false);
   const router = useRouter();
   type SizeProps = 'mini' | 'small' | 'medium' | 'large';
-  const modalRef = ref<InstanceType<typeof FormModal> | null>(null);
   const timeSelectRef = ref<InstanceType<typeof TimeSelect> | null>(null);
   const userStore = useUserStore();
   const isRoot = computed(() => userStore.isRoot === 1);
@@ -647,10 +646,6 @@
       name: 'SalesOrderAdd',
       state: { editItem: JSON.stringify(item), openAt: Date.now() },
     });
-  };
-
-  const dbRowClick = (record: AppSaleOrder, rowIndex: number) => {
-    modalRef.value?.showModal(record);
   };
 
   const uploadExcel = async (e: any) => {

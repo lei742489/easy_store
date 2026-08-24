@@ -20,10 +20,20 @@
           />
         </a-form-item>
       </a-form>
-      <a-button type="primary" :loading="loading" @click="search">
-        <template #icon><icon-refresh /></template>
-        查询
-      </a-button>
+      <a-space>
+        <a-button type="primary" :loading="loading" @click="search">
+          <template #icon><icon-refresh /></template>
+          查询
+        </a-button>
+        <a-button
+          :loading="rebuildLoading"
+          :disabled="!goodsId"
+          @click="handleRebuild"
+        >
+          <template #icon><icon-refresh /></template>
+          重新核算
+        </a-button>
+      </a-space>
     </div>
 
     <div class="report-title">
@@ -40,8 +50,9 @@
       :columns="columns"
       :data="tableData"
       :bordered="{ cell: true }"
-      :scroll="{ x: 1160, y: 520 }"
+      :scroll="{ x: 1230, y: 520 }"
       :row-class="rowClass"
+      :span-method="spanMethod"
     >
       <template #inQty="{ record }">
         {{ formatQuantity(record.inQty) }}
@@ -82,12 +93,15 @@
 
 <script lang="ts" setup>
   import { computed, nextTick, reactive, ref } from 'vue';
-  import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
+  import type {
+    TableColumnData,
+    TableOperationColumn,
+  } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
   import TimeSelect from '@/components/menu/time-select.vue';
   import type { AppGoods } from '../types/AppGoods';
-  import { stockDetail } from '../api/api-AppGoods';
+  import { rebuildStockLedger, stockDetail } from '../api/api-AppGoods';
 
   interface StockDetailRecord {
     rowNo: number | string;
@@ -124,8 +138,11 @@
     records?: StockDetailRecord[];
   }
 
+  const mergeColumns = ['businessType', 'businessDate', 'counterpartyName'];
+
   const visible = ref(false);
   const loading = ref(false);
+  const rebuildLoading = ref(false);
   const goodsId = ref<number>();
   const goodsName = ref('');
   const goodsUnit = ref('');
@@ -255,7 +272,7 @@
       isSummary: true,
     },
     {
-      rowNo: '期初',
+      rowNo: 1,
       businessType: '期初',
       businessDate: form.startDate,
       endingQty: result.openingQty || 0,
@@ -263,8 +280,80 @@
       endingAmount: result.openingAmount || 0,
       isOpening: true,
     },
-    ...records.value,
+    ...records.value.map((item, index) => ({
+      ...item,
+      businessType: formatBusinessType(item.businessType),
+      rowNo: index + 2,
+    })),
   ]);
+
+  const formatBusinessType = (value?: string) => {
+    const typeMap: Record<string, string> = {
+      进货入库: '进货',
+      销售出库: '销售',
+      库存盘盈: '盘盈',
+      库存盘亏: '盘亏',
+    };
+    return value ? typeMap[value] || value : '';
+  };
+
+  const sameMergeGroup = (
+    current: StockDetailRecord,
+    next: StockDetailRecord,
+    fields: string[]
+  ) =>
+    fields.every(
+      (field) =>
+        (current as Record<string, unknown>)[field] ===
+        (next as Record<string, unknown>)[field]
+    );
+
+  const buildMergeSpans = (
+    rows: StockDetailRecord[],
+    field: string,
+    parentFields: string[] = []
+  ) => {
+    const spans: number[] = new Array(rows.length).fill(1);
+    let index = 2;
+    while (index < rows.length) {
+      const current = rows[index] as Record<string, unknown>;
+      const value = current[field];
+      if (value === undefined || value === null || value === '') {
+        spans[index] = 1;
+        index += 1;
+        continue;
+      }
+
+      let end = index + 1;
+      while (end < rows.length) {
+        const next = rows[end] as StockDetailRecord;
+        if (
+          !sameMergeGroup(rows[index], next, [...parentFields, field])
+        ) {
+          break;
+        }
+        end += 1;
+      }
+      spans[index] = end - index;
+      for (let i = index + 1; i < end; i += 1) {
+        spans[i] = 0;
+      }
+      index = end;
+    }
+    return spans;
+  };
+
+  const mergedSpanMap = computed<Record<string, number[]>>(() => {
+    const rows = tableData.value;
+    return {
+      businessType: buildMergeSpans(rows, 'businessType'),
+      businessDate: buildMergeSpans(rows, 'businessDate', ['businessType']),
+      counterpartyName: buildMergeSpans(rows, 'counterpartyName', [
+        'businessType',
+        'businessDate',
+      ]),
+    };
+  });
 
   const formatMoney = (value?: number) =>
     `￥${formatPrice(Number(value || 0))}`;
@@ -274,6 +363,25 @@
       : Number(value).toString();
   const amountClass = (record: StockDetailRecord) =>
     record.isSummary ? 'summary-amount' : '';
+  const spanMethod = (data: {
+    record: StockDetailRecord;
+    column: TableColumnData | TableOperationColumn;
+    rowIndex: number;
+    columnIndex: number;
+  }): void | { rowspan: number; colspan: number } => {
+    if (data.rowIndex < 2) {
+      return;
+    }
+    const field =
+      'dataIndex' in data.column
+        ? (data.column.dataIndex as string | undefined)
+        : undefined;
+    if (!field || !mergeColumns.includes(field)) {
+      return;
+    }
+    const rowSpan = mergedSpanMap.value[field]?.[data.rowIndex] || 1;
+    return rowSpan > 0 ? { rowspan: rowSpan, colspan: 1 } : { rowspan: 0, colspan: 0 };
+  };
   const rowClass = (record: StockDetailRecord) => {
     if (record.isSummary) return 'summary-row';
     return record.isOpening ? 'opening-row' : '';
@@ -295,6 +403,17 @@
       records.value = data?.records || [];
     } finally {
       loading.value = false;
+    }
+  };
+
+  const handleRebuild = async () => {
+    if (!goodsId.value) return;
+    rebuildLoading.value = true;
+    try {
+      await rebuildStockLedger(goodsId.value);
+      await search();
+    } finally {
+      rebuildLoading.value = false;
     }
   };
 

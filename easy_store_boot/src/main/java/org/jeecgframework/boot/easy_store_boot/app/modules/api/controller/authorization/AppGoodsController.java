@@ -20,6 +20,7 @@ import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppGoodsServ
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppRolePermissionService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppUserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -85,7 +86,8 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
     private IAppUserService userService;
     @Autowired
     private IAppRolePermissionService rolePermissionService;
-
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
     private void hideUnauthorizedQuotePrices(List<AppGoods> goodsList, String userId) {
         if (goodsList == null || goodsList.isEmpty()) return;
         AppUser user = userService.getById(userId);
@@ -126,6 +128,37 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
             throw new AppRunTimeException("货品不存在或已删除");
         }
         return Result.ok(result);
+    }
+
+    @PostMapping("rebuildStockLedger")
+    public Result<?> rebuildStockLedger(@RequestBody JSONObject param) {
+        String goodsId = param.getString("goodsId");
+        if (StringUtils.isEmpty(goodsId)) {
+            throw new AppRunTimeException("璇烽€夋嫨璐у搧");
+        }
+        service.updateStock(goodsId);
+        return Result.ok();
+    }
+
+    @PostMapping("rebuildAllStockLedger")
+    public Result<?> rebuildAllStockLedger() {
+        List<AppGoods> goodsList = service.list();
+        if (goodsList != null && !goodsList.isEmpty()) {
+            for (AppGoods goods : goodsList) {
+                if (goods.getId() != null) {
+                    service.updateStock(String.valueOf(goods.getId()));
+                }
+            }
+        }
+        refreshAllSaleOrderGrossProfits();
+        return Result.ok();
+    }
+
+    private void refreshAllSaleOrderGrossProfits() {
+        jdbcTemplate.update("UPDATE app_sale_order o SET gross_profit = (" +
+                "SELECT COALESCE(SUM(i.gross_profit), 0) FROM app_sale_order_item i " +
+                "WHERE i.order_id = o.id AND COALESCE(i.is_del, 0) = 0) " +
+                "WHERE COALESCE(o.is_del, 0) = 0");
     }
 
     @PostMapping("stockStatistics")
