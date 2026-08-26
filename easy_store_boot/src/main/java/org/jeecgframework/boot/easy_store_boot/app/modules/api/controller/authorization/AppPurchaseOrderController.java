@@ -17,6 +17,7 @@ import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBas
 
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPaymentAmountItem;
+import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppGoods;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPurchaseOrder;
 
 
@@ -111,8 +112,18 @@ public class AppPurchaseOrderController extends ApiBaseController<AppPurchaseOrd
         IPage<AppPurchaseOrder> pageList = service.page(page, queryWrapper);
         for(AppPurchaseOrder appPurchaseOrder : pageList.getRecords()){
             appPurchaseOrder.setItems(appPurchaseOrderItemService.listByOrderId(appPurchaseOrder.getId()));
+            fillPurchaseOrderItemGoodsCode(appPurchaseOrder.getItems());
         }
         return Result.ok(pageList);
+    }
+
+    private void fillPurchaseOrderItemGoodsCode(List<AppPurchaseOrderItem> items) {
+        if(items == null) return;
+        for(AppPurchaseOrderItem item : items) {
+            if(item == null || StringUtils.isBlank(item.getGoodsId())) continue;
+            AppGoods goods = appGoodsService.getById(item.getGoodsId());
+            if(goods != null) item.setGoodsCode(goods.getGoodsCode());
+        }
     }
 
     @PostMapping("createOrderNo")

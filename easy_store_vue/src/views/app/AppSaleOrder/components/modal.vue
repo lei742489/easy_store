@@ -1,19 +1,7 @@
 <template>
-  <div class="drawer" :class="{ 'order-entry-page': pageMode }">
-    <a-modal
-      width="90%"
-      :visible="pageMode || visible"
-      :mask="!pageMode"
-      :closable="!pageMode"
-      :render-to-body="!pageMode"
-      :modal-class="{ 'order-entry-page-modal': pageMode }"
-      unmount-on-close
-      :mask-closable="!pageMode"
-      :ok-loading="loading"
-      @cancel="() => handleCancel()"
-    >
-      <template #title> {{ title }} </template>
-      <div>
+  <div class="order-entry-page">
+    <div class="order-entry-title">销售单</div>
+    <div class="order-entry-content">
         <a-form ref="formRef" :model="form" auto-label-width>
           <a-row :gutter="24">
             <a-col :span="12">
@@ -66,7 +54,11 @@
           </a-row>
           <a-row :gutter="24">
             <a-col :span="12">
-              <a-form-item field="orderType" label="类型">
+              <a-form-item
+                field="orderType"
+                label="类型"
+                :rules="[{ required: true, message: '请选择销售类型' }]"
+              >
                 <a-radio-group v-model="form.orderType">
                   <a-radio :value="1">销售出货</a-radio>
                   <a-radio :value="2">销售退货</a-radio>
@@ -76,19 +68,47 @@
 
             <a-col :span="12">
               <a-form-item field="createTime" label="日期">
-                <a-date-picker v-model="form.createTime" placeholder="请选择" />
+                <div class="date-code-control">
+                  <a-date-picker v-model="form.createTime" placeholder="请选择" />
+                  <span>显示货品代码</span>
+                  <a-switch v-model="showGoodsCode" size="small">
+                    <template #checked>显示</template>
+                    <template #unchecked>隐藏</template>
+                  </a-switch>
+                </div>
               </a-form-item>
             </a-col>
           </a-row>
 
-          <FormItem field="items" label="货品列表">
-            <item-table
-              ref="itemTableRef"
-              v-model:order-type="form.orderType"
-              :customer-id="form.customerId"
-              @change="updateAmount"
-            ></item-table>
-          </FormItem>
+          <div class="goods-section">
+            <div class="goods-section-header">
+              <div class="goods-section-title">货品列表</div>
+              <div class="goods-section-actions">
+                <a-button type="primary" @click="itemTableRef?.addItem()">
+                  <template #icon><icon-plus /></template>
+                  增加一行
+                </a-button>
+                <a-popconfirm
+                  content="确认清空所有货品数据吗？"
+                  @ok="itemTableRef?.clearAll()"
+                >
+                  <a-button type="primary" status="danger">
+                    <template #icon><icon-delete /></template>
+                    清空
+                  </a-button>
+                </a-popconfirm>
+              </div>
+            </div>
+            <FormItem field="items" class="goods-form-item">
+              <item-table
+                ref="itemTableRef"
+                v-model:order-type="form.orderType"
+                :customer-id="form.customerId"
+                :show-goods-code="showGoodsCode"
+                @change="updateAmount"
+              ></item-table>
+            </FormItem>
+          </div>
 
           <a-form-item field="note" label="备注">
             <a-textarea
@@ -211,15 +231,8 @@
         </a-form>
       </div>
 
-      <!-- modal 内容 -->
-      <template #footer>
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-          "
-        >
+      <div class="order-entry-footer">
+        <div class="order-entry-footer-content">
           <div>
             <a-button type="primary" @click="handleList"
               ><template #icon>
@@ -249,15 +262,14 @@
             
           </div>
         </div>
-      </template>
-    </a-modal>
+      </div>
     <customer-modal ref="customerModalRef" @ok="handleCustomerSaved" />
     <clodop-print-modal ref="clodopPrintModalRef" />
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { computed, reactive, ref, nextTick, watch } from 'vue';
+  import { computed, reactive, ref, nextTick, watch, h } from 'vue';
   import { Message, Modal, FormItem } from '@arco-design/web-vue';
   import { useUserStore } from '@/store';
   import { Customer } from '@/views/app/customer/types/customer';
@@ -281,16 +293,8 @@
   } from '../api/api-AppSaleOrder';
   import ItemTable from './item-table.vue';
 
-  defineProps({
-    pageMode: {
-      type: Boolean,
-      default: false,
-    },
-  });
-
-  const visible = ref(false);
   const formRef = ref();
-  const title = ref('');
+  const showGoodsCode = ref(false);
   const loading = ref(false);
   const clodopLoading = ref(false);
   const customerLoading = ref(false);
@@ -436,11 +440,7 @@
 
   const showModal = (item: AppSaleOrder) => {
     resetForm();
-    visible.value = true;
-    if (item.id) {
-      title.value = '编辑-销售单';
-    } else {
-      title.value = '新增-销售单';
+    if (!item.id) {
       initOrderNo();
     }
     if (Object.keys(item).length !== 0) Object.assign(form, item);
@@ -457,7 +457,6 @@
   };
 
   const closeForm = (notify = true) => {
-    visible.value = false;
     resetForm();
     if (notify) emit('cancel');
   };
@@ -498,6 +497,45 @@
     );
   };
 
+  const getBelowCostPriceItems = (items?: AppSaleOrder['items']) => {
+    if (form.orderType !== 1 || !items) return [];
+    return items.filter((item) => {
+      const unitPrice = Number(item.unitPrice);
+      const costPrice = Number(item.costPrice);
+      return (
+        Number.isFinite(unitPrice) &&
+        Number.isFinite(costPrice) &&
+        unitPrice < costPrice
+      );
+    });
+  };
+
+  const confirmBelowCostPrice = async (
+    items: AppSaleOrder['items']
+  ): Promise<boolean> => {
+    const belowPriceItems = getBelowCostPriceItems(items);
+    if (belowPriceItems.length === 0) return true;
+
+    return new Promise((resolve) => {
+      const messageText = belowPriceItems
+        .map(
+          (item) =>
+            `${item.goodsName || item.goodsId_dictText || '未命名商品'}售低于成本价：￥${formatPrice(item.costPrice)}，确认继续保存？`
+        )
+        .join('\n');
+      Modal.confirm({
+        title: '低价销售确认',
+        content: h(
+          'div',
+          { style: { whiteSpace: 'pre-line' } },
+          messageText
+        ),
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+  };
+
   const handleOk = async (state: number) => {
     const items = itemTableRef.value?.getItemsList();
     if (items && items.length === 0) {
@@ -508,6 +546,8 @@
       const s = await formRef.value.validate();
       if (!s) {
         // 验证通过后可继续操作
+
+        if (!(await confirmBelowCostPrice(items))) return;
 
         loading.value = true;
         form.items = items;
@@ -680,11 +720,151 @@
     router.push(targetPath);
   };
 
-  defineExpose({ showModal, visible });
+  defineExpose({ showModal });
 </script>
 
 <style lang="less" scoped>
-  .drawer {
+  .order-entry-page {
+    display: flex;
+    flex-direction: column;
+    width: 92%;
+    max-width: 1900px;
+    min-height: 70vh;
+    margin: 2% auto;
+    overflow: hidden;
+    background: var(--color-bg-1);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgb(31 35 41 / 12%);
+  }
+
+  .order-entry-title {
+    width: 100%;
+    height: 58px;
+    box-sizing: border-box;
+    padding: 0 22px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 58px;
+    text-align: center;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--primary-5)) 0%,
+      rgb(var(--primary-6)) 72%,
+      rgb(var(--primary-7)) 100%
+    );
+  }
+
+  .order-entry-content {
+    flex: 1;
+    min-height: 0;
+    padding: 28px 34px 14px;
+    overflow-y: auto;
+
+    :deep(.arco-input-wrapper),
+    :deep(.arco-input-number),
+    :deep(.arco-select-view),
+    :deep(.arco-picker),
+    :deep(.arco-textarea-wrapper) {
+      min-height: 36px;
+      background: transparent;
+      border: 1px solid var(--color-neutral-3);
+      border-radius: 4px;
+      box-shadow: none;
+    }
+
+    :deep(.arco-input-wrapper:hover),
+    :deep(.arco-input-number:hover),
+    :deep(.arco-select-view:hover),
+    :deep(.arco-picker:hover),
+    :deep(.arco-textarea-wrapper:hover) {
+      background: transparent;
+      border-color: rgb(var(--primary-6));
+    }
+
+    :deep(.arco-input-wrapper.arco-input-focus),
+    :deep(.arco-input-number.arco-input-number-focused),
+    :deep(.arco-select-view.arco-select-view-focus),
+    :deep(.arco-picker-focused),
+    :deep(.arco-textarea-wrapper:focus-within) {
+      background: transparent;
+      border-color: rgb(var(--primary-6));
+      box-shadow: 0 0 0 1px rgb(var(--primary-6) / 15%);
+    }
+
+    :deep(.arco-input-number-input),
+    :deep(.arco-input),
+    :deep(.arco-textarea) {
+      background: transparent;
+    }
+  }
+
+  .date-code-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+
+    > span {
+      margin-left: auto;
+      color: var(--color-text-2);
+      white-space: nowrap;
+    }
+  }
+
+  .goods-section {
+    margin: 4px 0 22px;
+    padding: 14px;
+    background: var(--color-bg-1);
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgb(31 35 41 / 8%);
+  }
+
+  .goods-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .goods-section-title {
+    padding-left: 12px;
+    color: var(--color-text-1);
+    font-weight: 600;
+    border-left: 4px solid rgb(var(--primary-6));
+  }
+
+  .goods-section-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  :deep(.goods-form-item) {
+    margin-bottom: 0;
+
+    .arco-form-item-label-col {
+      display: none;
+    }
+
+    .arco-form-item-control-wrapper {
+      padding-left: 0;
+    }
+  }
+
+  .order-entry-footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid var(--color-neutral-3);
+  }
+
+  .order-entry-footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 
   .counterparty-payable {
@@ -701,20 +881,4 @@
     }
   }
 
-  :global(.order-entry-page-modal) {
-    box-shadow: var(--shadow2-center);
-  }
-
-  &.order-entry-page {
-    :deep(.arco-modal-container),
-    :deep(.arco-modal-wrapper) {
-      position: static;
-      overflow: visible;
-    }
-
-    :deep(.arco-modal) {
-      top: 0;
-      margin: 24px auto;
-    }
-  }
 </style>

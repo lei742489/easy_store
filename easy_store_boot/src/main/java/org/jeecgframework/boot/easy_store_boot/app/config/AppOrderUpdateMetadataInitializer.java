@@ -210,6 +210,7 @@ public class AppOrderUpdateMetadataInitializer {
                     "unit_price DECIMAL(18,4) DEFAULT 0," +
                     "status INT DEFAULT 0," +
                     "goods_id VARCHAR(100)," +
+                    "goods_code VARCHAR(255)," +
                     "create_time DATETIME," +
                     "update_time DATETIME," +
                     "is_del INT DEFAULT 0" +
@@ -225,11 +226,14 @@ public class AppOrderUpdateMetadataInitializer {
                     "unit_price REAL DEFAULT 0," +
                     "status INTEGER DEFAULT 0," +
                     "goods_id TEXT," +
+                    "goods_code TEXT," +
                     "create_time DATETIME," +
                     "update_time DATETIME," +
                     "is_del INTEGER DEFAULT 0" +
                     ")");
         }
+        addColumnIfAbsent("app_sale_pending_goods", "goods_code",
+                databaseDialect.isMySql() ? "VARCHAR(255)" : "TEXT");
         createIndexIfAbsent("CREATE INDEX idx_sale_pending_goods_order " +
                 "ON app_sale_pending_goods(order_id, status, is_del)");
         createIndexIfAbsent("CREATE INDEX idx_sale_pending_goods_item " +

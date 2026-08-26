@@ -1,5 +1,5 @@
 export default {
-  'login.form.title': '登录 {appName}',
+  'login.form.title': '登录帐号',
   'login.form.reg': '注册 {appName} 账号',
   'login.form.subTitle': '首次注册需要联网验证',
   'login.form.userName.errMsg': '用户名不能为空',

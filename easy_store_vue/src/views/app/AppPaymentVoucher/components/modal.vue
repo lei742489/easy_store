@@ -12,7 +12,10 @@
       :ok-loading="loading"
       @cancel="() => handleCancel()"
     >
-      <template #title> {{ title }} </template>
+      <template #title>
+        <div v-if="pageMode" class="order-entry-title">付款单</div>
+        <span v-else>{{ title }}</span>
+      </template>
       <div>
         <a-form ref="formRef" :model="form" auto-label-width>
           <a-row :gutter="24">
@@ -73,20 +76,26 @@
               </a-row>
             </a-col>
           </a-row>
-          <a-form-item field="amount" label="付款账户">
-            <settler-item-table
-              ref="settlerItemTableRef"
-              v-model:total-amount="form.amount"
-              v-model:order-id="form.id"
-            ></settler-item-table>
-          </a-form-item>
-          <a-form-item field="amount" label="订单结算">
-            <purchase-order-table
-              ref="purchaseOrderTableRef"
-              v-model:supplier-id="form.supplierId"
-              v-model:order-id="form.id"
-            ></purchase-order-table>
-          </a-form-item>
+          <div class="settlement-section">
+            <div class="settlement-section-title">付款账户</div>
+            <a-form-item field="amount" class="settlement-form-item">
+              <settler-item-table
+                ref="settlerItemTableRef"
+                v-model:total-amount="form.amount"
+                v-model:order-id="form.id"
+              ></settler-item-table>
+            </a-form-item>
+          </div>
+          <div class="settlement-section">
+            <div class="settlement-section-title">订单结算</div>
+            <a-form-item field="amount" class="settlement-form-item">
+              <purchase-order-table
+                ref="purchaseOrderTableRef"
+                v-model:supplier-id="form.supplierId"
+                v-model:order-id="form.id"
+              ></purchase-order-table>
+            </a-form-item>
+          </div>
           <a-form-item field="note" label="备注">
             <a-input
               v-model="form.note"
@@ -469,6 +478,134 @@
   .drawer {
   }
 
+  .order-entry-page {
+    :deep(.arco-modal-container),
+    :deep(.arco-modal-wrapper) {
+      position: static;
+      overflow: visible;
+    }
+
+    :deep(.arco-modal) {
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      width: 92% !important;
+      max-width: 1900px;
+      min-height: 70vh;
+      margin: 50px auto;
+      overflow: hidden;
+      border-radius: 4px;
+      box-shadow: 0 8px 24px rgb(31 35 41 / 12%);
+    }
+
+    :deep(.arco-modal-header) {
+      flex: none;
+      height: 58px;
+      padding: 0;
+      border-bottom: 0;
+    }
+
+    :deep(.arco-modal-title) {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    :deep(.arco-modal-body) {
+      flex: 1;
+      min-height: 0;
+      padding: 28px 34px 14px;
+      overflow-y: auto;
+
+      .arco-input-wrapper,
+      .arco-input-number,
+      .arco-select-view,
+      .arco-picker,
+      .arco-textarea-wrapper {
+        min-height: 36px;
+        background: transparent;
+        border: 1px solid var(--color-neutral-3);
+        border-radius: 4px;
+        box-shadow: none;
+      }
+
+      .arco-input-wrapper:hover,
+      .arco-input-number:hover,
+      .arco-select-view:hover,
+      .arco-picker:hover,
+      .arco-textarea-wrapper:hover {
+        background: transparent;
+        border-color: rgb(var(--primary-6));
+      }
+
+      .arco-input-wrapper.arco-input-focus,
+      .arco-input-number.arco-input-number-focused,
+      .arco-select-view.arco-select-view-focus,
+      .arco-picker-focused,
+      .arco-textarea-wrapper:focus-within {
+        background: transparent;
+        border-color: rgb(var(--primary-6));
+        box-shadow: 0 0 0 1px rgb(var(--primary-6) / 15%);
+      }
+
+      .arco-input-number-input,
+      .arco-input,
+      .arco-textarea {
+        background: transparent;
+      }
+    }
+
+    :deep(.arco-modal-footer) {
+      flex: none;
+      padding: 14px 20px;
+      border-top: 1px solid var(--color-neutral-3);
+    }
+  }
+
+  .order-entry-title {
+    width: 100%;
+    height: 58px;
+    box-sizing: border-box;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 58px;
+    text-align: center;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--primary-5)) 0%,
+      rgb(var(--primary-6)) 72%,
+      rgb(var(--primary-7)) 100%
+    );
+  }
+
+  .settlement-section {
+    margin: 4px 0 22px;
+    padding: 14px;
+    background: var(--color-bg-1);
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgb(31 35 41 / 8%);
+  }
+
+  .settlement-section-title {
+    padding-left: 12px;
+    color: var(--color-text-1);
+    font-weight: 600;
+    border-left: 4px solid rgb(var(--primary-6));
+  }
+
+  :deep(.settlement-form-item) {
+    margin: 12px 0 0;
+
+    .arco-form-item-label-col {
+      display: none;
+    }
+
+    .arco-form-item-control-wrapper {
+      padding-left: 0;
+    }
+  }
+
   .counterparty-payable {
     margin-top: -8px;
     margin-bottom: 8px;
@@ -484,20 +621,4 @@
     }
   }
 
-  :global(.order-entry-page-modal) {
-    box-shadow: var(--shadow2-center);
-  }
-
-  &.order-entry-page {
-    :deep(.arco-modal-container),
-    :deep(.arco-modal-wrapper) {
-      position: static;
-      overflow: visible;
-    }
-
-    :deep(.arco-modal) {
-      top: 0;
-      margin: 24px auto;
-    }
-  }
 </style>

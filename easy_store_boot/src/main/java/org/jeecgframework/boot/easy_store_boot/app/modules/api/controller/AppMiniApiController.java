@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -126,9 +127,10 @@ public class AppMiniApiController {
         //wrapper.eq("status", 1);
         if (!rootUser) {
             wrapper.eq("cashier_id", queryUser.getId());
+            applySaleOrderDateFilter(wrapper, param.getString("start"), param.getString("end"));
         }
 
-        applySaleOrderDateFilter(wrapper, param.getString("start"), param.getString("end"));
+        applySaleOrderRecentLimit(wrapper);
         applySaleOrderKeywordFilter(wrapper, param.getString("key"));
         wrapper.orderByDesc("create_time").orderByDesc("id");
 
@@ -236,6 +238,13 @@ public class AppMiniApiController {
         }
     }
 
+    private void applySaleOrderRecentLimit(QueryWrapper<AppSaleOrder> wrapper) {
+        long now = System.currentTimeMillis();
+        long thirtyDaysAgo = now - TimeUnit.DAYS.toMillis(30);
+        wrapper.ge("create_time", new Date(thirtyDaysAgo));
+        wrapper.le("create_time", new Date(now));
+    }
+
     private Date parseExternalDate(String value, boolean endOfDay) {
         if (StringUtils.isBlank(value)) {
             return null;
@@ -336,6 +345,7 @@ public class AppMiniApiController {
         }
 
         AppSaleOrder order = new AppSaleOrder();
+        boolean saleReturn = isSaleReturn(orderType);
         order.setOrderNo(orderNo);
         order.setCustomerId("2");
         order.setOrderType(orderType);
@@ -343,8 +353,9 @@ public class AppMiniApiController {
         order.setCashierId(String.valueOf(cashier.getId()));
         order.setCashierName(cashier.getRealName());
         order.setStatus(0);
-        order.setPaidAmount(defaultDouble(param.getDouble("paidAmount")));
-        order.setFreightAmount(defaultDouble(param.getDouble("freightAmount")));
+        // 退货单统一以负数落库，便于库存、应收及资金统计直接汇总。
+        order.setPaidAmount(signedAmount(param.getDouble("paidAmount"), saleReturn));
+        order.setFreightAmount(signedAmount(param.getDouble("freightAmount"), saleReturn));
         order.setNote(param.getString("note"));
         Date createTime = param.getDate("createTime");
         if (createTime != null) {
@@ -367,6 +378,8 @@ public class AppMiniApiController {
         if (payableAmount == null) {
             payableAmount = totalAmount;
         }
+        totalAmount = signedAmount(totalAmount, saleReturn);
+        payableAmount = signedAmount(payableAmount, saleReturn);
         order.setTotalAmount(money(totalAmount));
         order.setPayableAmount(money(payableAmount));
         order.setDiscountedAmount(money(payableAmount));
@@ -398,8 +411,9 @@ public class AppMiniApiController {
             if (sourceQuantity == null || sourceQuantity == 0) {
                 throw new AppRunTimeException("商品数量不能为空：" + displayGoodsName);
             }
+            boolean saleReturn = isSaleReturn(orderType);
             int quantity = Math.abs(sourceQuantity);
-            if (orderType != null && orderType == 2) {
+            if (saleReturn) {
                 quantity = -quantity;
             }
 
@@ -431,7 +445,7 @@ public class AppMiniApiController {
             }
             item.setQuantity(quantity);
             item.setUnitPrice(unitPrice);
-            item.setTotalAmount(totalAmount);
+            item.setTotalAmount(signedAmount(totalAmount, saleReturn));
             item.setNote(sourceItem.getString("note"));
             items.add(item);
         }
@@ -475,6 +489,15 @@ public class AppMiniApiController {
 
     private Double defaultDouble(Double value) {
         return value == null ? 0D : value;
+    }
+
+    private boolean isSaleReturn(Integer orderType) {
+        return orderType != null && orderType == 2;
+    }
+
+    private double signedAmount(Double value, boolean negative) {
+        double amount = defaultDouble(value);
+        return negative ? -Math.abs(amount) : amount;
     }
 
     private String formatOrderDate(Date date) {

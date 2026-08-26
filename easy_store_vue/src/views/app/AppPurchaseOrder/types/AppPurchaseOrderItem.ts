@@ -7,6 +7,9 @@ export interface AppPurchaseOrderItem {
 
   goodsId_dictText?: string;
 
+  /** 货品代码 */
+  goodsCode?: string;
+
   goodsName?: string;
 
   /** 货品分类 */

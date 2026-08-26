@@ -3,15 +3,7 @@
     <div class="left-side">
       <a-space @click="toHome()">
         <img alt="logo" class="logo" src="@/assets/icon.png" />
-        <a-typography-title
-          :style="{
-            'margin': 0,
-            'fontSize': '18px',
-            'user-select': 'none',
-            'cursor': 'pointer',
-          }"
-          :heading="5"
-        >
+        <a-typography-title :heading="5" class="brand-title">
           {{ appName }}
         </a-typography-title>
         <icon-menu-fold
@@ -261,8 +253,20 @@
     padding-left: 20px;
     -webkit-app-region: no-drag;
     .logo {
-      width: 34px;
-      height: 34px;
+      width: 44px;
+      height: 44px;
+    }
+
+    .brand-title {
+      margin: 0;
+      color: #4f46c8;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1;
+      user-select: none;
+      cursor: pointer;
+      letter-spacing: 0;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
     }
   }
 

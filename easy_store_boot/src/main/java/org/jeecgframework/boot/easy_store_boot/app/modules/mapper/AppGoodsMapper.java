@@ -19,7 +19,8 @@ public interface AppGoodsMapper extends BaseMapper<AppGoods> {
 
     List<GoodsSearchResult> searchByKey(@Param("key")String key, @Param("pyCode")String pyCode,
                                         @Param("pageNo") Integer pageNo, @Param("pageSize") Integer pageSize,
-                                        @Param("hideZeroStock") Boolean hideZeroStock);
+                                        @Param("hideZeroStock") Boolean hideZeroStock,
+                                        @Param("searchType") String searchType);
 
     IPage<AppGoods> search(IPage page, @Param("query")ApiQuery query);
 }

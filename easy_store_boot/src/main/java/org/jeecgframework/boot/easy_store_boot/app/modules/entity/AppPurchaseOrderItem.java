@@ -37,6 +37,10 @@ public class AppPurchaseOrderItem implements Serializable {
     @TableField(exist = false)
     private String goodsName;
 
+    @ApiModelProperty("货品代码")
+    @TableField(exist = false)
+    private String goodsCode;
+
     @ApiModelProperty("货品分类")
     @DictField(dictTable = "app_goods_category", dicText = "title", dicCode = "id")
     @Excel(name = "货品分类", width = 15, dictTable = "app_goods_category", dicText = "title", dicCode = "id")

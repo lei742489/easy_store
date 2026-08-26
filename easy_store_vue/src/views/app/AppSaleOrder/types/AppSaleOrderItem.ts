@@ -7,6 +7,9 @@ export interface AppSaleOrderItem {
 
   goodsId_dictText?: string;
 
+  /** 货品代码 */
+  goodsCode?: string;
+
   goodsName?: string;
 
   /** 货品分类 */
@@ -25,6 +28,9 @@ export interface AppSaleOrderItem {
 
   /** 总价 */
   totalAmount?: number;
+
+  /** 成本价，仅用于销售录入时提示低价销售 */
+  costPrice?: number;
 
   grossProfit?: number;
 

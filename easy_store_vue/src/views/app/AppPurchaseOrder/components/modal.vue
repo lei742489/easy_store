@@ -12,7 +12,10 @@
       :ok-loading="loading"
       @cancel="() => handleCancel()"
     >
-      <template #title> {{ title }} </template>
+      <template #title>
+        <div v-if="pageMode" class="order-entry-title">进货单</div>
+        <span v-else>{{ title }}</span>
+      </template>
       <div>
         <a-form ref="formRef" :model="form" auto-label-width>
           <a-row :gutter="24">
@@ -77,18 +80,46 @@
 
             <a-col :span="12">
               <a-form-item field="createTime" label="日期">
-                <a-date-picker v-model="form.createTime" placeholder="请选择" />
+                <div class="date-code-control">
+                  <a-date-picker v-model="form.createTime" placeholder="请选择" />
+                  <span>显示货品代码</span>
+                  <a-switch v-model="showGoodsCode" size="small">
+                    <template #checked>显示</template>
+                    <template #unchecked>隐藏</template>
+                  </a-switch>
+                </div>
               </a-form-item>
             </a-col>
           </a-row>
 
-          <FormItem field="items" label="货品列表">
-            <item-table
-              ref="itemTableRef"
-              v-model:order-type="form.orderType"
-              @change="updateAmount"
-            ></item-table>
-          </FormItem>
+          <div class="goods-section">
+            <div class="goods-section-header">
+              <div class="goods-section-title">货品列表</div>
+              <div class="goods-section-actions">
+                <a-button type="primary" @click="itemTableRef?.addItem()">
+                  <template #icon><icon-plus /></template>
+                  增加一行
+                </a-button>
+                <a-popconfirm
+                  content="确认清空所有货品数据吗？"
+                  @ok="itemTableRef?.clearAll()"
+                >
+                  <a-button type="primary" status="danger">
+                    <template #icon><icon-delete /></template>
+                    清空
+                  </a-button>
+                </a-popconfirm>
+              </div>
+            </div>
+            <FormItem field="items" class="goods-form-item">
+              <item-table
+                ref="itemTableRef"
+                v-model:order-type="form.orderType"
+                :show-goods-code="showGoodsCode"
+                @change="updateAmount"
+              ></item-table>
+            </FormItem>
+          </div>
 
           <a-form-item field="note" label="备注">
             <a-textarea
@@ -282,6 +313,7 @@
 
   const visible = ref(false);
   const formRef = ref();
+  const showGoodsCode = ref(true);
   const title = ref('');
   const loading = ref(false);
   const clodopLoading = ref(false);
@@ -675,6 +707,159 @@
   .drawer {
   }
 
+  .order-entry-page {
+    :deep(.arco-modal-container),
+    :deep(.arco-modal-wrapper) {
+      position: static;
+      overflow: visible;
+    }
+
+    :deep(.arco-modal) {
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      width: 92% !important;
+      max-width: 1900px;
+      min-height: 70vh;
+      margin: 50px auto;
+      overflow: hidden;
+      border-radius: 4px;
+      box-shadow: 0 8px 24px rgb(31 35 41 / 12%);
+    }
+
+    :deep(.arco-modal-header) {
+      flex: none;
+      height: 58px;
+      padding: 0;
+      border-bottom: 0;
+    }
+
+    :deep(.arco-modal-title) {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    :deep(.arco-modal-body) {
+      flex: 1;
+      min-height: 0;
+      padding: 28px 34px 14px;
+      overflow-y: auto;
+
+      .arco-input-wrapper,
+      .arco-input-number,
+      .arco-select-view,
+      .arco-picker,
+      .arco-textarea-wrapper {
+        min-height: 36px;
+        background: transparent;
+        border: 1px solid var(--color-neutral-3);
+        border-radius: 4px;
+        box-shadow: none;
+      }
+
+      .arco-input-wrapper:hover,
+      .arco-input-number:hover,
+      .arco-select-view:hover,
+      .arco-picker:hover,
+      .arco-textarea-wrapper:hover {
+        background: transparent;
+        border-color: rgb(var(--primary-6));
+      }
+
+      .arco-input-wrapper.arco-input-focus,
+      .arco-input-number.arco-input-number-focused,
+      .arco-select-view.arco-select-view-focus,
+      .arco-picker-focused,
+      .arco-textarea-wrapper:focus-within {
+        background: transparent;
+        border-color: rgb(var(--primary-6));
+        box-shadow: 0 0 0 1px rgb(var(--primary-6) / 15%);
+      }
+
+      .arco-input-number-input,
+      .arco-input,
+      .arco-textarea {
+        background: transparent;
+      }
+    }
+
+    :deep(.arco-modal-footer) {
+      flex: none;
+      padding: 14px 20px;
+      border-top: 1px solid var(--color-neutral-3);
+    }
+  }
+
+  .order-entry-title {
+    width: 100%;
+    height: 58px;
+    box-sizing: border-box;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 58px;
+    text-align: center;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--primary-5)) 0%,
+      rgb(var(--primary-6)) 72%,
+      rgb(var(--primary-7)) 100%
+    );
+  }
+
+  .date-code-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+
+    > span {
+      margin-left: auto;
+      color: var(--color-text-2);
+      white-space: nowrap;
+    }
+  }
+
+  .goods-section {
+    margin: 4px 0 22px;
+    padding: 14px;
+    background: var(--color-bg-1);
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgb(31 35 41 / 8%);
+  }
+
+  .goods-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .goods-section-title {
+    padding-left: 12px;
+    color: var(--color-text-1);
+    font-weight: 600;
+    border-left: 4px solid rgb(var(--primary-6));
+  }
+
+  .goods-section-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  :deep(.goods-form-item) {
+    margin-bottom: 0;
+
+    .arco-form-item-label-col {
+      display: none;
+    }
+
+    .arco-form-item-control-wrapper {
+      padding-left: 0;
+    }
+  }
+
   .counterparty-payable {
     margin-top: 6px;
     display: flex;
@@ -689,20 +874,4 @@
     }
   }
 
-  :global(.order-entry-page-modal) {
-    box-shadow: var(--shadow2-center);
-  }
-
-  &.order-entry-page {
-    :deep(.arco-modal-container),
-    :deep(.arco-modal-wrapper) {
-      position: static;
-      overflow: visible;
-    }
-
-    :deep(.arco-modal) {
-      top: 0;
-      margin: 24px auto;
-    }
-  }
 </style>

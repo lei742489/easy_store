@@ -169,15 +169,22 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
         if(isEmptyCategory(item.getCategoryId())) {
             throw new AppRunTimeException("所有商品必须选择分类");
         }
-        AppGoods goods = findGoods(item.getGoodsId(), item.getGoodsName());
+        AppGoods goods = findGoods(item.getGoodsId(), item.getGoodsName(), item.getGoodsCode());
         if(goods == null) {
             goods = createGoodsFromPurchaseItem(entity, item);
         }
+        syncGoodsCode(goods, item.getGoodsCode());
         item.setGoodsId(goods.getId().toString());
         item.setUnit(appUnitService.normalizeName(item.getUnit()));
     }
 
-    private AppGoods findGoods(String goodsId, String goodsName) {
+    private AppGoods findGoods(String goodsId, String goodsName, String goodsCode) {
+        if(StringUtils.isNotBlank(goodsCode)) {
+            AppGoods goods = appGoodsService.getOne(new LambdaQueryWrapper<AppGoods>()
+                    .eq(AppGoods::getGoodsCode, goodsCode.trim())
+                    .last("limit 1"));
+            if(goods != null) return goods;
+        }
         if(StringUtils.isNotBlank(goodsName)) {
             return appGoodsService.getOne(new LambdaQueryWrapper<AppGoods>()
                     .eq(AppGoods::getTitle, goodsName.trim())
@@ -197,6 +204,7 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
         String unitName = appUnitService.normalizeName(item.getUnit());
         goods.setTitle(item.getGoodsName().trim());
         goods.setSupplierTitle(item.getGoodsName().trim());
+        goods.setGoodsCode(StringUtils.trimToNull(item.getGoodsCode()));
         goods.setCategoryId(item.getCategoryId());
         goods.setUnit(unitName);
         goods.setPurPrc(item.getUnitPrice());
@@ -206,6 +214,14 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
         appGoodsService.save(goods);
         item.setUnit(unitName);
         return goods;
+    }
+
+    private void syncGoodsCode(AppGoods goods, String goodsCode) {
+        if(goods == null || StringUtils.isBlank(goodsCode)) return;
+        String normalizedCode = goodsCode.trim();
+        if(StringUtils.equals(normalizedCode, goods.getGoodsCode())) return;
+        goods.setGoodsCode(normalizedCode);
+        appGoodsService.updateById(goods);
     }
 
     private boolean isEmptyCategory(String categoryId) {
@@ -241,7 +257,5 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
         return entity != null && (entity.getStatus() == null || entity.getStatus() == 1);
     }
 }
-
-
 
 

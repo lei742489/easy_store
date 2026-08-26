@@ -203,13 +203,17 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     @Override
     public void fillPendingGoodsNames(Integer orderId, List<AppSaleOrderItem> items) {
         if(orderId == null || items == null || items.isEmpty()) return;
-        Map<Integer, String> pendingNames = queryPendingGoodsNameMap(orderId);
-        if(pendingNames.isEmpty()) return;
+        Map<Integer, PendingGoodsInfo> pendingGoods = queryPendingGoodsMap(orderId);
+        if(pendingGoods.isEmpty()) return;
         for(AppSaleOrderItem item : items) {
             if(item == null || item.getId() == null) continue;
-            String pendingName = pendingNames.get(item.getId());
-            if(StringUtils.isNotBlank(pendingName) && StringUtils.isBlank(item.getGoodsName())) {
-                item.setGoodsName(pendingName);
+            PendingGoodsInfo pending = pendingGoods.get(item.getId());
+            if(pending == null) continue;
+            if(StringUtils.isNotBlank(pending.goodsName) && StringUtils.isBlank(item.getGoodsName())) {
+                item.setGoodsName(pending.goodsName);
+            }
+            if(StringUtils.isNotBlank(pending.goodsCode) && StringUtils.isBlank(item.getGoodsCode())) {
+                item.setGoodsCode(pending.goodsCode);
             }
         }
     }
@@ -224,7 +228,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             for(AppSaleOrderItem item:entity.getItems()){
                 AppGoods goods = resolveSaleOrderItemGoodsForSave(entity, item);
                 if(goods == null && !isActive(entity) && StringUtils.isNotBlank(item.getGoodsName())) {
-                    pendingGoodsDrafts.add(new PendingGoodsDraft(item, item.getGoodsName().trim()));
+                    pendingGoodsDrafts.add(new PendingGoodsDraft(item, item.getGoodsName().trim(), item.getGoodsCode()));
                 }
                 totalGrossProfit = totalGrossProfit.add(calculateItemGrossProfit(entity, item, goods));
                 item.setOrderId(entity.getId());
@@ -244,7 +248,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         item.setUnit(unitName);
         appUnitService.updateByName(unitName);
 
-        AppGoods goods = findGoodsForSale(item.getGoodsId(), goodsName);
+        AppGoods goods = findGoodsForSale(item.getGoodsId(), goodsName, item.getGoodsCode());
         if(goods == null) {
             if(StringUtils.isBlank(goodsName)) {
                 throw new AppRunTimeException("\u8bf7\u8f93\u5165\u5546\u54c1\u540d\u79f0");
@@ -257,6 +261,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
                 return null;
             }
         }
+        syncGoodsCode(goods, item.getGoodsCode());
         item.setGoodsId(goods.getId().toString());
         item.setGoodsName(goods.getTitle());
         return goods;
@@ -276,9 +281,9 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             AppSaleOrderItem item = draft.item;
             if(item == null || item.getId() == null || StringUtils.isBlank(draft.goodsName)) continue;
             jdbcTemplate.update("INSERT INTO app_sale_pending_goods " +
-                            "(order_id, order_item_id, goods_name, category_id, unit, unit_price, status, create_time, update_time, is_del) " +
-                            "VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)",
-                    orderId, item.getId(), draft.goodsName, item.getCategoryId(), item.getUnit(), item.getUnitPrice());
+                            "(order_id, order_item_id, goods_name, goods_code, category_id, unit, unit_price, status, create_time, update_time, is_del) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)",
+                    orderId, item.getId(), draft.goodsName, draft.goodsCode, item.getCategoryId(), item.getUnit(), item.getUnitPrice());
         }
     }
 
@@ -302,29 +307,44 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         }
     }
 
-    private Map<Integer, String> queryPendingGoodsNameMap(Integer orderId) {
-        Map<Integer, String> result = new HashMap<>();
+    private Map<Integer, PendingGoodsInfo> queryPendingGoodsMap(Integer orderId) {
+        Map<Integer, PendingGoodsInfo> result = new HashMap<>();
         if(orderId == null) return result;
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT order_item_id, goods_name FROM app_sale_pending_goods " +
+                "SELECT order_item_id, goods_name, goods_code FROM app_sale_pending_goods " +
                         "WHERE order_id = ? AND COALESCE(is_del, 0) = 0 ORDER BY id",
                 orderId);
         for(Map<String, Object> row : rows) {
             Object itemIdObj = row.get("order_item_id");
             Object goodsNameObj = row.get("goods_name");
-            if(itemIdObj == null || goodsNameObj == null) continue;
-            result.put(Integer.valueOf(itemIdObj.toString()), goodsNameObj.toString());
+            Object goodsCodeObj = row.get("goods_code");
+            if(itemIdObj == null) continue;
+            result.put(Integer.valueOf(itemIdObj.toString()), new PendingGoodsInfo(
+                    goodsNameObj == null ? null : goodsNameObj.toString(),
+                    goodsCodeObj == null ? null : goodsCodeObj.toString()));
         }
         return result;
+    }
+
+    private static class PendingGoodsInfo {
+        private final String goodsName;
+        private final String goodsCode;
+
+        private PendingGoodsInfo(String goodsName, String goodsCode) {
+            this.goodsName = goodsName;
+            this.goodsCode = goodsCode;
+        }
     }
 
     private static class PendingGoodsDraft {
         private final AppSaleOrderItem item;
         private final String goodsName;
+        private final String goodsCode;
 
-        private PendingGoodsDraft(AppSaleOrderItem item, String goodsName) {
+        private PendingGoodsDraft(AppSaleOrderItem item, String goodsName, String goodsCode) {
             this.item = item;
             this.goodsName = goodsName;
+            this.goodsCode = goodsCode;
         }
     }
 
@@ -368,7 +388,13 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         return "";
     }
 
-    private AppGoods findGoodsForSale(String goodsId, String goodsName) {
+    private AppGoods findGoodsForSale(String goodsId, String goodsName, String goodsCode) {
+        if(StringUtils.isNotBlank(goodsCode)) {
+            AppGoods goods = appGoodsService.getOne(new LambdaQueryWrapper<AppGoods>()
+                    .eq(AppGoods::getGoodsCode, goodsCode.trim())
+                    .last("limit 1"));
+            if(goods != null) return goods;
+        }
         if(StringUtils.isNotBlank(goodsId) && StringUtils.isNumeric(goodsId.trim())) {
             AppGoods goods = appGoodsService.getById(goodsId.trim());
             if(goods != null) return goods;
@@ -385,6 +411,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         AppGoods goods = new AppGoods();
         goods.setTitle(goodsName);
         goods.setSupplierTitle(goodsName);
+        goods.setGoodsCode(StringUtils.trimToNull(item.getGoodsCode()));
         goods.setCategoryId(item.getCategoryId());
         goods.setUnit(unitName);
         goods.setSalePrc(item.getUnitPrice());
@@ -395,6 +422,14 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         goods.setStatus(1);
         appGoodsService.save(goods);
         return goods;
+    }
+
+    private void syncGoodsCode(AppGoods goods, String goodsCode) {
+        if(goods == null || StringUtils.isBlank(goodsCode)) return;
+        String normalizedCode = goodsCode.trim();
+        if(StringUtils.equals(normalizedCode, goods.getGoodsCode())) return;
+        goods.setGoodsCode(normalizedCode);
+        appGoodsService.updateById(goods);
     }
 
     private boolean isEmptyCategory(String categoryId) {

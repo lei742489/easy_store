@@ -191,6 +191,8 @@ public class AppIncomeExpenseRecordController {
         if (pageSize < 1) pageSize = 50;
         pageSize = Math.min(pageSize, 200);
         int offset = (current - 1) * pageSize;
+        String businessDateOrder = "desc".equalsIgnoreCase(param.getString("businessDateOrder"))
+                ? "DESC" : "ASC";
 
         SqlAndParams openingSql = buildLedgerSql(customerId, supplierId, fundItem,
                 incomeExpenseType, null, startTime, true);
@@ -205,8 +207,8 @@ public class AppIncomeExpenseRecordController {
         double expenseTotal = numberValue(currentSummary.get("expenseTotal"));
         long total = longValue(currentSummary.get("total"));
         double endingBalance = openingBalance + incomeTotal - expenseTotal;
-        double beforePageBalance = offset == 0 ? 0D : queryBeforePageBalance(currentSql, offset);
-        List<Map<String, Object>> pageEvents = queryPageEvents(currentSql, pageSize, offset);
+        double beforePageBalance = offset == 0 ? 0D : queryBeforePageBalance(currentSql, offset, businessDateOrder);
+        List<Map<String, Object>> pageEvents = queryPageEvents(currentSql, pageSize, offset, businessDateOrder);
 
         JSONArray records = new JSONArray();
         if (current == 1) {
@@ -283,23 +285,26 @@ public class AppIncomeExpenseRecordController {
         return jdbcTemplate.queryForMap(sql, ledgerSql.params.toArray());
     }
 
-    private double queryBeforePageBalance(SqlAndParams ledgerSql, int offset) {
+    private double queryBeforePageBalance(SqlAndParams ledgerSql, int offset, String businessDateOrder) {
         List<Object> params = new ArrayList<>(ledgerSql.params);
         params.add(offset);
         String sql = "SELECT COALESCE(SUM(income - expense), 0) AS balanceChange FROM (" +
                 "SELECT income, expense FROM (" + ledgerSql.sql + ") pagePrefix " +
-                "ORDER BY businessTime ASC, orderNo ASC, recordType ASC, recordId ASC LIMIT ?" +
+                "ORDER BY businessTime " + businessDateOrder + ", orderNo " + businessDateOrder +
+                ", recordType " + businessDateOrder + ", recordId " + businessDateOrder + " LIMIT ?" +
                 ") prefixLedger";
         Map<String, Object> result = jdbcTemplate.queryForMap(sql, params.toArray());
         return numberValue(result.get("balanceChange"));
     }
 
-    private List<Map<String, Object>> queryPageEvents(SqlAndParams ledgerSql, int pageSize, int offset) {
+    private List<Map<String, Object>> queryPageEvents(SqlAndParams ledgerSql, int pageSize, int offset,
+                                                       String businessDateOrder) {
         List<Object> params = new ArrayList<>(ledgerSql.params);
         params.add(pageSize);
         params.add(offset);
         String sql = ledgerSql.sql +
-                " ORDER BY businessTime ASC, orderNo ASC, recordType ASC, recordId ASC LIMIT ? OFFSET ?";
+                " ORDER BY businessTime " + businessDateOrder + ", orderNo " + businessDateOrder +
+                ", recordType " + businessDateOrder + ", recordId " + businessDateOrder + " LIMIT ? OFFSET ?";
         return jdbcTemplate.queryForList(sql, params.toArray());
     }
 

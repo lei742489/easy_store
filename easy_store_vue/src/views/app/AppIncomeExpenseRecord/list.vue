@@ -117,6 +117,7 @@
         :bordered="{ cell: true }"
         :scroll="{ x: 1120, y: getAdaptiveTableScrollY(560) }"
         :row-class="rowClass"
+        @sorter-change="onSorterChange"
       />
       <div class="pagination-wrap">
         <a-pagination
@@ -327,6 +328,7 @@
     pageSize: 50,
     total: 0,
   });
+  const businessDateOrder = ref<'asc' | 'desc'>('asc');
   const incomeExpenseTypeOptions = [
     { label: '收入', value: 'income' },
     { label: '支出', value: 'expense' },
@@ -363,6 +365,10 @@
       dataIndex: 'businessDate',
       width: 125,
       align: 'center',
+      sortable: {
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+      },
     },
     {
       title: '业务编号',
@@ -442,6 +448,7 @@
     try {
       const { data } = await listIncomeExpenseRecords({
         ...form,
+        businessDateOrder: businessDateOrder.value,
         current: pagination.current,
         pageSize: pagination.pageSize,
       });
@@ -466,6 +473,7 @@
     form.incomeExpenseType = undefined;
     form.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
     form.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    businessDateOrder.value = 'asc';
     timeSelectRef.value?.setPreset(2);
     search();
   };
@@ -473,6 +481,13 @@
   const timeSelectChange = (dates: string[]) => {
     [form.startDate, form.endDate] = dates;
   };
+
+  const onSorterChange = (column: string, order: string) => {
+    if (column !== 'businessDate') return;
+    businessDateOrder.value = order === 'descend' ? 'desc' : 'asc';
+    search();
+  };
+
   const onPageChange = (current: number) => {
     pagination.current = current;
     fetchData();

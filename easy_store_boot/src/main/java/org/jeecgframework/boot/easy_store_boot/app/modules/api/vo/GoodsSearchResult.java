@@ -10,6 +10,8 @@ public class GoodsSearchResult {
 
     private String label;
 
+    private String goodsCode;
+
     private Integer goodsId;
 
     private Integer  categoryId;

@@ -6,18 +6,32 @@
       :data="data"
       :pagination="false"
       size="small"
-      :scroll="{ x: '100%', y: 258 }"
+      :scroll="{ x: '100%', y: props.entryStyle ? 320 : 258 }"
       :scrollbar="true"
       :summary="true"
+      :class="{ 'entry-style-table': props.entryStyle }"
     >
       <template #index="{ rowIndex }">
         {{ rowIndex + 1 }}
       </template>
-
+      <template #goodsCode="{ rowIndex }">
+        <div :data-goods-code-row="rowIndex">
+          <a-input
+            v-model="data[rowIndex].goodsCode"
+            allow-clear
+            :placeholder="props.entryStyle ? '请输入货品代码' : ''"
+            @focus="handleGoodsCodeInputFocus(rowIndex)"
+            @input="(value: string) => handleGoodsCodeSearch(rowIndex, value)"
+            @keydown.down.prevent="moveGoodsHighlight(1)"
+            @keydown.up.prevent="moveGoodsHighlight(-1)"
+            @press-enter="confirmHighlightedGoods"
+          />
+        </div>
+      </template>
       <template #goodsId="{ rowIndex }">
         <div
           v-if="props.goodsSearchPanel"
-          :data-goods-row="rowIndex"
+          :data-goods-name-row="rowIndex"
           style="display: flex; align-items: center; gap: 5px"
         >
           <a-popover
@@ -29,7 +43,7 @@
             <a-input
               v-model="data[rowIndex].goodsId_dictText"
               allow-clear
-              placeholder=""
+              :placeholder="props.entryStyle ? '请输入货品名称' : ''"
               @focus="handleGoodsInputFocus(rowIndex)"
               @input="(value: string) => handlePanelSearch(rowIndex, value)"
               @keydown.down.prevent="moveGoodsHighlight(1)"
@@ -46,7 +60,7 @@
             v-else
             v-model="data[rowIndex].goodsId_dictText"
             allow-clear
-            placeholder=""
+            :placeholder="props.entryStyle ? '请输入货品名称' : ''"
             @focus="handleGoodsInputFocus(rowIndex)"
             @input="(value: string) => handlePanelSearch(rowIndex, value)"
             @keydown.down.prevent="moveGoodsHighlight(1)"
@@ -68,7 +82,6 @@
           </a-auto-complete>
         </div>
       </template>
-
       <template #unit="{ rowIndex }">
         <a-select
           v-model="data[rowIndex].unit"
@@ -76,7 +89,7 @@
           :field-names="{ value: 'name', label: 'name' }"
           :allow-search="true"
           :allow-clear="true"
-          placeholder=""
+          :placeholder="props.entryStyle ? '请选择' : ''"
         >
         </a-select>
       </template>
@@ -92,6 +105,7 @@
         <a-input-number
           v-if="orderType == 1"
           v-model="data[rowIndex].quantity"
+          :placeholder="props.entryStyle ? '0' : ''"
           @change="updateTotalAmount(data[rowIndex])"
         ></a-input-number>
 
@@ -99,16 +113,31 @@
           v-else
           v-model="data[rowIndex].quantity"
           style="color: red"
+          :placeholder="props.entryStyle ? '0' : ''"
           @change="(val:number | undefined) => handleNegativeChange(val, rowIndex, 1)"
         ></a-input-number>
       </template>
 
       <template #unitPrice="{ rowIndex }">
-        <a-input-number
-          v-model="data[rowIndex].unitPrice"
-          :precision="2"
-          @change="updateTotalAmount(data[rowIndex])"
-        ></a-input-number>
+        <a-tooltip
+          :disabled="!isBelowCostPrice(data[rowIndex])"
+          :content="getEstimatedLossText(data[rowIndex])"
+          background-color="#e74c3c"
+          position="top"
+        >
+          <div
+            :class="{
+              'below-cost-price': isBelowCostPrice(data[rowIndex]),
+            }"
+          >
+            <a-input-number
+              v-model="data[rowIndex].unitPrice"
+              :precision="2"
+              :placeholder="props.entryStyle ? '0.00' : ''"
+              @change="updateTotalAmount(data[rowIndex])"
+            ></a-input-number>
+          </div>
+        </a-tooltip>
       </template>
 
       <template #totalAmount="{ rowIndex }">
@@ -116,6 +145,7 @@
           v-if="orderType == 1"
           v-model="data[rowIndex].totalAmount"
           :precision="2"
+          :placeholder="props.entryStyle ? '0.00' : ''"
           @change="updateUnitPrice(data[rowIndex])"
         ></a-input-number>
 
@@ -123,29 +153,32 @@
           v-else
           v-model="data[rowIndex].totalAmount"
           :precision="2"
+          :placeholder="props.entryStyle ? '0.00' : ''"
           @change="(val:number | undefined) => handleNegativeChange(val, rowIndex, 2)"
         ></a-input-number>
       </template>
 
       <template #note="{ rowIndex }">
-        <a-input v-model="data[rowIndex].note"></a-input>
+        <a-input
+          v-model="data[rowIndex].note"
+          :placeholder="props.entryStyle ? '请输入备注' : ''"
+        ></a-input>
       </template>
 
       <template #operations="{ rowIndex }">
         <a-popconfirm content="确认删除该条数据?" @ok="handelRemove(rowIndex)">
-          <a-button type="text" size="small">删除</a-button>
+          <a-button v-if="props.entryStyle" type="text" size="small">
+            <template #icon><icon-delete /></template>
+          </a-button>
+          <a-button v-else type="text" size="small">删除</a-button>
         </a-popconfirm>
       </template>
 
       <template #summary-cell="{ column, record }">
         <div v-if="column.dataIndex === 'index'">
-          <a-button
-            type="text"
-            size="medium"
-            style="padding: 0"
-            @click="addItem(1)"
-            >增加一行</a-button
-          >
+          <span v-if="props.entryStyle" class="entry-row-count">
+            共{{ data.length }}行
+          </span>
         </div>
         <div v-if="column.dataIndex == 'categoryId'">
           <div style="width: 100%; text-align: right">合计:</div>
@@ -158,12 +191,6 @@
           >{{ column.dataIndex === 'totalAmount' ? '￥' : '' }}
           {{ formatPrice(record[column.dataIndex]) }}</div
         >
-
-        <div v-if="column.dataIndex == 'operations'">
-          <a-popconfirm content="清空所有数据?" @ok="clearAll">
-            <a-button type="text" size="small">清空</a-button>
-          </a-popconfirm>
-        </div>
       </template>
     </a-table>
     <div
@@ -203,7 +230,16 @@
             @dblclick="confirmGoods(goods)"
           >
             <div>{{ goods.categoryName || '' }}</div>
-            <div class="goods-name">{{ goods.value || goods.label || '' }}</div>
+            <div class="goods-name">
+              <a-tooltip
+                :content="goods.value || goods.label || ''"
+                position="top"
+              >
+                <span class="goods-name-text">
+                  {{ goods.value || goods.label || '' }}
+                </span>
+              </a-tooltip>
+            </div>
             <template v-if="!isPurchaseGoodsSearch">
               <div class="price">{{ formatPrice(goods.salePrc || 0) }}</div>
               <div class="price">{{ formatPrice(goods.tradePrc || 0) }}</div>
@@ -233,7 +269,14 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, nextTick, watch, onBeforeUnmount, onMounted } from 'vue';
+  import {
+    computed,
+    ref,
+    nextTick,
+    watch,
+    onBeforeUnmount,
+    onMounted,
+  } from 'vue';
   import { GoodsSearchResult } from '@/views/app/goods/types/GoodsSearchResult';
   import { getUnitList, searchKey } from '@/views/app/goods/api/api-AppGoods';
   import { mulPrice, formatPrice, divPrice, addPrice } from '@/api/common';
@@ -245,10 +288,16 @@
     defineProps<{
       goodsSearchPanel?: boolean;
       goodsSearchType?: 'sale' | 'purchase';
+      entryStyle?: boolean;
+      initialRows?: number;
+      showGoodsCode?: boolean;
     }>(),
     {
       goodsSearchPanel: false,
       goodsSearchType: 'sale',
+      entryStyle: false,
+      initialRows: 10,
+      showGoodsCode: true,
     }
   );
 
@@ -256,6 +305,7 @@
     id?: number;
     goodsId?: number | string;
     goodsId_dictText?: string;
+    goodsCode?: string;
     goodsName?: string;
     categoryId?: number;
     categoryId_dictText?: string;
@@ -265,6 +315,7 @@
     stock?: number;
     panelSelectedGoods?: boolean;
     totalAmount?: number;
+    costPrice?: number;
     orderId?: number;
     note?: string;
     createTime?: string | Date;
@@ -286,6 +337,7 @@
     stock: undefined,
     panelSelectedGoods: false,
     totalAmount: undefined,
+    costPrice: undefined,
     note: undefined,
   };
   const goodsPageNo = ref(1);
@@ -298,10 +350,11 @@
   const highlightedGoodsIndex = ref(0);
   const hideZeroStock = ref(true);
   const lastSearchToken = ref(0);
+  const activeGoodsSearchField = ref<'name' | 'code'>('name');
   const isPurchaseGoodsSearch = props.goodsSearchType === 'purchase';
   const showZeroStockFilter = props.goodsSearchType === 'sale';
 
-  const columns: TableColumnData[] = [
+  const columns = computed<TableColumnData[]>(() => [
     {
       title: '序号',
       dataIndex: 'index',
@@ -309,6 +362,17 @@
       align: 'center',
       width: 60,
     },
+    ...(props.showGoodsCode
+      ? [
+          {
+            title: '货品代码',
+            dataIndex: 'goodsCode',
+            align: 'center' as const,
+            width: 150,
+            slotName: 'goodsCode',
+          },
+        ]
+      : []),
     {
       title: '货品名称',
       dataIndex: 'goodsId',
@@ -321,7 +385,7 @@
       dataIndex: 'unit',
       align: 'center',
       slotName: 'unit',
-      width: 120,
+      width: 140,
     },
     {
       title: '货品类别',
@@ -364,8 +428,9 @@
       dataIndex: 'operations',
       slotName: 'operations',
       width: 80,
+      fixed: props.entryStyle ? 'right' : undefined,
     },
-  ];
+  ]);
 
   const emit = defineEmits<{
     (e: 'change', changeDate: number): void;
@@ -396,8 +461,10 @@
   };
 
   const clearSearchData = () => {
+    lastSearchToken.value += 1;
     goodsSearchData.value = [];
     goodsPageNo.value = 1;
+    highlightedGoodsIndex.value = 0;
   };
 
   const handleSearchKey = async (key: any) => {
@@ -406,15 +473,18 @@
       return;
     }
     goodsPageNo.value = 1;
-    const res = await searchKey(key, 1);
+    const res = await searchKey(key, 1, undefined, 'name');
     goodsSearchData.value = res.data;
   };
 
-  const updateGoodsPanelPosition = (rowIndex: number) => {
+  const updateGoodsPanelPosition = (
+    rowIndex: number,
+    searchField: 'name' | 'code' = activeGoodsSearchField.value
+  ) => {
     nextTick(() => {
       const root = itemFormRef.value;
       const inputWrap = root?.querySelector(
-        `[data-goods-row="${rowIndex}"]`
+        `[data-goods-${searchField}-row="${rowIndex}"]`
       ) as HTMLElement | null;
       if (!root || !inputWrap) return;
       const rootRect = root.getBoundingClientRect();
@@ -433,14 +503,18 @@
     });
   };
 
-  const queryPanelGoods = async (key: string) => {
+  const queryPanelGoods = async (
+    key: string,
+    searchField: 'name' | 'code'
+  ) => {
     const token = lastSearchToken.value + 1;
     lastSearchToken.value = token;
     goodsPageNo.value = 1;
     const res = await searchKey(
       key,
       1,
-      showZeroStockFilter ? hideZeroStock.value : undefined
+      showZeroStockFilter ? hideZeroStock.value : undefined,
+      searchField
     );
     if (token !== lastSearchToken.value) return;
     goodsSearchData.value = res.data;
@@ -450,35 +524,79 @@
 
   const handleGoodsInputFocus = (rowIndex: number) => {
     activeGoodsRowIndex.value = rowIndex;
-    updateGoodsPanelPosition(rowIndex);
+    activeGoodsSearchField.value = 'name';
+    updateGoodsPanelPosition(rowIndex, 'name');
     const key = data.value[rowIndex].goodsId_dictText || '';
-    if (key.trim() && goodsSearchData.value.length > 0) {
-      goodsPanelVisible.value = true;
-    }
+    clearSearchData();
+    if (key.trim()) queryPanelGoods(key, 'name');
+  };
+
+  const handleGoodsCodeInputFocus = (rowIndex: number) => {
+    activeGoodsRowIndex.value = rowIndex;
+    activeGoodsSearchField.value = 'code';
+    updateGoodsPanelPosition(rowIndex, 'code');
+    const key = data.value[rowIndex].goodsCode || '';
+    clearSearchData();
+    if (key.trim()) queryPanelGoods(key, 'code');
   };
 
   const handlePanelSearch = async (rowIndex: number, value: string) => {
+    await handleGoodsSearch(rowIndex, value, 'name');
+  };
+
+  const handleGoodsCodeSearch = async (rowIndex: number, value: string) => {
+    await handleGoodsSearch(rowIndex, value, 'code');
+  };
+
+  const handleGoodsSearch = async (
+    rowIndex: number,
+    value: string,
+    searchField: 'name' | 'code'
+  ) => {
     activeGoodsRowIndex.value = rowIndex;
-    updateGoodsPanelPosition(rowIndex);
-    data.value[rowIndex].goodsId_dictText = value;
-    data.value[rowIndex].goodsId = undefined;
-    data.value[rowIndex].goodsName = value;
+    activeGoodsSearchField.value = searchField;
+    updateGoodsPanelPosition(rowIndex, searchField);
+    const row = data.value[rowIndex];
+    const wasSelected = row.panelSelectedGoods;
+    row.goodsId = undefined;
+    if (searchField === 'name') {
+      row.goodsId_dictText = value;
+      row.goodsName = value;
+      if (wasSelected) row.goodsCode = undefined;
+    } else {
+      row.goodsCode = value;
+      if (wasSelected) {
+        row.goodsId_dictText = undefined;
+        row.goodsName = undefined;
+      }
+    }
+    row.unit = undefined;
+    row.categoryId = undefined;
+    row.categoryId_dictText = undefined;
     data.value[rowIndex].stock = undefined;
+    row.costPrice = undefined;
+    row.unitPrice = undefined;
+    row.totalAmount = undefined;
     data.value[rowIndex].panelSelectedGoods = false;
+    emitChange();
     if (!value || !value.trim()) {
       clearSearchData();
       goodsPanelVisible.value = false;
       return;
     }
-    await queryPanelGoods(value);
+    await queryPanelGoods(value, searchField);
   };
 
   const refreshGoodsPanel = async () => {
     const rowIndex = activeGoodsRowIndex.value;
     if (rowIndex === undefined) return;
     const key = data.value[rowIndex].goodsId_dictText || '';
-    if (!key.trim()) return;
-    await queryPanelGoods(key);
+    const searchField = activeGoodsSearchField.value;
+    const searchKeyValue = searchField === 'code'
+      ? data.value[rowIndex].goodsCode || ''
+      : key;
+    if (!searchKeyValue.trim()) return;
+    await queryPanelGoods(searchKeyValue, searchField);
   };
 
   const hideGoodsPanel = () => {
@@ -504,12 +622,30 @@
     return goods.salePrc ?? goods.tradePrc ?? goods.purPrc;
   };
 
+  const isBelowCostPrice = (goodsItem: OrderItemRow) => {
+    if (!props.goodsSearchPanel || isPurchaseGoodsSearch) return false;
+    const unitPrice = Number(goodsItem.unitPrice);
+    const costPrice = Number(goodsItem.costPrice);
+    return (
+      Number.isFinite(unitPrice) &&
+      Number.isFinite(costPrice) &&
+      unitPrice < costPrice
+    );
+  };
+
+  const getEstimatedLossText = (goodsItem: OrderItemRow) => {
+    const quantity = Math.abs(Number(goodsItem.quantity) || 0);
+    const unitPrice = Number(goodsItem.unitPrice) || 0;
+    const costPrice = Number(goodsItem.costPrice) || 0;
+    return `预计亏损 ${formatPrice((costPrice - unitPrice) * quantity)}`;
+  };
+
   const handleDocumentMouseDown = (event: MouseEvent) => {
     const root = itemFormRef.value;
     const target = event.target as Node;
     const panel = root?.querySelector('.goods-search-panel');
     const inputWrap = root?.querySelector(
-      `[data-goods-row="${activeGoodsRowIndex.value}"]`
+      `[data-goods-${activeGoodsSearchField.value}-row="${activeGoodsRowIndex.value}"]`
     );
     if (!root || panel?.contains(target) || inputWrap?.contains(target)) return;
     hideGoodsPanel();
@@ -517,7 +653,7 @@
 
   const initItemList = (size: number) => {
     if (size <= 0) {
-      const initNum = 10;
+      const initNum = props.initialRows;
       for (let i = 0; i < initNum; i += 1) {
         addItem();
       }
@@ -562,8 +698,12 @@
   const loadGoodsMore = async (goodsItem: OrderItemRow) => {
     goodsPageNo.value += 1;
     const res = await searchKey(
-      goodsItem.goodsId_dictText || '',
-      goodsPageNo.value
+      activeGoodsSearchField.value === 'code'
+        ? goodsItem.goodsCode || ''
+        : goodsItem.goodsId_dictText || '',
+      goodsPageNo.value,
+      undefined,
+      activeGoodsSearchField.value
     );
     if (res.data.length > 0) {
       goodsSearchData.value = goodsSearchData.value.concat(res.data);
@@ -596,12 +736,14 @@
     if (!row) return;
     const goodsName = goods.value || goods.label || '';
     row.goodsId = goods.goodsId;
+    row.goodsCode = goods.goodsCode;
     row.goodsId_dictText = goodsName;
     row.goodsName = goodsName;
     row.unit = goods.unit;
     row.categoryId = goods.categoryId;
     row.categoryId_dictText = goods.categoryName;
     row.stock = goods.stock;
+    row.costPrice = goods.costPrice;
     row.panelSelectedGoods = true;
     row.quantity = orderType.value === 1 ? 1 : -1;
     row.unitPrice = getPanelUnitPrice(goods);
@@ -640,6 +782,7 @@
       } = option;
       if (goodsId == null) return;
       goodsItem.goodsId = goodsId;
+      goodsItem.goodsCode = option.goodsCode;
       goodsItem.goodsId_dictText = goodsName || option.label || '';
       goodsItem.goodsName = goodsItem.goodsId_dictText;
       goodsItem.unit = unit;
@@ -647,6 +790,7 @@
       goodsItem.quantity = orderType.value === 1 ? 1 : -1;
       goodsItem.categoryId_dictText = categoryName;
       goodsItem.stock = stock;
+      goodsItem.costPrice = option.costPrice;
       goodsItem.unitPrice = undefined;
       goodsItem.totalAmount = undefined;
       emitChange();
@@ -718,7 +862,7 @@
     document.removeEventListener('mousedown', handleDocumentMouseDown);
   });
 
-  defineExpose({ getItemsList, initData, clearAll });
+  defineExpose({ getItemsList, initData, clearAll, addItem });
 </script>
 
 <style lang="less" scoped>
@@ -739,6 +883,49 @@
     :deep(.goods-input-popover) {
       width: 100%;
     }
+
+    :deep(.entry-style-table .arco-table-th) {
+      color: var(--color-text-2);
+      font-weight: 500;
+      background: var(--color-fill-2);
+    }
+
+    :deep(.entry-style-table.arco-table-size-small .arco-table-cell) {
+      padding: 8px 8px;
+    }
+
+    :deep(.entry-style-table .arco-input-wrapper),
+    :deep(.entry-style-table .arco-input-number),
+    :deep(.entry-style-table .arco-select-view) {
+      min-height: 36px;
+      background: var(--color-bg-1);
+      border-color: var(--color-neutral-3);
+      border-radius: 4px;
+    }
+
+    :deep(.entry-style-table .arco-input-number-input),
+    :deep(.entry-style-table .arco-input),
+    :deep(.entry-style-table .arco-select-view-value) {
+      font-size: 14px;
+    }
+
+    :deep(.entry-style-table .arco-table-summary) {
+      color: var(--color-text-1);
+      font-weight: 500;
+      background: var(--color-fill-1);
+    }
+
+    :deep(.entry-style-table .arco-table-summary .arco-table-td) {
+      height: 35px;
+      padding: 0 8px;
+      line-height: 35px;
+      white-space: nowrap;
+    }
+  }
+
+  .entry-row-count {
+    color: var(--color-text-1);
+    white-space: nowrap;
   }
 
   .goods-search-panel {
@@ -804,8 +991,20 @@
     text-align: left;
   }
 
+  .goods-name-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .price {
     text-align: right;
+  }
+
+  .below-cost-price :deep(.arco-input-number-input),
+  .below-cost-price :deep(input) {
+    color: rgb(var(--arcoblue-6));
   }
 
   .goods-empty {

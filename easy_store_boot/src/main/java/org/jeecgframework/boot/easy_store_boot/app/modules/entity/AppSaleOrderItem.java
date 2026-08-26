@@ -36,6 +36,10 @@ public class AppSaleOrderItem implements Serializable {
     @TableField(exist = false)
     private String goodsName;
 
+    @ApiModelProperty("货品代码")
+    @TableField(exist = false)
+    private String goodsCode;
+
     @ApiModelProperty("货品分类")
     @DictField(dictTable = "app_goods_category", dicText = "title", dicCode = "id")
     @Excel(name = "货品分类", width = 15, dictTable = "app_goods_category", dicText = "title", dicCode = "id")
@@ -56,6 +60,10 @@ public class AppSaleOrderItem implements Serializable {
     @ApiModelProperty("总价")
     @Excel(name = "总价", width = 15,numFormat = "0.00")
     private Double totalAmount;
+
+    @ApiModelProperty("成本价，仅用于销售录入提示")
+    @TableField(exist = false)
+    private Double costPrice;
 
     @ApiModelProperty("销售毛利")
     @Excel(name = "销售毛利", width = 15,numFormat = "0.00")

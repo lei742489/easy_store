@@ -110,6 +110,7 @@
       slotName: 'operations',
       align: 'center',
       width: 120,
+      fixed: 'right',
     },
   ]);
 
@@ -166,5 +167,9 @@
   .settler-item-table {
     width: 100%;
     min-height: 120px;
+
+    :deep(.arco-table-size-small .arco-table-cell) {
+      padding: 5px 8px;
+    }
   }
 </style>

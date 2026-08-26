@@ -56,10 +56,10 @@
               <template #icon><icon-refresh /></template>
               重置
             </a-button>
-            <a-button :loading="rebuildLoading" @click="handleRebuildAll">
+            <!--<a-button :loading="rebuildLoading" @click="handleRebuildAll">
               <template #icon><icon-refresh /></template>
               重新核算全部
-            </a-button>
+            </a-button>-->
           </a-space>
         </a-col>
       </a-row>

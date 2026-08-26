@@ -11,6 +11,8 @@
       </div>
       <LoginBanner />
       <div class="content">
+        <img class="login-form-logo" :src="logoBig" alt="logo" />
+
         <div v-if="mode === 1" class="content-inner">
           <LoginForm @change-mode="handleChangeMode" />
         </div>
@@ -34,6 +36,7 @@
   import LoginBanner from './components/banner.vue';
   import LoginForm from './components/login-form.vue';
   import RegForm from './components/reg-form.vue';
+  import logoBig from '@/assets/logo-big.png';
 
   const READY_CHECK_INTERVAL = 1000;
   const READY_CHECK_TIMEOUT = 5000;
@@ -169,6 +172,19 @@
       justify-content: center;
       padding-bottom: 40px;
       -webkit-app-region: drag;
+
+      .login-form-logo {
+        position: absolute;
+        top: 12%;
+        z-index: 11;
+        display: block;
+        width: 160px;
+        height: auto;
+        margin: 0 auto;
+        margin-left: 0;
+        margin-right: 0;
+        
+      }
 
       .content-inner {
         -webkit-app-region: no-drag;

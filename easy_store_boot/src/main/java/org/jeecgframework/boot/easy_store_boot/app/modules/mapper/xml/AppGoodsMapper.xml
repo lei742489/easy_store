@@ -7,6 +7,7 @@
         <bind name="offset" value="(pageNo - 1) * pageSize"/>
         SELECT
         g.title AS value,
+        g.goods_code AS goodsCode,
         g.id AS goods_id,
         g.category_id AS category_id,
         g.unit AS unit,
@@ -32,15 +33,21 @@
         <if test="key!=null and key!=''">
             <bind name="likeKey" value="'%' + key + '%'"/>
             AND (
-            g.title LIKE #{likeKey}
-            <if test="pyCode != null and pyCode != ''">
-                <bind name="likePyCode" value="'%' + pyCode + '%'"/>
-                OR g.py_code LIKE #{likePyCode}
-            </if>
-            OR g.goods_code LIKE #{likeKey}
-            OR s.name LIKE #{likeKey}
+            <choose>
+                <when test="searchType == 'code'">
+                    g.goods_code LIKE #{likeKey}
+                </when>
+                <otherwise>
+                    g.title LIKE #{likeKey}
+                    <if test="pyCode != null and pyCode != ''">
+                        <bind name="likePyCode" value="'%' + pyCode + '%'"/>
+                        OR g.py_code LIKE #{likePyCode}
+                    </if>
+                    OR s.name LIKE #{likeKey}
+                </otherwise>
+            </choose>
             )
-            <if test="pyCode != null and pyCode != ''">
+            <if test="searchType != 'code' and pyCode != null and pyCode != ''">
                 ORDER BY
                 CASE
                 WHEN g.py_code LIKE #{likePyCode} THEN 0

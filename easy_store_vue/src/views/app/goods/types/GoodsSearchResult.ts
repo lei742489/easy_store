@@ -1,6 +1,7 @@
 export interface GoodsSearchResult {
   value?: string;
   label?: string;
+  goodsCode?: string;
   goodsId?: number;
   categoryId?: number;
   categoryName?: string;

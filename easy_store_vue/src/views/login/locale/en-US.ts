@@ -1,5 +1,5 @@
 export default {
-  'login.form.title': 'Login to {appName}',
+  'login.form.title': 'Login Account',
   'login.form.reg': 'Register {appName} Account',
   'login.form.subTitle': 'The first Register requires network verification',
   'login.form.userName.errMsg': 'Username cannot be empty',

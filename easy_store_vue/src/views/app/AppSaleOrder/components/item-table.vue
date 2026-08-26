@@ -2,6 +2,8 @@
   <order-item-table
     ref="tableRef"
     goods-search-panel
+    entry-style
+    :initial-rows="6"
     v-model:order-type="orderType"
     @change="emit('change', $event)"
   />
@@ -31,5 +33,9 @@
     tableRef.value?.clearAll();
   };
 
-  defineExpose({ getItemsList, initData, clearAll });
+  const addItem = () => {
+    tableRef.value?.addItem(1);
+  };
+
+  defineExpose({ getItemsList, initData, clearAll, addItem });
 </script>

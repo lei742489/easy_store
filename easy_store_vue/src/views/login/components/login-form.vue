@@ -1,7 +1,8 @@
 <template>
   <div class="login-form-wrapper">
+    
     <div class="login-form-title">
-      {{ $t('login.form.title', { appName }) }}
+      {{ $t('login.form.title') }}
     </div>
     <div class="login-form-sub-title">{{ $t('login.form.subTitle') }}</div>
     <div class="login-form-error-msg">{{ errorMessage }}</div>
@@ -80,10 +81,9 @@
   import { useUserStore } from '@/store';
   import useLoading from '@/hooks/loading';
   import type { LoginData } from '@/api/user';
-  import appConfig from '@/config/app';
+
   import { DEFAULT_ROUTE_NAME } from '@/router/constants';
 
-  const { appName } = appConfig;
   const router = useRouter();
   const { t } = useI18n();
   const errorMessage = ref('');
@@ -156,7 +156,10 @@
   .login-form {
     &-wrapper {
       width: 320px;
+     
     }
+
+   
 
     &-title {
       user-select: none;

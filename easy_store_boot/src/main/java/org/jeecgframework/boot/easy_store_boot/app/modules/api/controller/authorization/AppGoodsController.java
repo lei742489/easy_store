@@ -109,7 +109,8 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
     @PostMapping("searchKey")
     public Result<?> searchKey(@RequestBody JSONObject param) {
         return Result.ok(service.searchByKey(param.getInteger("pageNo"),
-                param.getString("key"), param.getBoolean("hideZeroStock")));
+                param.getString("key"), param.getBoolean("hideZeroStock"),
+                param.getString("searchType")));
     }
 
     @PostMapping("stockDetail")

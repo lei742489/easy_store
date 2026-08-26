@@ -36,7 +36,11 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 
@@ -107,8 +111,10 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         boolean rootUser = isRootUser(param);
         for(AppSaleOrder appPurchaseOrder : pageList.getRecords()){
             appPurchaseOrder.setItems(appPurchaseOrderItemService.listByOrderId(appPurchaseOrder.getId()));
+            fillSaleOrderItemGoodsCode(appPurchaseOrder.getItems());
             service.fillPendingGoodsNames(appPurchaseOrder.getId(), appPurchaseOrder.getItems());
             fillSaleOrderItemGoodsText(appPurchaseOrder.getItems());
+            fillSaleOrderItemCostPrice(appPurchaseOrder.getItems());
             if(!rootUser){
                 hideGrossProfit(appPurchaseOrder);
             }
@@ -416,6 +422,44 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
             String goodsText = resolveSaleOrderItemGoodsText(item);
             if(StringUtils.isNotEmpty(goodsText)) {
                 item.setGoodsName(goodsText);
+            }
+        }
+    }
+
+    private void fillSaleOrderItemGoodsCode(List<AppSaleOrderItem> items) {
+        if(items == null) return;
+        for(AppSaleOrderItem item : items) {
+            if(item == null || StringUtils.isBlank(item.getGoodsId())) continue;
+            AppGoods goods = appGoodsService.getById(item.getGoodsId());
+            if(goods != null) item.setGoodsCode(goods.getGoodsCode());
+        }
+    }
+
+    private void fillSaleOrderItemCostPrice(List<AppSaleOrderItem> items) {
+        if(items == null || items.isEmpty()) return;
+        Set<Integer> goodsIds = new HashSet<>();
+        for(AppSaleOrderItem item : items) {
+            if(item == null || StringUtils.isBlank(item.getGoodsId())) continue;
+            try {
+                goodsIds.add(Integer.valueOf(item.getGoodsId().trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if(goodsIds.isEmpty()) return;
+        Map<Integer, Double> costPrices = new HashMap<>();
+        for(AppGoods goods : appGoodsService.listByIds(goodsIds)) {
+            if(goods != null && goods.getId() != null) {
+                costPrices.put(goods.getId(), goods.getCostPrice());
+            }
+        }
+        for(AppSaleOrderItem item : items) {
+            if(item == null || StringUtils.isBlank(item.getGoodsId())) {
+                continue;
+            }
+            try {
+                item.setCostPrice(costPrices.get(Integer.valueOf(item.getGoodsId().trim())));
+            } catch (NumberFormatException ignored) {
+                item.setCostPrice(null);
             }
         }
     }

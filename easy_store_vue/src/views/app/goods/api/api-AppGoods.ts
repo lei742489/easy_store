@@ -39,7 +39,8 @@ export function importExcel(file: File) {
 export async function searchKey(
   key: string,
   pageNo?: number,
-  hideZeroStock?: boolean
+  hideZeroStock?: boolean,
+  searchType?: 'name' | 'code'
 ) {
   const response = await axios.post<GoodsSearchResult[]>(
     'api/user/appGoods/searchKey',
@@ -47,6 +48,7 @@ export async function searchKey(
       key,
       pageNo,
       hideZeroStock,
+      searchType,
     }
   );
   return {

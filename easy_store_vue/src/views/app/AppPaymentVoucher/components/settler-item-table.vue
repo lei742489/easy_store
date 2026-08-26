@@ -11,7 +11,7 @@
       :scrollbar="true"
       :summary="true"
       size="small"
-      :scroll="{ x: '100%', y: 130 }"
+      :scroll="{ x: '100%', y: 140 }"
     >
       <template #index="{ rowIndex }">
         {{ rowIndex + 1 }}

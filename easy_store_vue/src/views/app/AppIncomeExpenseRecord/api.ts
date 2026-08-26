@@ -7,6 +7,7 @@ export interface IncomeExpenseRecordQuery {
   incomeExpenseType?: 'income' | 'expense';
   startDate?: string;
   endDate?: string;
+  businessDateOrder?: 'asc' | 'desc';
   current?: number;
   pageSize?: number;
 }

@@ -1,7 +1,6 @@
 <template>
   <form-modal
     ref="formModalRef"
-    page-mode
     @ok="handleSaved"
     @cancel="returnToList"
   />
