@@ -135,15 +135,19 @@
       min-width: 90px;
       padding: 0 12px;
       height: 90px;
-      background: #f2f3f5;
+      box-sizing: border-box;
+      border: 1px solid var(--color-border-2);
       border-radius: 4px;
       cursor: pointer;
       transition: transform 0.1s ease, box-shadow 0.1s ease;
 
+      background: var(--color-fill-2);
+      box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+
       &:hover {
         transform: scale(1.05);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        background: #e7e4f7;
+        box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+        background: var(--color-primary-light-1);
       }
 
       .m-badge,
@@ -175,7 +179,7 @@
 
       .t1 {
         font-size: 15px;
-        color: #444;
+        color: var(--color-text-1);
         margin-top: 8px;
       }
     }

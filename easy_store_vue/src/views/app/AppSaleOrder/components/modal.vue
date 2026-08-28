@@ -576,10 +576,21 @@
   };
 
   const filterCustomerTreeNode = (searchValue: string, nodeData: Customer) => {
-    const t = nodeData.name || '';
-    const pyCode = nodeData.pyCode || '';
-    const key = searchValue.toLowerCase();
-    return t.toLowerCase().indexOf(key) > -1 || pyCode.indexOf(key) > -1;
+    const key = String(searchValue || '').trim().toLowerCase();
+    if (!key) return true;
+    const searchableValues = [
+      nodeData.name,
+      nodeData.pyCode,
+      nodeData.contactName,
+      nodeData.mobile,
+      nodeData.phone,
+      nodeData.mail,
+      nodeData.qq,
+      nodeData.address,
+    ];
+    return searchableValues.some((value) =>
+      String(value || '').toLowerCase().includes(key)
+    );
   };
 
   const customerFallback = (key: any) => {
@@ -742,17 +753,13 @@
     height: 58px;
     box-sizing: border-box;
     padding: 0 22px;
-    color: #fff;
+    color: var(--color-text-1);
     font-size: 20px;
     font-weight: 600;
     line-height: 58px;
     text-align: center;
-    background: linear-gradient(
-      135deg,
-      rgb(var(--primary-5)) 0%,
-      rgb(var(--primary-6)) 72%,
-      rgb(var(--primary-7)) 100%
-    );
+    border-bottom: 1px solid var(--color-border-2);
+    
   }
 
   .order-entry-content {

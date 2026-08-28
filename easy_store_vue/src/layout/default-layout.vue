@@ -122,9 +122,15 @@
     z-index: 100;
     width: 100%;
     min-height: @nav-size-height;
-    padding-top: 23px;
-    background: #ffffff;
     -webkit-app-region: drag;
+    padding-top: 23px;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--primary-7)) 0%,
+      rgb(var(--primary-6)) 58%,
+      rgb(var(--primary-5)) 100%
+    );
+    
   }
 
   .layout-sider {

@@ -69,7 +69,14 @@
         LEFT JOIN app_supplier s
         ON g.supplier_id = s.id
         WHERE
-        g.status = 1
+        <choose>
+            <when test="query.status != null">
+                g.status = #{query.status}
+            </when>
+            <otherwise>
+                g.status = 1
+            </otherwise>
+        </choose>
         and g.is_del = 0
         <bind name="likeKey" value="'%' + query.key + '%'"/>
         AND (
@@ -81,6 +88,9 @@
         OR g.goods_code LIKE #{likeKey}
         OR s.name LIKE #{likeKey}
         )
+        <if test="query.categoryId != null and query.categoryId != '' and query.categoryId != '0'">
+            AND g.category_id = #{query.categoryId}
+        </if>
         <if test="query.zeroStock != null and !query.zeroStock">
             AND COALESCE(g.stock, 0) &lt;&gt; 0
         </if>

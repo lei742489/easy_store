@@ -13,6 +13,10 @@ public class ApiQuery {
 
     private String goodsId;
 
+    private String categoryId;
+
+    private Integer status;
+
     private Integer pageNo;
 
     private Integer pageSize;

@@ -7,6 +7,7 @@ import { getMenuList } from '@/api/user';
 import { AppState } from './types';
 
 const THEME_COLOR_STORAGE_KEY = 'easy-store-theme-color';
+const THEME_MODE_STORAGE_KEY = 'easy-store-theme-mode';
 
 export const THEME_COLOR_PRESETS = [
   { label: '红色', value: '#F53F3F', palette: 'red' },
@@ -37,9 +38,17 @@ function getStoredThemeColor() {
   );
 }
 
+function getStoredThemeMode() {
+  if (typeof window === 'undefined') return defaultSettings.theme;
+  return (
+    window.localStorage.getItem(THEME_MODE_STORAGE_KEY) || defaultSettings.theme
+  );
+}
+
 const useAppStore = defineStore('app', {
   state: (): AppState => ({
     ...defaultSettings,
+    theme: getStoredThemeMode(),
     themeColor: getStoredThemeColor(),
   }),
 
@@ -71,6 +80,7 @@ const useAppStore = defineStore('app', {
         this.theme = 'light';
         document.body.removeAttribute('arco-theme');
       }
+      window.localStorage.setItem(THEME_MODE_STORAGE_KEY, this.theme);
     },
     applyThemeColor(color = this.themeColor) {
       const themeColor = resolveThemeColor(color);

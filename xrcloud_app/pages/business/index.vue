@@ -3,15 +3,16 @@
     <view class="placeholder-icon">▣</view>
     <text class="placeholder-title">业务</text>
     <text class="placeholder-desc">销售、进货、收付款功能将在这里展开</text>
-    <bottom-nav current="business" />
   </view>
 </template>
 
 <script>
-import BottomNav from '../../components/bottom-nav.vue'
+import { isLoggedIn } from '../../common/auth'
 
 export default {
-  components: { BottomNav }
+  onShow() {
+    if (!isLoggedIn()) uni.reLaunch({ url: '/pages/login/index' })
+  }
 }
 </script>
 

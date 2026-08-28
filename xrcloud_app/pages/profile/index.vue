@@ -3,15 +3,16 @@
     <image class="profile-avatar" src="/static/ico/def_head.png" mode="aspectFill" />
     <text class="placeholder-title">我的</text>
     <text class="placeholder-desc">个人资料和系统设置将在这里展开</text>
-    <bottom-nav current="profile" />
   </view>
 </template>
 
 <script>
-import BottomNav from '../../components/bottom-nav.vue'
+import { isLoggedIn } from '../../common/auth'
 
 export default {
-  components: { BottomNav }
+  onShow() {
+    if (!isLoggedIn()) uni.reLaunch({ url: '/pages/login/index' })
+  }
 }
 </script>
 

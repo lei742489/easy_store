@@ -1,471 +1,245 @@
 <template>
   <view class="page">
-	
-    <view class="hero" id="top">
-		<uni-status-bar></uni-status-bar>
+    <view id="top" class="hero">
+      <uni-status-bar />
       <view class="hero-top">
         <view class="brand">
           <image class="brand-logo" src="/static/logo-big.png" mode="aspectFit" />
-          <text class="brand-name">新锐云·进销存管理系统</text>
+          <text class="brand-name">新锐云</text>
         </view>
-        <view class="hero-actions">
-		  <uni-icons type="search" :size="24" color="#fff"></uni-icons>
-          <!-- <image class="avatar" src="/static/ico/def_head.png" mode="aspectFill" /> -->
-        </view>
+        <uni-icons type="search" :size="24" color="#fff" />
       </view>
       <view class="welcome-row">
-        <text class="welcome">欢迎回来！贰筱姐</text>
-        <!-- <text class="updated-at">2026-08-25 10:21:58</text> -->
+        <text class="welcome">欢迎回来！{{ displayName }}</text>
+        <text v-if="isRoot" class="root-label">老板模式</text>
+		<text v-else class="root-label">员工模式</text>
       </view>
     </view>
 
-    <scroll-view
-      class="content"
-      scroll-y
-	  :show-scrollbar="false"
-      :style="{ height: `${contentHeight}px` }"
-    >
-      <view class="section quick-section">
-        <view class="section-title-row">
-          <text class="section-title">常用功能</text>
-        </view>
-        <view class="quick-grid">
-          <view
-            v-for="item in quickActions"
-            :key="item.label"
-            class="menu-card quick-item"
-            @click="handleAction(item)"
-          >
-            <view class="icon-tile" :style="{ backgroundColor: item.bg }">
-              <image :src="item.icon" mode="aspectFit" />
-            </view>
-            <text>{{ item.label }}</text>
-          </view>
-        </view>
-        <view class="more-button" @click="showMore">
-          <text>更多功能</text>
-          <text class="more-arrow">›</text>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section-title-row">
-          <text class="section-title">销售相关</text>
-        </view>
-        <view class="feature-grid">
-          <view
-            v-for="item in salesActions"
-            :key="item.label"
-            class="menu-card feature-item"
-            @click="handleAction(item)"
-          >
-            <view class="feature-icon-wrap">
-              <image :src="item.icon" mode="aspectFit" />
-              <text v-if="item.badge" class="badge">{{ item.badge }}</text>
-            </view>
-            <text>{{ item.label }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section-title-row">
-          <text class="section-title">进货 / 库存</text>
-        </view>
-        <view class="feature-grid">
-          <view
-            v-for="item in stockActions"
-            :key="item.label"
-            class="menu-card feature-item"
-            @click="handleAction(item)"
-          >
-            <view class="feature-icon-wrap">
-              <image :src="item.icon" mode="aspectFit" />
-              <text v-if="item.badge" class="badge">{{ item.badge }}</text>
-            </view>
-            <text>{{ item.label }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section-title-row">
-          <text class="section-title">统计报告</text>
-        </view>
-        <view class="report-grid">
-          <view
-            v-for="item in reportActions"
-            :key="item.label"
-            class="menu-card report-item"
-            @click="handleAction(item)"
-          >
-            <image :src="item.icon" mode="aspectFit" />
-            <text>{{ item.label }}</text>
-          </view>
-        </view>
-      </view>
-
+    <scroll-view class="content" scroll-y :show-scrollbar="false" :style="{ height: `${contentHeight}px` }">
       <view class="section announcement">
-        <view class="section-title-row">
-          <text class="section-title">通知公告</text>
-          <text class="collapse-icon">⌃</text>
-        </view>
-        <view class="announcement-row">
-          <view class="announcement-dot"></view>
-          <text>欢迎使用新锐云进销存管理系统</text>
-          <text class="announcement-date">08-25</text>
-        </view>
+        <view class="section-title-row"><text class="section-title">通知公告</text></view>
+        <view class="announcement-row"><view class="announcement-dot" /><text>欢迎使用 新锐云 进销存管理系统</text></view>
       </view>
 
-      <view class="bottom-space"></view>
+      <view v-if="loading" class="loading-state">
+        <uni-icons type="spinner-cycle" color="#722ed1" :size="30" />
+        <text>正在加载菜单...</text>
+      </view>
+      <view v-else-if="menuGroups.length" class="menu-sections">
+        <view v-for="group in menuGroups" :key="group.code" class="section">
+          <view class="section-title-row"><text class="section-title">{{ group.title }}</text></view>
+          <view class="menu-grid">
+            <view
+              v-for="item in group.menus"
+              :key="item.id || item.code"
+              class="menu-card"
+              @click="handleMenu(item)"
+            >
+              <view class="feature-icon-wrap">
+                <image v-if="isImageIcon(item)" :src="getImageIcon(item)" mode="aspectFit" />
+                <uni-icons
+                  v-else
+                  :type="getUniIcon(item)"
+                  color="#722ed1"
+                  :size="42"
+                />
+                <text v-if="getPendingCount(item)" class="badge">
+                  {{ getPendingCount(item) > 99 ? '99+' : getPendingCount(item) }}
+                </text>
+              </view>
+              <text>{{ item.name }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view v-else class="empty-state">
+        <uni-icons type="info" color="#aaa5b5" :size="52" />
+        <text>暂无可用功能</text>
+      </view>
+      <view class="bottom-space" />
     </scroll-view>
-
-    <bottom-nav current="home" />
   </view>
 </template>
 
 <script>
-import BottomNav from '../../components/bottom-nav.vue'
+import { getUser, isLoggedIn, clearSession, updateUser } from '../../common/auth'
+import { getUserInfo, listHomeMenus, pendingApproveCounts } from '../../common/api'
 
-const icon = (name) => `/static/ico/${name}.png`
+const iconMap = {
+  sale_order_add: 'sm1', receive_payment_add: 'sm2', purchase_order_add: 'sm3', payment_add: 'sm4',
+  goods: 'sm5', customer: 'sm6', supplier: 'sm7', customer_quote: 'sm8', account_settle: 'sm9',
+  sale_order_list: 'dm1', receive_payment_list: 'sfc2', sale_stats: 'sfc3', customer_statement: 'sfc4',
+  debt_stats: 'dm3', debt_detail: 'dm5', purchase_order_list: 'jm1', payment_list: 'jm2', purchase_stats: 'jm3',
+  payable_order: 'jm4', payable_stats: 'jm5', payable_detail: 'dm5', stock_stats: 'cc1', stock_warning: 'cc2',
+  stock_check: 'cc3', fund_stats: 'tj1', profit_stats: 'tj2', cashier_stats: 'tj3'
+}
+
+const uniIconMap = {
+  'icon-user-group': 'staff-filled',
+  'icon-safe': 'auth-filled',
+  'icon-storage': 'settings-filled',
+  'icon-book': 'compose',
+  'icon-history': 'list'
+}
+
+const appPageMap = {
+  sale_order_list: '/pages/sale-order/list',
+  goods: '/pages/goods/list'
+}
 
 export default {
-  components: { BottomNav },
   data() {
     return {
       contentHeight: 1,
-      quickActions: [
-        { label: '销售单', icon: icon('sm1'), bg: '#e6f7f6' },
-        { label: '收款单', icon: icon('sm2'), bg: '#eaf8ed' },
-        { label: '进货单', icon: icon('sm3'), bg: '#eaf4ff' },
-        { label: '付款单', icon: icon('sm4'), bg: '#f2f8df' }
-      ],
-      salesActions: [
-        { label: '销售单查询', icon: icon('sfc1'), badge: '10' },
-        { label: '收款单查询', icon: icon('sfc2') },
-        { label: '销售统计', icon: icon('sfc3') },
-        { label: '应收对账单', icon: icon('sfc4') },
-        { label: '欠款统计', icon: icon('sm9') }
-      ],
-      stockActions: [
-        { label: '进货单查询', icon: icon('jm1'), badge: '5' },
-        { label: '付款单查询', icon: icon('jm2') },
-        { label: '进货统计', icon: icon('jm3') },
-        { label: '应付对账单', icon: icon('jm4') },
-        { label: '库存统计', icon: icon('jm5') },
-        { label: '库存明细', icon: icon('dm1') },
-        { label: '库存预警', icon: icon('dm2') },
-        { label: '库存盘点', icon: icon('dm3') },
-        { label: '库存商品', icon: icon('dm4') }
-      ],
-      reportActions: [
-        { label: '资金统计', icon: icon('tj1') },
-        { label: '利润统计', icon: icon('tj2') },
-        { label: '营业员统计', icon: icon('tj3') }
-      ]
+      loading: false,
+      redirecting: false,
+      pageAlive: false,
+      measureTimer: null,
+      loadRequestId: 0,
+      menuGroups: [],
+      pendingCounts: {},
+      user: getUser() || {}
     }
   },
-  onLoad() {
-    this.updateContentHeight()
+  computed: {
+    displayName() { return this.user.realName || this.user.userName || '用户' },
+    isRoot() { return Number(this.user.isRoot) === 1 }
   },
   onReady() {
-    this.updateContentHeight()
-    if (uni.onWindowResize) {
-      uni.onWindowResize(this.updateContentHeight)
-    }
+    this.pageAlive = true
+    this.scheduleContentHeight()
   },
   onShow() {
-    this.updateContentHeight()
+    this.pageAlive = true
+    if (!isLoggedIn()) {
+      this.redirectToLogin()
+      return
+    }
+    this.loadHome()
+  },
+  onHide() {
+    this.pageAlive = false
+    this.clearMeasureTimer()
   },
   onUnload() {
-    if (uni.offWindowResize) {
-      uni.offWindowResize(this.updateContentHeight)
-    }
+    this.pageAlive = false
+    this.redirecting = true
+    this.clearMeasureTimer()
   },
   methods: {
+    clearMeasureTimer() {
+      if (this.measureTimer) {
+        clearTimeout(this.measureTimer)
+        this.measureTimer = null
+      }
+    },
+    scheduleContentHeight() {
+      this.clearMeasureTimer()
+      this.measureTimer = setTimeout(() => {
+        this.measureTimer = null
+        this.updateContentHeight()
+      }, 0)
+    },
     updateContentHeight() {
+      // 只在首次渲染完成后测量，避免 onShow 时查询已销毁的页面节点。
+      if (this.redirecting || !this.pageAlive) return
       const systemInfo = uni.getSystemInfoSync()
-      uni.createSelectorQuery()
-        .in(this)
-        .select('#top')
-        .boundingClientRect((rect) => {
-          const topHeight = rect && rect.height ? rect.height : 0
-          this.contentHeight = Math.max(
-            1,
-            Math.floor(systemInfo.windowHeight - topHeight)
-          )
-        })
-        .exec()
+      try {
+        uni.createSelectorQuery()
+          .select('#top')
+          .boundingClientRect((rect) => {
+            if (this.redirecting || !this.pageAlive || !rect || !rect.height) return
+            this.contentHeight = Math.max(
+              1,
+              Math.floor(systemInfo.windowHeight - rect.height)
+            )
+          })
+          .exec()
+      } catch (error) {
+        // 页面切换期间节点可能已经销毁，保留默认高度即可。
+      }
     },
-    handleAction(item) {
-      uni.showToast({
-        title: `${item.label}暂未接入`,
-        icon: 'none'
-      })
+    redirectToLogin() {
+      if (this.redirecting) return
+      this.redirecting = true
+      this.pageAlive = false
+      this.clearMeasureTimer()
+      clearSession()
+      uni.reLaunch({ url: '/pages/login/index' })
     },
-    showMore() {
-      uni.showToast({
-        title: '更多功能暂未接入',
-        icon: 'none'
-      })
+    async loadHome() {
+      if (this.loading || this.redirecting) return
+      if (!isLoggedIn()) { this.redirectToLogin(); return }
+      const requestId = ++this.loadRequestId
+      this.loading = true
+      try {
+        const currentUser = await getUserInfo()
+        if (!this.pageAlive || requestId !== this.loadRequestId) return
+        this.user = { ...this.user, ...currentUser }
+        updateUser(this.user)
+        const requests = [listHomeMenus()]
+        if (Number(this.user.isRoot) === 1) requests.push(pendingApproveCounts())
+        const results = await Promise.all(requests)
+        if (!this.pageAlive || requestId !== this.loadRequestId) return
+        this.menuGroups = Array.isArray(results[0]) ? results[0] : []
+        this.pendingCounts = results[1] || {}
+      } catch (error) {
+        if (this.redirecting || !this.pageAlive || requestId !== this.loadRequestId) return
+        clearSession()
+        this.redirecting = true
+        uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+        uni.reLaunch({ url: '/pages/login/index' })
+      } finally {
+        this.loading = false
+      }
+    },
+    isImageIcon(item) {
+      return Boolean(item && item.icon && /\.png$/i.test(item.icon))
+    },
+    getImageIcon(item) {
+      if (this.isImageIcon(item)) return `/static/ico/${item.icon}`
+      return `/static/ico/${iconMap[item && item.code] || 'sm5'}.png`
+    },
+    getUniIcon(item) {
+      return uniIconMap[item && item.icon] || 'list'
+    },
+    getPendingCount(item) { return this.isRoot && item ? Number(this.pendingCounts[item.code] || 0) : 0 },
+    handleMenu(item) {
+      if (!item) return
+      const appPage = appPageMap[item.code]
+      if (appPage) {
+        uni.navigateTo({ url: appPage })
+        return
+      }
+      if (item.url) uni.showToast({ title: `${item.name}将在后续版本接入`, icon: 'none' })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.page {
-  min-height: 100%;
-  background: #f5f4fb;
-  color: #303044;
-}
-
-.hero {
-  padding: 54rpx 30rpx 28rpx;
-  box-sizing: border-box;
-  color: #fff;
-  background: linear-gradient(135deg, #4a238d 0%, #722ed1 65%, #8e5de8 100%);
-  border-radius: 0 0 34rpx 34rpx;
-}
-
-.hero-top,
-.welcome-row,
-.section-title-row,
-.announcement-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand,
-.hero-actions {
-  display: flex;
-  align-items: center;
-}
-
-.brand-logo {
-  width: 82rpx;
-  height: 82rpx;
-  margin-right: 12rpx;
-  padding: 7rpx;
-  box-sizing: border-box;
-  background: #fff;
-  border-radius: 15rpx;
-}
-
-.brand-name {
-  font-size: 30rpx;
-  font-weight: 600;
-}
-
-.hero-actions {
-  gap: 24rpx;
-}
-
-.action-icon {
-  font-size: 48rpx;
-  line-height: 1;
-  transform: rotate(-20deg);
-}
-
-.avatar {
-  width: 55rpx;
-  height: 55rpx;
-  border: 3rpx solid rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-}
-
-.welcome-row {
-  margin-top: 34rpx;
-}
-
-.welcome {
-  font-size: 30rpx;
-  font-weight: 600;
-}
-
-.updated-at {
-  font-size: 20rpx;
-  opacity: 0.88;
-}
-
-.content {
-  padding: 22rpx 22rpx 0;
-  box-sizing: border-box;
-}
-
-.section {
-  margin-bottom: 20rpx;
-  padding: 24rpx 22rpx 20rpx;
-  background: #fff;
-  border-radius: 18rpx;
-  box-shadow: 0 6rpx 20rpx rgba(67, 47, 119, 0.05);
-}
-
-.quick-section {
-  padding-bottom: 18rpx;
-}
-
-.section-title {
-  color: #454252;
-  font-size: 28rpx;
-  font-weight: 600;
-}
-
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14rpx;
-  margin-top: 18rpx;
-}
-
-.menu-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  height: 142rpx;
-  box-sizing: border-box;
-  color: #5a5865;
-  font-size: 23rpx;
-  text-align: center;
-  background: #f7f7fa;
-  border: 1rpx solid #f0eef5;
-  border-radius: 14rpx;
-}
-
-.menu-card > text {
-  display: block;
-  width: 100%;
-  padding: 0 6rpx;
-  box-sizing: border-box;
-  overflow: hidden;
-  line-height: 30rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.quick-item,
-.feature-item,
-.report-item {
-}
-
-.icon-tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 76rpx;
-  height: 76rpx;
-  margin-bottom: 12rpx;
-  border-radius: 12rpx;
-}
-
-.icon-tile image {
-  width: 58rpx;
-  height: 58rpx;
-}
-
-.more-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 52rpx;
-  margin-top: 18rpx;
-  color: #6241a4;
-  font-size: 22rpx;
-  background: #f0edf8;
-  border-radius: 28rpx;
-}
-
-.more-arrow {
-  margin-left: 8rpx;
-  font-size: 30rpx;
-}
-
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14rpx;
-  margin-top: 22rpx;
-}
-
-.feature-icon-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 70rpx;
-  height: 70rpx;
-  margin-bottom: 12rpx;
-  background: #fff;
-  border-radius: 14rpx;
-}
-
-.feature-icon-wrap image,
-.report-item image {
-  width: 62rpx;
-  height: 62rpx;
-}
-
-.badge {
-  position: absolute;
-  top: -10rpx;
-  right: -12rpx;
-  min-width: 28rpx;
-  height: 28rpx;
-  padding: 0 6rpx;
-  color: #fff;
-  font-size: 17rpx;
-  line-height: 28rpx;
-  text-align: center;
-  background: #e54d42;
-  border: 2rpx solid #fff;
-  border-radius: 18rpx;
-}
-
-.report-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14rpx;
-  margin-top: 24rpx;
-}
-
-.report-item text {
-  margin-top: 12rpx;
-}
-
-.collapse-icon {
-  color: #9895a3;
-  font-size: 28rpx;
-}
-
-.announcement {
-  padding-bottom: 22rpx;
-}
-
-.announcement-row {
-  justify-content: flex-start;
-  margin-top: 22rpx;
-  color: #777482;
-  font-size: 22rpx;
-}
-
-.announcement-dot {
-  width: 10rpx;
-  height: 10rpx;
-  margin-right: 12rpx;
-  background: #722ed1;
-  border-radius: 50%;
-}
-
-.announcement-date {
-  margin-left: auto;
-  color: #aaa7b2;
-  font-size: 19rpx;
-}
-
-.bottom-space {
-  height: 150rpx;
-}
+.page { min-height: 100%; color: #303044; background: #f5f4fb; }
+.hero { padding: 30rpx 30rpx 28rpx; box-sizing: border-box; color: #fff; background: linear-gradient(135deg, #4a238d 0%, #722ed1 65%, #8e5de8 100%); border-radius: 0 0 34rpx 34rpx; }
+.hero-top, .welcome-row, .section-title-row, .announcement-row { display: flex; align-items: center; justify-content: space-between; }
+.brand, .hero-top { display: flex; align-items: center; }
+.brand-logo { width: 72rpx; height: 72rpx; margin-right: 14rpx; padding: 7rpx; box-sizing: border-box; background: #fff; border-radius: 15rpx; }
+.brand-name { font-size: 32rpx; font-weight: 600; }
+.welcome-row { margin-top: 30rpx; }
+.welcome { font-size: 30rpx; font-weight: 600; }
+.root-label { padding: 6rpx 14rpx; font-size: 19rpx; border: 1rpx solid rgba(255, 255, 255, .65); border-radius: 20rpx; }
+.content { padding: 22rpx 22rpx 0; box-sizing: border-box; }
+.section { margin-bottom: 20rpx; padding: 24rpx 22rpx 20rpx; background: #fff; border-radius: 18rpx; box-shadow: 0 6rpx 20rpx rgba(67, 47, 119, .05); }
+.section-title { color: #454252; font-size: 28rpx; font-weight: 600; }
+.menu-grid { display: flex; flex-wrap: wrap; gap: 30rpx; margin-top: 20rpx; justify-content: flex-start; }
+.menu-card { position: relative; display: flex; flex: 0 0 142rpx; flex-direction: column; align-items: center; justify-content: center; height: 142rpx; box-sizing: border-box; color: #5a5865; font-size: 23rpx; text-align: center; background: #f7f7fa; border: 1rpx solid #f0eef5; border-radius: 14rpx; box-shadow: 0 5rpx 12rpx rgba(67, 47, 119, .08); }
+.menu-card:active { background: #f0edf8; box-shadow: 0 2rpx 6rpx rgba(67, 47, 119, .12); }
+.menu-card > text { display: block; width: 100%; padding: 0 6rpx; box-sizing: border-box; overflow: hidden; line-height: 30rpx; text-overflow: ellipsis; white-space: nowrap; }
+.feature-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 70rpx; height: 70rpx; margin-bottom: 12rpx; background: #fff; border-radius: 14rpx; }
+.feature-icon-wrap image { width: 62rpx; height: 62rpx; }
+.badge { position: absolute; top: -10rpx; right: -14rpx; min-width: 28rpx; height: 28rpx; padding: 0 6rpx; color: #fff; font-size: 17rpx; line-height: 28rpx; text-align: center; background: #e54d42; border: 2rpx solid #fff; border-radius: 18rpx; }
+.announcement-row { justify-content: flex-start; margin-top: 22rpx; color: #777482; font-size: 22rpx; }
+.announcement-dot { width: 10rpx; height: 10rpx; margin-right: 12rpx; background: #722ed1; border-radius: 50%; }
+.loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420rpx; color: #9895a3; font-size: 24rpx; gap: 18rpx; }
+.bottom-space { height: 20rpx; }
 </style>

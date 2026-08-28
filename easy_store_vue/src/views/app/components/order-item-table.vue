@@ -933,6 +933,7 @@
     z-index: 20;
     border: 1px solid var(--color-border-3);
     background: var(--color-bg-popup);
+    color: var(--color-text-1);
     box-shadow: 0 6px 18px rgb(0 0 0 / 12%);
   }
 
@@ -945,6 +946,7 @@
     display: grid;
     grid-template-columns: 18.8% minmax(160px, 1fr) 15.8% 15.8% 14.8%;
     min-height: 30px;
+    color: var(--color-text-1);
 
     > div {
       overflow: hidden;
@@ -994,11 +996,13 @@
   .goods-name-text {
     display: block;
     overflow: hidden;
+    color: var(--color-text-1);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .price {
+    color: var(--color-text-1);
     text-align: right;
   }
 
@@ -1018,6 +1022,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px;
+    color: var(--color-text-1);
     background: var(--color-bg-1);
   }
 

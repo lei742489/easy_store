@@ -566,17 +566,14 @@
     width: 100%;
     height: 58px;
     box-sizing: border-box;
-    color: #fff;
+    padding: 0 22px;
+    color: var(--color-text-1);
     font-size: 20px;
     font-weight: 600;
     line-height: 58px;
     text-align: center;
-    background: linear-gradient(
-      135deg,
-      rgb(var(--primary-5)) 0%,
-      rgb(var(--primary-6)) 72%,
-      rgb(var(--primary-7)) 100%
-    );
+    border-bottom: 1px solid var(--color-border-2);
+    
   }
 
   .settlement-section {

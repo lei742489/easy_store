@@ -29,6 +29,35 @@
       }
     },
     {
+      "path": "pages/sale-order/list",
+      "style": {
+        "navigationBarTitleText": "销售单查询",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/goods/list",
+      "style": {
+        "navigationBarTitleText": "货品列表",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB"
+      }
+    },
+    {
+      "path": "pages/goods/form",
+      "style": {
+        "navigationBarTitleText": "货品表单",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB"
+      }
+    },
+    {
       "path": "pages/login/index",
       "style": {
         "navigationStyle": "custom",
@@ -38,16 +67,48 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "新锐云",
+    "navigationBarTitleText": "Easy Store",
     "navigationBarBackgroundColor": "#722ED1",
     "backgroundColor": "#F5F4FB"
   },
+  "tabBar": {
+    "color": "#9A97A6",
+    "selectedColor": "#722ED1",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "/static/ico/home.png",
+        "selectedIconPath": "/static/ico/home-act.png"
+      },
+      {
+        "pagePath": "pages/business/index",
+        "text": "业务",
+        "iconPath": "/static/ico/order.png",
+        "selectedIconPath": "/static/ico/order-act.png"
+      },
+      {
+        "pagePath": "pages/report/index",
+        "text": "报表",
+        "iconPath": "/static/ico/report.png",
+        "selectedIconPath": "/static/ico/report-act.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "/static/ico/my.png",
+        "selectedIconPath": "/static/ico/my-act.png"
+      }
+    ]
+  },
   "uniIdRouter": {},
   "easycom": {
-  		"autoscan": true,
-  		"custom": {
-  			"^uni-(.*)": "@/components/uni-$1.vue",
-  			"^vue-file-(.*)": "packageName/path/to/vue-file-$1.vue"
-  		}
+    "autoscan": true,
+    "custom": {
+      "^uni-(.*)": "@/components/uni-$1.vue",
+      "^vue-file-(.*)": "packageName/path/to/vue-file-$1.vue"
+    }
   }
 }

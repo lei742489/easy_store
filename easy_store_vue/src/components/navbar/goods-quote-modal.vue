@@ -97,6 +97,14 @@
         tooltip: true,
       },
       {
+        title: '货品代码',
+        dataIndex: 'goodsCode',
+        align: 'left',
+        width: 150,
+        ellipsis: true,
+        tooltip: true,
+      },
+      {
         title: '库存',
         dataIndex: 'stock',
         slotName: 'stock',

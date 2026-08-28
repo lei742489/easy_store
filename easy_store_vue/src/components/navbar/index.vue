@@ -37,6 +37,27 @@
           </a-auto-complete>
         </div>
       </li>
+      <li>
+        <a-tooltip
+          :content="
+            appStore.theme === 'dark'
+              ? $t('settings.navbar.theme.toLight')
+              : $t('settings.navbar.theme.toDark')
+          "
+        >
+          <a-button
+            class="nav-btn theme-btn"
+            type="outline"
+            shape="circle"
+            @click="handleToggleTheme"
+          >
+            <template #icon>
+              <icon-sun-fill v-if="appStore.theme === 'dark'" />
+              <icon-moon-fill v-else />
+            </template>
+          </a-button>
+        </a-tooltip>
+      </li>
       <!--      <li>
         <a-tooltip :content="$t('settings.language')">
           <a-button
@@ -87,20 +108,7 @@
           </a-button>
         </a-tooltip>
       </li>-->
-      <li>
-        
-        <a-popover
-          trigger="click"
-          :arrow-style="{ display: 'none' }"
-          :content-style="{ padding: 0, minWidth: '400px' }"
-          content-class="message-popover"
-        >
-          <div ref="refBtn" class="ref-btn"></div>
-          <template #content>
-            <message-box />
-          </template>
-        </a-popover>
-      </li>
+      
       <!--      <li>
         <a-tooltip
           :content="
@@ -220,6 +228,9 @@
   const handleLogout = () => {
     logout();
   };
+  const handleToggleTheme = () => {
+    appStore.toggleTheme(appStore.theme !== 'dark');
+  };
   const toggleDrawerMenu = inject('toggleDrawerMenu') as () => void;
 
   const toHome = () => {
@@ -243,8 +254,13 @@
     display: flex;
     justify-content: space-between;
     height: 100%;
-    background-color: var(--color-bg-2);
-    border-bottom: 1px solid var(--color-border);
+    background: linear-gradient(
+      135deg,
+      rgb(var(--primary-7)) 0%,
+      rgb(var(--primary-6)) 58%,
+      rgb(var(--primary-5)) 100%
+    );
+    border-bottom: 1px solid rgb(var(--primary-7));
   }
 
   .left-side {
@@ -255,18 +271,21 @@
     .logo {
       width: 44px;
       height: 44px;
+      padding: 2px;
+      border: 2px solid #fff;
+      border-radius: 7px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
     }
 
     .brand-title {
       margin: 0;
-      color: #4f46c8;
+      color: rgb(255,255,255);
       font-size: 17px;
       font-weight: 600;
       line-height: 1;
       user-select: none;
       cursor: pointer;
       letter-spacing: 0;
-      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
     }
   }
 
@@ -283,6 +302,28 @@
       border-radius: 20px;
     }
     .search-view {
+      :deep(.arco-input-wrapper) {
+        background-color: #fff;
+        border-color: #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+      }
+
+      :deep(.arco-input-wrapper:hover),
+      :deep(.arco-input-wrapper.arco-input-focus) {
+        background-color: #fff;
+        border-color: #fff;
+      }
+
+      :deep(.arco-input) {
+        background-color: transparent;
+        color: #1d2129;
+        caret-color: #1d2129;
+      }
+
+      :deep(.arco-input::placeholder) {
+        color: #86909c;
+      }
+
       .search-icon {
         color: #666;
         cursor: pointer;
@@ -299,9 +340,14 @@
       text-decoration: none;
     }
     .nav-btn {
-      border-color: rgb(var(--gray-2));
-      color: rgb(var(--gray-8));
+      border-color: rgba(255, 255, 255, 0.72);
+      color: #fff;
       font-size: 16px;
+    }
+    .theme-btn {
+      :deep(.arco-icon) {
+        color: #fff;
+      }
     }
     .head-ico {
       width: 34px;
