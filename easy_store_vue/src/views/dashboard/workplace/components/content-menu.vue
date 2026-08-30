@@ -1,45 +1,51 @@
 <template>
   <a-spin :loading="loading" style="width: 100%">
     <template v-if="menuGroups.length">
-      <a-card
-        v-for="group in menuGroups"
-        :key="group.code"
-        class="general-card"
-        :header-style="{ paddingBottom: 0 }"
-        :body-style="{ paddingTop: '20px' }"
-        :title="group.title"
-      >
-        <div class="m-content">
-          <div
-            v-for="item in group.menus"
-            :key="item.id || item.code"
-            class="m-item"
-            @click="itemClick(item)"
-          >
-            <a-badge
-              class="m-badge"
-              :count="getPendingCount(item)"
-              :max-count="99"
-              :offset="[6, -2]"
+      <div class="menu-groups">
+        <a-card
+          v-for="group in menuGroups"
+          :key="group.code"
+          class="general-card"
+          :header-style="{ paddingBottom: 0 }"
+          :body-style="{ paddingTop: '16px' }"
+        >
+          <template #title>
+            <div class="group-title">
+              <span class="group-title-mark"></span>
+              <span>{{ group.title }}</span>
+            </div>
+          </template>
+          <div class="m-content">
+            <div
+              v-for="item in group.menus"
+              :key="item.id || item.code"
+              class="m-item"
+              @click="itemClick(item)"
             >
-              <div class="m-item-body">
-                <img
-                  v-if="isImageIcon(item.icon)"
-                  class="ico"
-                  :src="getImageIcon(item.icon)"
-                />
-                <span v-else class="icon">
-                  <component :is="item.icon || 'icon-apps'" />
-                </span>
-                <span class="t1">{{ item.name }}</span>
-              </div>
-            </a-badge>
+              <a-badge
+                class="m-badge"
+                :count="getPendingCount(item)"
+                :max-count="99"
+                :offset="[6, -2]"
+              >
+                <div class="m-item-body">
+                  <img
+                    v-if="isImageIcon(item.icon)"
+                    class="ico"
+                    :src="getImageIcon(item.icon)"
+                  />
+                  <span v-else class="icon">
+                    <component :is="item.icon || 'icon-apps'" />
+                  </span>
+                  <span class="t1">{{ item.name }}</span>
+                </div>
+              </a-badge>
+            </div>
           </div>
-        </div>
-      </a-card>
+        </a-card>
+      </div>
     </template>
     <a-empty v-else description="暂无可用功能" />
-
   </a-spin>
 </template>
 
@@ -116,44 +122,75 @@
 </script>
 
 <style lang="less" scoped>
+  .menu-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
   .general-card {
-    margin-bottom: 16px;
+    min-width: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 8px;
+    background: var(--color-bg-2);
+    box-shadow: 0 4px 16px rgb(31 35 41 / 8%);
+  }
+
+  .group-title {
+    display: flex;
+    align-items: center;
+    color: var(--color-text-1);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  .group-title-mark {
+    display: inline-block;
+    width: 4px;
+    height: 18px;
+    margin-right: 10px;
+    border-radius: 2px;
+    background: rgb(var(--arcoblue-6));
   }
 
   .m-content {
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
-    align-items: center;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 100px);
+    gap: 12px 14px;
+    justify-content: start;
 
     .m-item {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-width: 90px;
-      padding: 0 12px;
-      height: 90px;
+      min-width: 0;
+      padding: 0 8px;
+      height: 96px;
       box-sizing: border-box;
-      border: 1px solid var(--color-border-2);
-      border-radius: 4px;
+      border: 1px solid #edf0f5;
+      border-radius: 8px;
       cursor: pointer;
-      transition: transform 0.1s ease, box-shadow 0.1s ease;
-
-      background: var(--color-fill-2);
-      box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: var(--color-bg-2);
+      box-shadow: 0 1px 5px rgb(31 35 41 / 3%);
 
       &:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
-        background: var(--color-primary-light-1);
+        border-color: rgb(var(--arcoblue-3));
+        box-shadow: 0 4px 12px rgb(31 35 41 / 8%);
+        transform: scale(1.2);
       }
 
       .m-badge,
       .m-item-body {
         width: 100%;
         height: 100%;
+      }
+
+      .m-badge {
+        display: block;
       }
 
       .m-item-body {
@@ -165,8 +202,8 @@
 
       .ico,
       .icon {
-        width: 37px;
-        height: 37px;
+        width: 38px;
+        height: 38px;
       }
 
       .icon {
@@ -174,14 +211,37 @@
         align-items: center;
         justify-content: center;
         color: rgb(var(--arcoblue-6));
-        font-size: 30px;
+        font-size: 29px;
       }
 
       .t1 {
-        font-size: 15px;
+        margin-top: 10px;
+        max-width: 100%;
+        overflow: hidden;
         color: var(--color-text-1);
-        margin-top: 8px;
+        font-size: 14px;
+        line-height: 18px;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
+    }
+  }
+
+  @media screen and (max-width: 900px) {
+    .menu-groups {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .m-content {
+      grid-template-columns: repeat(auto-fill, 140px);
+      gap: 10px;
+    }
+
+    .m-content .m-item {
+      height: 88px;
     }
   }
 </style>

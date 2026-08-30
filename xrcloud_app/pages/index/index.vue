@@ -7,7 +7,12 @@
           <image class="brand-logo" src="/static/logo-big.png" mode="aspectFit" />
           <text class="brand-name">新锐云</text>
         </view>
-        <uni-icons type="search" :size="24" color="#fff" />
+        <uni-icons
+          type="search"
+          :size="24"
+          color="#fff"
+          @click="openGoodsSearch"
+        />
       </view>
       <view class="welcome-row">
         <text class="welcome">欢迎回来！{{ displayName }}</text>
@@ -85,7 +90,10 @@ const uniIconMap = {
 
 const appPageMap = {
   sale_order_list: '/pages/sale-order/list',
-  goods: '/pages/goods/list'
+  purchase_order_list: '/pages/purchase-order/list',
+  goods: '/pages/goods/list',
+  customer: '/pages/partner-list/index?mode=customer',
+  supplier: '/pages/partner-list/index?mode=supplier'
 }
 
 export default {
@@ -213,6 +221,9 @@ export default {
         return
       }
       if (item.url) uni.showToast({ title: `${item.name}将在后续版本接入`, icon: 'none' })
+    },
+    openGoodsSearch() {
+      uni.navigateTo({ url: '/pages/goods-quick-search/index' })
     }
   }
 }

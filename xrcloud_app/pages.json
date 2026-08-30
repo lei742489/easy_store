@@ -49,9 +49,58 @@
       }
     },
     {
+      "path": "pages/goods-quick-search/index",
+      "style": {
+        "navigationBarTitleText": "货品快速查询",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
       "path": "pages/goods/form",
       "style": {
         "navigationBarTitleText": "货品表单",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB"
+      }
+    },
+    {
+      "path": "pages/purchase-order/list",
+      "style": {
+        "navigationBarTitleText": "进货单查询",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/partner-list/index",
+      "style": {
+        "navigationBarTitleText": "客户/供应商管理",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/partner-form/index",
+      "style": {
+        "navigationBarTitleText": "客户/供应商表单",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#722ED1",
+        "backgroundColor": "#F5F4FB"
+      }
+    },
+    {
+      "path": "pages/partner-select/index",
+      "style": {
+        "navigationBarTitleText": "供应商/客户查询",
         "navigationBarTextStyle": "white",
         "navigationBarBackgroundColor": "#722ED1",
         "backgroundColor": "#F5F4FB"

@@ -4,6 +4,7 @@
     goods-search-panel
     entry-style
     :initial-rows="6"
+    :is-root="isRoot"
     v-model:order-type="orderType"
     @change="emit('change', $event)"
   />
@@ -13,6 +14,10 @@
   import { ref } from 'vue';
   import OrderItemTable from '@/views/app/components/order-item-table.vue';
   import type { AppSaleOrderItem } from '../types/AppSaleOrderItem';
+
+  defineProps<{
+    isRoot?: boolean;
+  }>();
 
   const orderType = defineModel<number>('orderType');
   const emit = defineEmits<{

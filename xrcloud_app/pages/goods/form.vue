@@ -63,18 +63,14 @@
           </view>
           <view class="form-col">
             <uni-forms-item name="supplierId" label="供应商">
-              <picker
-                mode="selector"
-                :range="supplierOptions"
-                range-key="text"
-                :value="supplierPickerIndex"
-                @change="onSupplierChange"
+              <view
+                class="picker-field selector-field"
+                :class="{ placeholder: !form.supplierId && !form.supplierTitle }"
+                @click="openSupplierSelect"
               >
-                <view class="picker-field" :class="{ placeholder: !form.supplierId }">
-                  <text>{{ supplierDisplayText }}</text>
-                  <uni-icons type="down" color="#999" :size="16" />
-                </view>
-              </picker>
+                <text>{{ supplierDisplayText }}</text>
+                <uni-icons type="right" color="#999" :size="16" />
+              </view>
             </uni-forms-item>
           </view>
         </view>
@@ -414,6 +410,29 @@ export default {
       const index = Number(event.detail.value || 0)
       const item = this.supplierOptions[index]
       this.form.supplierId = item ? String(item.value) : ''
+      this.form.supplierTitle = item ? String(item.text || '') : ''
+    },
+    openSupplierSelect() {
+      uni.navigateTo({
+        url: `/pages/partner-select/index?mode=supplier&title=${encodeURIComponent('供应商查询')}&keyword=${encodeURIComponent(this.form.supplierTitle || '')}`,
+        success: (res) => {
+          const channel = res && res.eventChannel
+          if (!channel) return
+          channel.on('select', (payload) => {
+            if (!payload) return
+            const id = payload.id ? String(payload.id) : String(payload.name || '')
+            const name = payload.name ? String(payload.name) : ''
+            this.form.supplierId = id
+            this.form.supplierTitle = name
+            if (id && name && !this.supplierOptions.some((item) => String(item.value) === id)) {
+              this.supplierOptions = [
+                ...this.supplierOptions,
+                { value: id, text: name }
+              ]
+            }
+          })
+        }
+      })
     },
     onStatusChange(event) {
       const index = Number(event.detail.value || 0)
@@ -567,8 +586,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 220rpx;
-  min-height: 220rpx;
+  width: 200rpx;
+  min-height: 200rpx;
   
   overflow: hidden;
   background: #faf9fc;
@@ -576,7 +595,7 @@ export default {
   border-radius: 14rpx;
 }
 .image-preview {
-  width: 220rpx;
+  width: 200rpx;
   
 }
 .image-path-row { margin-top: 6rpx; }

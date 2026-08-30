@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,10 @@ public class AppSaleStatisticsController {
 
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String DISCOUNTED_AMOUNT_SQL =
+            "COALESCE(i.total_amount, 0) * " +
+                    "(CASE WHEN COALESCE(o.discount_rate, 100) <= 0 THEN 100 " +
+                    "ELSE COALESCE(o.discount_rate, 100) END) / 100.0";
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
@@ -95,6 +100,70 @@ public class AppSaleStatisticsController {
         result.put("amountTotal", numberValue(totalRow.get("amountTotal")));
         result.put("records", records);
         return Result.ok(result);
+    }
+
+    @PostMapping("monthly")
+    public Result<?> monthly(@RequestBody JSONObject param) {
+        AppUser user = userService.getById(param.getString("userId"));
+        if (user == null) {
+            throw new AppRunTimeException("用户数据不存在，请重新登录");
+        }
+        boolean rootUser = isRoot(user);
+
+        LocalDate startDate = parseDate(param.getString("startDate"));
+        LocalDate endDate = parseDate(param.getString("endDate"));
+        if (startDate == null) {
+            startDate = LocalDate.now(ZONE_ID).withDayOfMonth(1);
+        }
+        if (endDate == null) {
+            endDate = LocalDate.now(ZONE_ID);
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new AppRunTimeException("开始日期不能晚于结束日期");
+        }
+
+        Long startTime = startDate.atStartOfDay(ZONE_ID).toInstant().toEpochMilli();
+        Long endTime = endDate.plusDays(1).atStartOfDay(ZONE_ID).toInstant().toEpochMilli() - 1;
+        String dateBucketSql = databaseDialect.dateBucket(saleBusinessTimeSql(), false);
+        StringBuilder sql = new StringBuilder("SELECT " + dateBucketSql + " AS businessDate, " +
+                "COALESCE(SUM(" + DISCOUNTED_AMOUNT_SQL + "), 0) AS salesAmount, " +
+                "COALESCE(SUM(COALESCE(i.gross_profit, 0)), 0) AS profitAmount " +
+                baseSql() +
+                " WHERE o.status = 1 AND COALESCE(o.is_del, 0) = 0 " +
+                "AND COALESCE(i.is_del, 0) = 0 " +
+                "AND " + saleBusinessTimeSql() + " >= ? " +
+                "AND " + saleBusinessTimeSql() + " <= ? ");
+        List<Object> params = new ArrayList<>();
+        params.add(startTime);
+        params.add(endTime);
+        if (!rootUser) {
+            sql.append("AND o.cashier_id = ? ");
+            params.add(user.getId());
+        }
+        sql.append("GROUP BY ").append(dateBucketSql).append(" ORDER BY businessDate");
+
+        Map<String, Map<String, Object>> rowsByDate = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql.toString(), params.toArray())) {
+            rowsByDate.put(stringValue(row.get("businessDate")), row);
+        }
+
+        JSONArray records = new JSONArray();
+        LocalDate cursor = startDate;
+        int rowNo = 1;
+        while (!cursor.isAfter(endDate)) {
+            String date = cursor.format(DATE_FORMATTER);
+            Map<String, Object> row = rowsByDate.get(date);
+            JSONObject record = new JSONObject();
+            record.put("rowNo", rowNo++);
+            record.put("date", date);
+            record.put("salesAmount", row == null ? 0D : numberValue(row.get("salesAmount")));
+            if (rootUser) {
+                record.put("profitAmount", row == null ? 0D : numberValue(row.get("profitAmount")));
+            }
+            records.add(record);
+            cursor = cursor.plusDays(1);
+        }
+        return Result.ok(records);
     }
 
     @PostMapping("detail")
@@ -213,6 +282,17 @@ public class AppSaleStatisticsController {
             return LocalDate.parse(value, DATE_FORMATTER).atStartOfDay(ZONE_ID).toInstant().toEpochMilli();
         } catch (Exception e) {
             throw new AppRunTimeException("开始日期格式错误");
+        }
+    }
+
+    private LocalDate parseDate(String value) {
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value, DATE_FORMATTER);
+        } catch (Exception e) {
+            throw new AppRunTimeException("日期格式错误");
         }
     }
 

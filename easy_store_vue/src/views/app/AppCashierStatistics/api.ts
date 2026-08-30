@@ -49,6 +49,24 @@ export interface CashierStatisticsDetail {
   isSummary?: boolean;
 }
 
+export type CashierStatisticsPeriodType = 'day' | 'month' | 'range';
+
+export interface CashierStatisticsPeriodQuery extends CashierStatisticsQuery {
+  statisticsType: CashierStatisticsPeriodType;
+}
+
+export interface CashierStatisticsPeriodRecord {
+  rowNo?: number | string;
+  date?: string;
+  quantity?: number;
+  salesAmount?: number;
+  costAmount?: number;
+  profitAmount?: number;
+  commissionAmount?: number;
+  profitRate?: number;
+  isSummary?: boolean;
+}
+
 export function listCashierStatistics(data: CashierStatisticsQuery) {
   return axios.post<CashierStatisticsResult>(
     'api/user/appCashierStatistics/list',
@@ -61,6 +79,15 @@ export function listCashierStatisticsDetail(
 ) {
   return axios.post<CashierStatisticsDetail[]>(
     'api/user/appCashierStatistics/detail',
+    data
+  );
+}
+
+export function listCashierStatisticsPeriod(
+  data: CashierStatisticsPeriodQuery
+) {
+  return axios.post<CashierStatisticsPeriodRecord[]>(
+    'api/user/appCashierStatistics/period',
     data
   );
 }

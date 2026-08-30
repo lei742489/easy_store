@@ -66,6 +66,14 @@ public class DatabaseDialect {
         return isMySql() ? "CAST(" + expression + " AS SIGNED)" : "CAST(" + expression + " AS INTEGER)";
     }
 
+    public String dateBucket(String epochMillisExpression, boolean month) {
+        String format = month ? "%Y-%m" : "%Y-%m-%d";
+        if (isMySql()) {
+            return "DATE_FORMAT(FROM_UNIXTIME((" + epochMillisExpression + ") / 1000), '" + format + "')";
+        }
+        return "strftime('" + format + "', (" + epochMillisExpression + ") / 1000, 'unixepoch', '+8 hours')";
+    }
+
     private boolean detectMySql() {
         try (Connection connection = dataSource.getConnection()) {
             String productName = connection.getMetaData().getDatabaseProductName();

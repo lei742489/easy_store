@@ -18,6 +18,7 @@
                   <time-select
                     ref="timeSelectRef"
                     :default-time-idx="2"
+                    hide-today
                     @change="timeSelectChange"
                   />
                 </a-form-item>
@@ -75,6 +76,14 @@
             v-if="!record.isSummary"
             type="text"
             size="small"
+            @click="showPeriodStatistics(record)"
+          >
+            统计
+          </a-button>
+          <a-button
+            v-if="!record.isSummary"
+            type="text"
+            size="small"
             @click="showDetail(record)"
           >
             明细
@@ -118,6 +127,7 @@
                   <time-select
                     ref="detailTimeSelectRef"
                     :default-time-idx="2"
+                    hide-today
                     @change="detailTimeSelectChange"
                   />
                 </a-form-item>
@@ -187,6 +197,95 @@
         :row-class="detailRowClass"
       />
     </a-modal>
+
+    <a-modal
+      v-model:visible="periodVisible"
+      width="88vw"
+      :footer="false"
+      :body-style="{ minHeight: '560px' }"
+      :mask-closable="false"
+    >
+      <template #title>营业员：{{ periodCashierName || periodCashierId || '-' }} 统计</template>
+      
+      <a-row class="detail-filter">
+        <a-col :flex="1">
+          <a-form
+            :model="periodForm"
+            :label-col-props="{ span: 4 }"
+            :wrapper-col-props="{ span: 18 }"
+            :label-width="10"
+            label-align="right"
+            auto-label-width
+          >
+            <a-row>
+              <a-col :span="18">
+                <a-form-item field="businessDate" label="日期">
+                  <time-select
+                    ref="periodTimeSelectRef"
+                    :default-time-idx="2"
+                    hide-today
+                    @change="periodTimeSelectChange"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-form>
+        </a-col>
+        <a-divider style="height: 84px" direction="vertical" />
+        <a-col :flex="'86px'" style="text-align: right">
+          <a-space direction="vertical" :size="12">
+            <a-button
+              type="primary"
+              :loading="periodLoading"
+              @click="fetchPeriod"
+            >
+              <template #icon><icon-search /></template>
+              统计
+            </a-button>
+            <a-button @click="resetPeriod">
+              <template #icon><icon-refresh /></template>
+              重置
+            </a-button>
+          </a-space>
+        </a-col>
+      </a-row>
+      <a-divider style="margin-top: 4px" />
+      <div class="detail-toolbar">
+        <a-space>
+          <a-button
+            type="primary"
+            :disabled="!periodRecords.length"
+            @click="exportPeriodCsv"
+          >
+            <template #icon><icon-download /></template>
+            导出
+          </a-button>
+          <a-button
+            :disabled="!periodRecords.length"
+            @click="printPeriod(true)"
+          >
+            <template #icon><icon-printer /></template>
+            打印
+          </a-button>
+          <a-button
+            :disabled="!periodRecords.length"
+            @click="printPeriod(false)"
+          >
+            预览
+          </a-button>
+        </a-space>
+      </div>
+      <a-table
+        row-key="rowNo"
+        :loading="periodLoading"
+        :pagination="false"
+        :columns="periodColumns"
+        :data="periodTableData"
+        :bordered="{ cell: true }"
+        :scroll="{ x: 1100, y: getAdaptiveTableScrollY(520) }"
+        :row-class="periodRowClass"
+      />
+    </a-modal>
   </div>
 </template>
 
@@ -199,10 +298,13 @@
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     CashierStatisticsDetail,
+    CashierStatisticsPeriodRecord,
+    CashierStatisticsPeriodType,
     CashierStatisticsRecord,
     CashierStatisticsResult,
     listCashierStatistics,
     listCashierStatisticsDetail,
+    listCashierStatisticsPeriod,
   } from './api';
 
   const loading = ref(false);
@@ -214,6 +316,12 @@
   const detailLoading = ref(false);
   const detailCashierId = ref<number | string>();
   const detailRecords = ref<CashierStatisticsDetail[]>([]);
+  const periodVisible = ref(false);
+  const periodLoading = ref(false);
+  const periodCashierId = ref<number | string>();
+  const periodCashierName = ref('');
+  const periodRecords = ref<CashierStatisticsPeriodRecord[]>([]);
+  const periodTimeSelectRef = ref<InstanceType<typeof TimeSelect> | null>(null);
   const form = reactive({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
     endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
@@ -222,6 +330,11 @@
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
     endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
     groupBy: 'customer' as 'customer' | 'goods',
+  });
+  const periodForm = reactive({
+    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
+    statisticsType: 'day' as CashierStatisticsPeriodType,
   });
   const pagination = reactive({
     current: 1,
@@ -300,7 +413,7 @@
       title: '操作',
       dataIndex: 'operations',
       slotName: 'operations',
-      width: 90,
+      width: 180,
       align: 'center',
     },
   ];
@@ -423,6 +536,94 @@
   const detailRowClass = (record: CashierStatisticsDetail) =>
     record.isSummary ? 'summary-row' : '';
 
+  const periodMoneyCell =
+    (field: keyof CashierStatisticsPeriodRecord) => (record: any) => {
+      const row = record.record as CashierStatisticsPeriodRecord;
+      const value = Number(row[field] || 0);
+      return h(
+        'span',
+        { class: row.isSummary ? 'summary-amount' : undefined },
+        `¥${formatPrice(value)}`
+      );
+    };
+  const periodColumns: TableColumnData[] = [
+    { title: '行号', dataIndex: 'rowNo', width: 72, align: 'center' },
+    { title: '日期', dataIndex: 'date', minWidth: 180, align: 'left' },
+    {
+      title: '销售数量',
+      dataIndex: 'quantity',
+      width: 140,
+      align: 'right',
+      render: (record: any) => Number(record.record.quantity || 0).toFixed(2),
+    },
+    {
+      title: '销售金额',
+      dataIndex: 'salesAmount',
+      width: 160,
+      align: 'right',
+      render: periodMoneyCell('salesAmount'),
+    },
+    {
+      title: '利润金额',
+      dataIndex: 'profitAmount',
+      width: 160,
+      align: 'right',
+      render: periodMoneyCell('profitAmount'),
+    },
+    {
+      title: '提成金额',
+      dataIndex: 'commissionAmount',
+      width: 160,
+      align: 'right',
+      render: periodMoneyCell('commissionAmount'),
+    },
+    {
+      title: '利润率',
+      dataIndex: 'profitRate',
+      width: 120,
+      align: 'right',
+      render: (record: any) => {
+        const row = record.record as CashierStatisticsPeriodRecord;
+        return h(
+          'span',
+          { class: row.isSummary ? 'summary-amount' : undefined },
+          `${Number(row.profitRate || 0).toFixed(2)}%`
+        );
+      },
+    },
+  ];
+  const periodTableData = computed<CashierStatisticsPeriodRecord[]>(() => {
+    if (!periodRecords.value.length) return [];
+    const totals = periodRecords.value.reduce(
+      (summary, record) => ({
+        quantity: summary.quantity + Number(record.quantity || 0),
+        salesAmount: summary.salesAmount + Number(record.salesAmount || 0),
+        profitAmount: summary.profitAmount + Number(record.profitAmount || 0),
+        commissionAmount:
+          summary.commissionAmount + Number(record.commissionAmount || 0),
+      }),
+      { quantity: 0, salesAmount: 0, profitAmount: 0, commissionAmount: 0 }
+    );
+    return [
+      {
+        rowNo: '合计',
+        date: '',
+        quantity: totals.quantity,
+        salesAmount: totals.salesAmount,
+        profitAmount: totals.profitAmount,
+        commissionAmount: totals.commissionAmount,
+        profitRate:
+          totals.salesAmount === 0
+            ? 0
+            : (totals.profitAmount * 100) / totals.salesAmount,
+        isSummary: true,
+      },
+      ...periodRecords.value,
+    ];
+  });
+  const periodRowClass = (record: CashierStatisticsPeriodRecord) =>
+    record.isSummary ? 'summary-row' : '';
+
   const fetchData = async () => {
     loading.value = true;
     try {
@@ -488,6 +689,18 @@
     detailVisible.value = true;
     fetchDetail();
   };
+  const showPeriodStatistics = (record: CashierStatisticsRecord) => {
+    if (record.cashierId === undefined || record.cashierId === null) return;
+    periodCashierId.value = record.cashierId;
+    periodCashierName.value = record.cashierName || '';
+    periodForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
+    periodForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    periodForm.statisticsType = 'day';
+    periodRecords.value = [];
+    periodVisible.value = true;
+    periodTimeSelectRef.value?.setPreset(2);
+    fetchPeriod();
+  };
   const resetDetail = () => {
     detailForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
     detailForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
@@ -497,6 +710,38 @@
   };
   const detailTimeSelectChange = (dates: string[]) => {
     [detailForm.startDate, detailForm.endDate] = dates;
+  };
+  const periodTimeSelectChange = (dates: string[], preset?: number) => {
+    [periodForm.startDate, periodForm.endDate] = dates;
+    if (preset === 3) {
+      periodForm.statisticsType = 'month';
+    } else if (preset === 4) {
+      periodForm.statisticsType = 'range';
+    } else {
+      periodForm.statisticsType = 'day';
+    }
+  };
+  const fetchPeriod = async () => {
+    if (periodCashierId.value === undefined || periodCashierId.value === null) {
+      return;
+    }
+    periodLoading.value = true;
+    try {
+      const { data } = await listCashierStatisticsPeriod({
+        cashierId: periodCashierId.value,
+        ...periodForm,
+      });
+      periodRecords.value = data || [];
+    } finally {
+      periodLoading.value = false;
+    }
+  };
+  const resetPeriod = () => {
+    periodForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
+    periodForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    periodForm.statisticsType = 'day';
+    periodTimeSelectRef.value?.setPreset(2);
+    fetchPeriod();
   };
   watch(
     () => detailForm.groupBy,
@@ -563,6 +808,41 @@
       item.rowNo,
       item.groupName,
       item.unit,
+      item.quantity,
+      item.salesAmount,
+      item.profitAmount,
+      item.commissionAmount,
+      `${Number(item.profitRate || 0).toFixed(2)}%`,
+    ]);
+    const blob = new Blob(
+      [
+        `\uFEFF${[
+          headers.join(','),
+          ...rows.map((row) => row.map(csvValue).join(',')),
+        ].join('\n')}`,
+      ],
+      { type: 'text/csv;charset=utf-8;' }
+    );
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = '营业员销售明细.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const exportPeriodCsv = () => {
+    const headers = [
+      '行号',
+      '日期',
+      '销售数量',
+      '销售金额',
+      '利润金额',
+      '提成金额',
+      '利润率',
+    ];
+    const rows = periodTableData.value.map((item) => [
+      item.rowNo,
+      item.date,
       item.quantity,
       item.salesAmount,
       item.profitAmount,
@@ -703,6 +983,70 @@
                 )}</th><th>单位</th>
                 <th>销售数量</th><th>销售金额</th><th>利润金额</th>
                 <th>提成金额</th><th>利润率</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    if (autoPrint) {
+      window.setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 100);
+    }
+  };
+
+  const printPeriod = (autoPrint: boolean) => {
+    if (!periodTableData.value.length) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const rows = periodTableData.value
+      .map(
+        (item) => `
+          <tr>
+            <td>${escapeHtml(item.rowNo)}</td>
+            <td>${escapeHtml(item.date)}</td>
+            <td class="amount">${Number(item.quantity || 0).toFixed(2)}</td>
+            <td class="amount">¥${formatPrice(
+              Number(item.salesAmount || 0)
+            )}</td>
+            <td class="amount">¥${formatPrice(
+              Number(item.profitAmount || 0)
+            )}</td>
+            <td class="amount">¥${formatPrice(
+              Number(item.commissionAmount || 0)
+            )}</td>
+            <td class="amount">${Number(item.profitRate || 0).toFixed(2)}%</td>
+          </tr>`
+      )
+      .join('');
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="zh-CN">
+        <head>
+          <meta charset="utf-8" />
+          <title>营业员销售明细</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 24px; color: #1d2129; font-family: Arial, "Microsoft YaHei", sans-serif; }
+            h1 { margin: 0 0 18px; text-align: center; font-size: 20px; }
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            th, td { padding: 8px; border: 1px solid #c9cdd4; text-align: center; }
+            th { background: #f2f3f5; font-weight: 600; }
+            td.amount { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>营业员销售明细</h1>
+          <div>营业员：${escapeHtml(periodCashierName.value)}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>行号</th><th>日期</th><th>销售数量</th><th>销售金额</th>
+                <th>利润金额</th><th>提成金额</th><th>利润率</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>

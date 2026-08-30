@@ -105,6 +105,7 @@
                 v-model:order-type="form.orderType"
                 :customer-id="form.customerId"
                 :show-goods-code="showGoodsCode"
+                :is-root="isRoot"
                 @change="updateAmount"
               ></item-table>
             </FormItem>

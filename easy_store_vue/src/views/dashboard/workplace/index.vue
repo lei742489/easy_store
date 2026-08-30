@@ -5,20 +5,12 @@
         <Banner />
         <!--        <DataPanel />-->
         <ContentMenu />
+        <MonthlySalesChart />
       </div>
     </div>
     <div class="right-side">
-      <a-grid :cols="24" :row-gap="16">
-        <a-grid-item class="panel" :span="24">
-          <Carousel />
-        </a-grid-item>
-        <a-grid-item class="panel" :span="24">
-          <Announcement />
-        </a-grid-item>
-        <!--        <a-grid-item class="panel" :span="24">
-          <Docs />
-        </a-grid-item>-->
-      </a-grid>
+      <HomeStatistics />
+      <Announcement class="announcement-panel" />
     </div>
   </div>
 </template>
@@ -27,7 +19,8 @@
   import Banner from './components/banner.vue';
   import ContentMenu from './components/content-menu.vue';
   import Announcement from './components/announcement.vue';
-  import Carousel from './components/carousel.vue';
+  import HomeStatistics from './components/home-statistics.vue';
+  import MonthlySalesChart from './components/monthly-sales-chart.vue';
 </script>
 
 <script lang="ts">
@@ -49,9 +42,18 @@
     overflow: auto;
   }
 
+  .left-side > .panel {
+    background-color: transparent;
+    overflow: visible;
+  }
+
   .right-side {
     width: 280px;
     margin-left: 16px;
+  }
+
+  .announcement-panel {
+    margin-top: 16px;
   }
 
   .panel {

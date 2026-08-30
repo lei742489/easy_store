@@ -47,6 +47,7 @@ public class AppPermissionInitializer {
         repairStockWarningMenu();
         repairStockCheckMenu();
         repairOrderEntryMenus();
+        repairReportMenus();
     }
 
     private void createTables() {
@@ -370,9 +371,9 @@ public class AppPermissionInitializer {
         insertMenu("stock_warning", "purchase", "进货/库存", "库存预警", "cc2.png", "/custom/stockWarning", "", 280, 1, 0, 0);
         insertMenu("stock_check", "purchase", "进货/库存", "库存盘点", "cc3.png", "/custom/stockCheck", "", 290, 1, 0, 0);
 
-        insertMenu("fund_stats", "report", "统计报告", "资金统计", "tj1.png", "/custom/fundStatistics", "", 310, 1, 0, 0);
-        insertMenu("profit_stats", "report", "统计报告", "利润统计", "tj2.png", "/custom/profitStatistics", "", 320, 1, 0, 0);
-        insertMenu("cashier_stats", "report", "统计报告", "营业员统计", "tj3.png", "/custom/cashierStatistics", "", 330, 1, 0, 0);
+        insertMenu("fund_stats", "other", "其它功能", "资金统计", "tj1.png", "/custom/fundStatistics", "", 400, 1, 0, 0);
+        insertMenu("profit_stats", "other", "其它功能", "利润统计", "tj2.png", "/custom/profitStatistics", "", 401, 1, 0, 0);
+        insertMenu("cashier_stats", "other", "其它功能", "营业员统计", "tj3.png", "/custom/cashierStatistics", "", 402, 1, 0, 0);
 
         insertMenu("app_user", "other", "其它功能", "员工管理", "icon-user-group", "/custom/appUser", "", 410, 1, 1, 0);
         insertMenu("app_role", "other", "其它功能", "角色管理", "icon-safe", "/custom/appRole", "", 420, 1, 1, 0);
@@ -456,6 +457,15 @@ public class AppPermissionInitializer {
         updateOrderEntryMenu("receive_payment_add", "/custom/receivePaymentVoucher/add");
         updateOrderEntryMenu("purchase_order_add", "/custom/purchaseOrder/add");
         updateOrderEntryMenu("payment_add", "/custom/paymentVoucher/add");
+    }
+
+    private void repairReportMenus() {
+        jdbcTemplate.update("UPDATE app_home_menu SET group_code = ?, group_title = ?, sort_no = ? WHERE code = ?",
+                "other", "其它功能", 400, "fund_stats");
+        jdbcTemplate.update("UPDATE app_home_menu SET group_code = ?, group_title = ?, sort_no = ? WHERE code = ?",
+                "other", "其它功能", 401, "profit_stats");
+        jdbcTemplate.update("UPDATE app_home_menu SET group_code = ?, group_title = ?, sort_no = ? WHERE code = ?",
+                "other", "其它功能", 402, "cashier_stats");
     }
 
     private void updateOrderEntryMenu(String code, String url) {

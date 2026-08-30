@@ -18,7 +18,7 @@
 
         <view class="filter-actions">
           <button class="more-filter-button" @click="openMoreFilters">
-            <text>展开更多</text>
+            <text>筛选</text>
             <uni-icons type="down" color="#722ed1" :size="16" />
             <text v-if="activeFilterCount" class="filter-count">{{ activeFilterCount }}</text>
           </button>

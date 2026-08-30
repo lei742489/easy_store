@@ -15,6 +15,9 @@ export const pendingApproveCounts = () =>
 export const listSaleOrders = (data) =>
   request({ url: '/api/user/appSaleOrder/listPage', data })
 
+export const listPurchaseOrders = (data) =>
+  request({ url: '/api/user/appPurchaseOrder/listPage', data })
+
 export const listGoods = (data) =>
   request({ url: '/api/user/appGoods/listQuotePage', data })
 
@@ -32,6 +35,39 @@ export const listGoodsUnits = () =>
 
 export const listGoodsSuppliers = () =>
   request({ url: '/api/user/appSupplier/list', data: {} })
+
+export const listCustomerPage = (data) =>
+  request({ url: '/api/user/customer/listPage', data })
+
+export const listSupplierPage = (data) =>
+  request({ url: '/api/user/appSupplier/listPage', data })
+
+export const addCustomer = (data) =>
+  request({ url: '/api/user/customer/add', data })
+
+export const editCustomer = (data) =>
+  request({ url: '/api/user/customer/edit', data })
+
+export const removeCustomer = (id) =>
+  request({ url: '/api/user/customer/remove', data: { id } })
+
+export const listCustomers = () =>
+  request({ url: '/api/user/customer/list', data: {} })
+
+export const listCustomerCategories = () =>
+  request({ url: '/api/user/customer/category/list', data: {} })
+
+export const listCustomerLevels = () =>
+  request({ url: '/api/user/customer/level/list', data: {} })
+
+export const addSupplier = (data) =>
+  request({ url: '/api/user/appSupplier/add', data })
+
+export const editSupplier = (data) =>
+  request({ url: '/api/user/appSupplier/edit', data })
+
+export const removeSupplier = (id) =>
+  request({ url: '/api/user/appSupplier/remove', data: { id } })
 
 export const listGoodsCategories = () =>
   request({ url: '/api/user/goods/category/list', data: {} })

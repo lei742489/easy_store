@@ -38,9 +38,15 @@
     }
   };
 
+  const hasOpenState = () =>
+    window.history.state?.openAt !== undefined &&
+    window.history.state?.openAt !== null;
+
   const openNewOrder = async (force = false) => {
     await nextTick();
-    const openKey = `${route.fullPath}:${window.history.state?.openAt || ''}`;
+    if (!force && !hasOpenState()) return;
+    const historyState = window.history.state || {};
+    const openKey = `${route.fullPath}:${historyState.openAt || ''}:${historyState.editItem || ''}`;
     if (!force && lastOpenKey.value === openKey) return;
     lastOpenKey.value = openKey;
     formModalRef.value?.showModal(getEditItem());

@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -162,6 +163,96 @@ public class AppCashierStatisticsController {
             records.add(record);
         }
         return Result.ok(records);
+    }
+
+    @PostMapping("period")
+    public Result<?> period(@RequestBody JSONObject param) {
+        AppUser currentUser = currentUser(param);
+        String cashierId = param.getString("cashierId");
+        if (StringUtils.isEmpty(cashierId)) {
+            throw new AppRunTimeException("请选择营业员");
+        }
+        if (!isRoot(currentUser) && !cashierId.equals(String.valueOf(currentUser.getId()))) {
+            throw new AppRunTimeException("无权查看其他营业员统计");
+        }
+        AppUser cashier = userService.getById(cashierId);
+        if (cashier == null) {
+            throw new AppRunTimeException("营业员不存在或已删除");
+        }
+
+        String statisticsType = param.getString("statisticsType");
+        if (!"month".equals(statisticsType) && !"range".equals(statisticsType)) {
+            statisticsType = "day";
+        }
+        String startDate = param.getString("startDate");
+        String endDate = param.getString("endDate");
+        Long startTime = parseStartTime(startDate);
+        Long endTime = parseEndTime(endDate);
+        validateRange(startTime, endTime);
+        QueryCondition condition = buildCondition(param, currentUser, startTime, endTime);
+        double commissionRate = normalizeRate(cashier.getCommissionRate());
+
+        String aggregateFields = "COALESCE(SUM(i.quantity), 0) AS quantity, " +
+                "COALESCE(SUM(" + DISCOUNTED_AMOUNT_SQL + "), 0) AS salesAmount, " +
+                "COALESCE(SUM(COALESCE(i.gross_profit, 0)), 0) AS profitAmount";
+        JSONArray records = new JSONArray();
+        if ("range".equals(statisticsType)) {
+            String sql = "SELECT " + aggregateFields + baseSql() + condition.whereSql;
+            Map<String, Object> row = jdbcTemplate.queryForMap(sql, condition.params.toArray());
+            records.add(buildPeriodRecord(1, startDate == null ? "" : startDate +
+                    (StringUtils.isEmpty(endDate) ? "" : " 至 " + endDate), row, commissionRate));
+        } else {
+            boolean monthly = "month".equals(statisticsType);
+            String bucketSql = databaseDialect.dateBucket(saleBusinessTimeSql(), monthly);
+            String sql = "SELECT " + bucketSql + " AS periodDate, " + aggregateFields +
+                    baseSql() + condition.whereSql + " GROUP BY " + bucketSql +
+                    " ORDER BY periodDate";
+            Map<String, Map<String, Object>> rowsByPeriod = new HashMap<>();
+            for (Map<String, Object> row : jdbcTemplate.queryForList(sql, condition.params.toArray())) {
+                rowsByPeriod.put(stringValue(row.get("periodDate")), row);
+            }
+            if (startDate != null && endDate != null) {
+                LocalDate cursor = LocalDate.parse(startDate, DATE_FORMATTER);
+                LocalDate rangeEnd = LocalDate.parse(endDate, DATE_FORMATTER);
+                int rowNo = 1;
+                while (!cursor.isAfter(rangeEnd)) {
+                    String periodDate = monthly
+                            ? cursor.withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                            : cursor.format(DATE_FORMATTER);
+                    Map<String, Object> row = rowsByPeriod.get(periodDate);
+                    records.add(buildPeriodRecord(rowNo++, periodDate,
+                            row == null ? new HashMap<String, Object>() : row, commissionRate));
+                    cursor = monthly
+                            ? cursor.withDayOfMonth(1).plusMonths(1)
+                            : cursor.plusDays(1);
+                    if (monthly && cursor.getDayOfMonth() != 1) {
+                        cursor = cursor.withDayOfMonth(1);
+                    }
+                }
+            } else {
+                int rowNo = 1;
+                for (Map.Entry<String, Map<String, Object>> entry : rowsByPeriod.entrySet()) {
+                    records.add(buildPeriodRecord(rowNo++, entry.getKey(), entry.getValue(), commissionRate));
+                }
+            }
+        }
+        return Result.ok(records);
+    }
+
+    private JSONObject buildPeriodRecord(int rowNo, String date, Map<String, Object> row,
+                                         double commissionRate) {
+        double salesAmount = numberValue(row.get("salesAmount"));
+        double profitAmount = numberValue(row.get("profitAmount"));
+        JSONObject record = new JSONObject();
+        record.put("rowNo", rowNo);
+        record.put("date", date);
+        record.put("quantity", numberValue(row.get("quantity")));
+        record.put("salesAmount", salesAmount);
+        record.put("costAmount", salesAmount - profitAmount);
+        record.put("profitAmount", profitAmount);
+        record.put("commissionAmount", profitAmount * commissionRate / 100D);
+        record.put("profitRate", calculateRate(profitAmount, salesAmount));
+        return record;
     }
 
     private JSONObject buildRecord(int rowNo, Map<String, Object> row) {

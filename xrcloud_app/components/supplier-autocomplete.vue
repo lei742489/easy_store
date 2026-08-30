@@ -1,7 +1,7 @@
 <template>
-  <view class="customer-select">
+  <view class="supplier-select">
     <view class="input-wrap" @click="openSelectPage">
-      <text class="customer-text" :class="{ placeholder: !modelValue }">
+      <text class="supplier-text" :class="{ placeholder: !modelValue }">
         {{ modelValue || placeholder }}
       </text>
       <uni-icons
@@ -33,7 +33,7 @@ export default {
   methods: {
     openSelectPage() {
       uni.navigateTo({
-        url: `/pages/partner-select/index?mode=customer&title=${encodeURIComponent('客户查询')}&keyword=${encodeURIComponent(this.modelValue || '')}`,
+        url: `/pages/partner-select/index?mode=supplier&title=${encodeURIComponent('供应商查询')}&keyword=${encodeURIComponent(this.modelValue || '')}`,
         success: (res) => {
           const channel = res && res.eventChannel
           if (!channel) return
@@ -55,7 +55,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.customer-select {
+.supplier-select {
   position: relative;
   width: 100%;
 }
@@ -73,7 +73,7 @@ export default {
   border-radius: 10rpx;
 }
 
-.customer-text {
+.supplier-text {
   flex: 1;
   min-width: 0;
   margin-right: 12rpx;

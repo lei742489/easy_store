@@ -291,6 +291,7 @@
       entryStyle?: boolean;
       initialRows?: number;
       showGoodsCode?: boolean;
+      isRoot?: boolean;
     }>(),
     {
       goodsSearchPanel: false,
@@ -298,6 +299,7 @@
       entryStyle: false,
       initialRows: 10,
       showGoodsCode: true,
+      isRoot: false,
     }
   );
 
@@ -623,7 +625,9 @@
   };
 
   const isBelowCostPrice = (goodsItem: OrderItemRow) => {
-    if (!props.goodsSearchPanel || isPurchaseGoodsSearch) return false;
+    if (!props.isRoot || !props.goodsSearchPanel || isPurchaseGoodsSearch) {
+      return false;
+    }
     const unitPrice = Number(goodsItem.unitPrice);
     const costPrice = Number(goodsItem.costPrice);
     return (

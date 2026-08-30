@@ -21,16 +21,21 @@
   }
   const props = defineProps<{
     defaultTimeIdx?: number;
+    hideToday?: boolean;
   }>();
 
   const timeIdx = ref<number>();
 
   const timeSelect = ref<string[]>([]);
   const timeMenu = reactive<MenuItem[]>([
-    {
-      value: 1,
-      label: '今日',
-    },
+    ...(props.hideToday
+      ? []
+      : [
+          {
+            value: 1,
+            label: '今日',
+          },
+        ]),
     {
       value: 2,
       label: '本月',
@@ -46,11 +51,11 @@
   ]);
 
   const emit = defineEmits<{
-    (e: 'change', data: string[]): void;
+    (e: 'change', data: string[], preset?: number): void;
   }>();
 
   const onChange = (e: string[]) => {
-    emit('change', e);
+    emit('change', e, 4);
     timeIdx.value = 4;
   };
 
@@ -78,7 +83,7 @@
     }
 
     timeSelect.value = [begin, end];
-    emit('change', timeSelect.value);
+    emit('change', timeSelect.value, newVal);
   };
 
   const setPreset = (value: number) => {

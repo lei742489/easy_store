@@ -30,6 +30,13 @@ export interface SaleStatisticsResult {
   records?: SaleStatisticsRecord[];
 }
 
+export interface MonthlySaleStatisticsRecord {
+  rowNo?: number;
+  date?: string;
+  salesAmount?: number;
+  profitAmount?: number;
+}
+
 export interface SaleStatisticsDetail {
   rowNo?: number | string;
   orderNo?: string;
@@ -59,6 +66,16 @@ export function listSaleStatisticsDetail(
 ) {
   return axios.post<SaleStatisticsDetail[]>(
     'api/user/appSaleStatistics/detail',
+    data
+  );
+}
+
+export function listMonthlySaleStatistics(data: {
+  startDate: string;
+  endDate: string;
+}) {
+  return axios.post<MonthlySaleStatisticsRecord[]>(
+    'api/user/appSaleStatistics/monthly',
     data
   );
 }
