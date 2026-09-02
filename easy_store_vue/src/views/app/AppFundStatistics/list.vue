@@ -114,6 +114,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { useRouter } from 'vue-router';
+  import { useUserStore } from '@/store';
   import { formatPrice } from '@/api/common';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
@@ -125,6 +126,7 @@
   } from './api';
 
   const router = useRouter();
+  const userStore = useUserStore();
   const loading = ref(false);
   const records = ref<FundStatisticsRecord[]>([]);
   const result = reactive<FundStatisticsResult>({});
@@ -212,6 +214,7 @@
     itemLoading.value = true;
     try {
       const { data } = await listFundStatisticsItems({
+        userId: userStore.id,
         itemType: form.itemType === 'all' ? undefined : form.itemType,
       });
       const options: Array<{ label: string; value: string }> = [];
@@ -230,6 +233,7 @@
     try {
       const { data } = await listFundStatistics({
         ...form,
+        userId: userStore.id,
         itemType: form.itemType === 'all' ? undefined : form.itemType,
       });
       Object.assign(result, data || {});
@@ -257,7 +261,11 @@
     if (!record.itemKey) return;
     router.push({
       name: 'FundStatisticsDetail',
-      query: { itemKey: record.itemKey },
+      query: {
+        itemKey: record.itemKey,
+        startDate: form.startDate,
+        endDate: form.endDate,
+      },
     });
   };
 

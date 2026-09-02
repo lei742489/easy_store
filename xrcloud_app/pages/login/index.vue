@@ -50,7 +50,14 @@
 <script>
 import { APP_NAME } from '../../common/config'
 import { login, getUserInfo } from '../../common/api'
-import { getToken, saveSession, updateUser, clearSession } from '../../common/auth'
+import {
+  getToken,
+  saveSession,
+  updateUser,
+  clearSession,
+  getLastLoginUsername,
+  saveLastLoginUsername
+} from '../../common/auth'
 
 export default {
   data() {
@@ -59,7 +66,7 @@ export default {
       loading: false,
       appVersion: '1.0.0',
       appName: APP_NAME,
-      form: { username: '', password: '' }
+      form: { username: getLastLoginUsername(), password: '' }
     }
   },
   onLoad() {
@@ -81,6 +88,7 @@ export default {
       uni.showLoading({ title: '登录中...', mask: true })
       try {
         const user = await login({ username, password })
+        saveLastLoginUsername(username)
         saveSession(user)
         const currentUser = await getUserInfo()
         updateUser({ ...user, ...currentUser, token: user.token })

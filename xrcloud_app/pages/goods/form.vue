@@ -498,9 +498,13 @@ export default {
     buildPayload() {
       const payload = { ...this.form, userId: this.user.id }
       if (this.isEdit) payload.id = this.goodsId
-      ;['initCost', 'initStock', 'stock', 'stockCost', 'costPrice', 'salePrc', 'tradePrc', 'purPrc', 'maxStock', 'minStock'].forEach((field) => {
+      ;['initCost', 'stockCost', 'costPrice', 'salePrc', 'tradePrc', 'purPrc'].forEach((field) => {
         if (payload[field] === '' || payload[field] === null || payload[field] === undefined) delete payload[field]
         else payload[field] = Number(payload[field])
+      })
+      ;['initStock', 'stock', 'maxStock', 'minStock'].forEach((field) => {
+        if (payload[field] === '' || payload[field] === null || payload[field] === undefined) delete payload[field]
+        else payload[field] = Math.round(Number(payload[field]) * 100) / 100
       })
       if (payload.categoryId !== '') payload.categoryId = String(payload.categoryId)
       if (payload.supplierId !== '') payload.supplierId = String(payload.supplierId)

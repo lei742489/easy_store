@@ -68,6 +68,10 @@
       dataIndex: 'goodsId_dictText',
       align: 'center',
       width: 300,
+      render: (record:any) => {
+        const data = record.record;
+        return data.goodsName || data.goodsId_dictText
+      },
     },
     {
       title: '单位',

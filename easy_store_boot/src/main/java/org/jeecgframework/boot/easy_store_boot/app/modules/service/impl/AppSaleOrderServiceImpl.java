@@ -150,10 +150,28 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     public Double sumPayableAmountByCustomer(String customerId) {
         if(customerId == null)
             return 0.0;
-        QueryWrapper<AppSaleOrder> wrapper = new QueryWrapper<>();
-        wrapper.select("COALESCE(SUM(payable_amount), 0.00) as total").eq("customer_id", customerId).eq("status", 1);
-        Map<String,Object> map= getMap(wrapper);
-        return Double.parseDouble(map.get("total").toString());
+        String debtAmountSql =
+                "CASE WHEN COALESCE(receive_item.linked_amount, 0) > 0 " +
+                        "THEN COALESCE(app_sale_order.payable_amount, 0) " +
+                        "ELSE COALESCE(app_sale_order.unpaid_amount, " +
+                        "COALESCE(app_sale_order.payable_amount, 0) - " +
+                        "COALESCE(app_sale_order.paid_amount, 0)) END";
+        String sql = "SELECT COALESCE(SUM(" + debtAmountSql + "), 0) " +
+                "FROM app_sale_order " +
+                "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
+                "FROM app_receive_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_receive_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) receive_item " +
+                "ON app_sale_order.order_no = receive_item.order_no " +
+                "WHERE app_sale_order.customer_id = ? " +
+                "AND app_sale_order.status = 1 " +
+                "AND COALESCE(app_sale_order.is_del, 0) = 0 " +
+                "AND (COALESCE(receive_item.linked_amount, 0) > 0 " +
+                "OR ABS(COALESCE(app_sale_order.payable_amount, 0) - " +
+                "COALESCE(app_sale_order.paid_amount, 0)) >= 0.005) " +
+                "AND ABS(" + debtAmountSql + ") >= 0.005";
+        Number total = jdbcTemplate.queryForObject(sql, Number.class, customerId);
+        return total == null ? 0.0 : total.doubleValue();
     }
 
     @Override
@@ -418,7 +436,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
         goods.setTradePrc(item.getUnitPrice());
         goods.setPurPrc(0.0);
         goods.setInitCost(0);
-        goods.setStock(0);
+        goods.setStock(0D);
         goods.setStatus(1);
         appGoodsService.save(goods);
         return goods;
@@ -453,7 +471,7 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     private BigDecimal resolveCostPrice(AppGoods goods) {
         if(goods == null) return BigDecimal.ZERO;
         BigDecimal costPrice = decimal(goods.getCostPrice());
-        Integer stock = goods.getStock();
+        Double stock = goods.getStock();
         if(costPrice.compareTo(BigDecimal.ZERO) != 0 || stock == null || stock > 0) {
             return costPrice;
         }

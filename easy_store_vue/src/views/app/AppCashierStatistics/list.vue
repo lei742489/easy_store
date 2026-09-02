@@ -342,6 +342,16 @@
     total: 0,
   });
 
+  const numericSorter = (field: string): TableColumnData['sortable'] => ({
+    sortDirections: ['ascend', 'descend'],
+    sorter: (a, b, { direction }) => {
+      if (a.isSummary) return b.isSummary ? 0 : -1;
+      if (b.isSummary) return 1;
+      const result = Number(a[field] || 0) - Number(b[field] || 0);
+      return direction === 'descend' ? -result : result;
+    },
+  });
+
   const amountClass = (value: number, isSummary?: boolean) => {
     if (isSummary) return 'summary-amount';
     return value < 0 ? 'danger-amount' : undefined;
@@ -466,6 +476,7 @@
       dataIndex: 'quantity',
       width: 120,
       align: 'right',
+      sortable: numericSorter('quantity'),
       render: (record: any) => Number(record.record.quantity || 0).toFixed(2),
     },
     {
@@ -473,6 +484,7 @@
       dataIndex: 'salesAmount',
       width: 150,
       align: 'right',
+      sortable: numericSorter('salesAmount'),
       render: detailMoneyCell('salesAmount'),
     },
     {
@@ -480,6 +492,7 @@
       dataIndex: 'profitAmount',
       width: 150,
       align: 'right',
+      sortable: numericSorter('profitAmount'),
       render: detailMoneyCell('profitAmount'),
     },
     {
@@ -487,6 +500,7 @@
       dataIndex: 'commissionAmount',
       width: 150,
       align: 'right',
+      sortable: numericSorter('commissionAmount'),
       render: detailMoneyCell('commissionAmount'),
     },
     {
@@ -494,6 +508,7 @@
       dataIndex: 'profitRate',
       width: 120,
       align: 'right',
+      sortable: numericSorter('profitRate'),
       render: (record: any) =>
         `${Number(record.record.profitRate || 0).toFixed(2)}%`,
     },
@@ -554,6 +569,7 @@
       dataIndex: 'quantity',
       width: 140,
       align: 'right',
+      sortable: numericSorter('quantity'),
       render: (record: any) => Number(record.record.quantity || 0).toFixed(2),
     },
     {
@@ -561,6 +577,7 @@
       dataIndex: 'salesAmount',
       width: 160,
       align: 'right',
+      sortable: numericSorter('salesAmount'),
       render: periodMoneyCell('salesAmount'),
     },
     {
@@ -568,6 +585,7 @@
       dataIndex: 'profitAmount',
       width: 160,
       align: 'right',
+      sortable: numericSorter('profitAmount'),
       render: periodMoneyCell('profitAmount'),
     },
     {
@@ -575,6 +593,7 @@
       dataIndex: 'commissionAmount',
       width: 160,
       align: 'right',
+      sortable: numericSorter('commissionAmount'),
       render: periodMoneyCell('commissionAmount'),
     },
     {
@@ -582,6 +601,7 @@
       dataIndex: 'profitRate',
       width: 120,
       align: 'right',
+      sortable: numericSorter('profitRate'),
       render: (record: any) => {
         const row = record.record as CashierStatisticsPeriodRecord;
         return h(

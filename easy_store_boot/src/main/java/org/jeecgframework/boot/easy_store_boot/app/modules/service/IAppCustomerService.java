@@ -15,4 +15,6 @@ public interface IAppCustomerService extends IService<AppCustomer> {
     void setDefLevel(Integer levelId);
 
     Double updatePayable(String supplerId);
+
+    int refreshAllPayable();
 }

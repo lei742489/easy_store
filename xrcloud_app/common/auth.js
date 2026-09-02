@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'easy-store-app-token'
 const USER_KEY = 'easy-store-app-user'
+const LOGIN_USERNAME_KEY = 'easy-store-app-login-username'
 
 const sanitizeUser = (user) => {
   if (!user) return null
@@ -8,6 +9,13 @@ const sanitizeUser = (user) => {
 }
 
 export const getToken = () => uni.getStorageSync(TOKEN_KEY) || ''
+
+export const getLastLoginUsername = () =>
+  uni.getStorageSync(LOGIN_USERNAME_KEY) || ''
+
+export const saveLastLoginUsername = (username) => {
+  uni.setStorageSync(LOGIN_USERNAME_KEY, String(username || '').trim())
+}
 
 export const getUser = () => {
   const value = uni.getStorageSync(USER_KEY)

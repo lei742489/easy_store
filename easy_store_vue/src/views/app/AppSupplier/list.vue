@@ -72,6 +72,17 @@
               </template>
               导出
             </a-button>
+            <!--
+            <a-button
+              :loading="payableRefreshLoading"
+              @click="refreshPayableData"
+            >
+              <template #icon>
+                <icon-refresh />
+              </template>
+              刷新付款金额
+            </a-button>
+            -->
           </a-space>
         </a-col>
 
@@ -182,6 +193,7 @@
     listPage,
     remove,
     exportXlsFile,
+    refreshPayable,
     importExcel,
     searchKey,
   } from './api/api-AppSupplier';
@@ -194,6 +206,7 @@
     null
   );
   const uploadLoading = ref<boolean>(false);
+  const payableRefreshLoading = ref<boolean>(false);
 
   const densityList = computed(() => [
     {
@@ -359,6 +372,18 @@
     await remove(data);
     Message.success('操作成功');
     search();
+  };
+
+  const refreshPayableData = async () => {
+    if (payableRefreshLoading.value) return;
+    payableRefreshLoading.value = true;
+    try {
+      const { data } = await refreshPayable();
+      Message.success(`已刷新${data || 0}个供应商的应付金额`);
+      await search();
+    } finally {
+      payableRefreshLoading.value = false;
+    }
   };
 
   const handelEdit = (item: AppSupplier) => {

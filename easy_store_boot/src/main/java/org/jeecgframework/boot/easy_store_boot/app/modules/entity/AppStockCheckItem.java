@@ -42,15 +42,15 @@ public class AppStockCheckItem implements Serializable {
 
     @ApiModelProperty("账存数量")
     @Excel(name = "账存数量", width = 12, numFormat = "0.00")
-    private Integer bookQuantity;
+    private Double bookQuantity;
 
     @ApiModelProperty("实际数量")
     @Excel(name = "实际数量", width = 12, numFormat = "0.00")
-    private Integer actualQuantity;
+    private Double actualQuantity;
 
     @ApiModelProperty("盈亏数量")
     @Excel(name = "盈亏数量", width = 12, numFormat = "0.00")
-    private Integer profitLossQuantity;
+    private Double profitLossQuantity;
 
     @ApiModelProperty("成本单价")
     @Excel(name = "单价", width = 12, numFormat = "0.00")

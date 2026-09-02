@@ -10,6 +10,7 @@
     </div>
     <div class="right-side">
       <HomeStatistics />
+      <EmployeeSalesTop />
       <Announcement class="announcement-panel" />
     </div>
   </div>
@@ -19,6 +20,7 @@
   import Banner from './components/banner.vue';
   import ContentMenu from './components/content-menu.vue';
   import Announcement from './components/announcement.vue';
+  import EmployeeSalesTop from './components/employee-sales-top.vue';
   import HomeStatistics from './components/home-statistics.vue';
   import MonthlySalesChart from './components/monthly-sales-chart.vue';
 </script>

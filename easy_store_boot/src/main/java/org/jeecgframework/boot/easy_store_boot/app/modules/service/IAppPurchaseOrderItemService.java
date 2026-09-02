@@ -20,8 +20,8 @@ public interface IAppPurchaseOrderItemService extends IService<AppPurchaseOrderI
 
     void batchUpdateGoodsStore(List<AppPurchaseOrderItem> updateList);
 
-    Integer sumQuantityGoodsId(String goodsId);
+    Double sumQuantityGoodsId(String goodsId);
 
-    void insertInitStore(String goodsId,Integer store);
+    void insertInitStore(String goodsId, Double store);
 
 }

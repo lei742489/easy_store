@@ -75,4 +75,9 @@ public class AppSupplierController extends ApiBaseController<AppSupplier, IAppSu
         return Result.ok(service.list(wrapper));
     }
 
+    @PostMapping("refreshPayable")
+    public Result<?> refreshPayable() {
+        return Result.ok(service.refreshAllPayable());
+    }
+
 }

@@ -116,6 +116,7 @@
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
   import SupplierSelect from '@/views/app/AppSupplier/components/SupplierSelectModal.vue';
+  import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     PayableDetailRecord,
@@ -458,6 +459,20 @@
     result.endingTotal = 0;
   };
 
+  const resolveSupplierId = async () => {
+    const value = String(form.supplierId ?? '').trim();
+    if (!value) return undefined;
+    if (/^\d+$/.test(value)) return Number(value);
+
+    const { data } = await getSupplierList(value);
+    const suppliers = data || [];
+    const supplier = suppliers.find((item) => item.name === value);
+    if (supplier?.id !== undefined && supplier.id !== null) {
+      return supplier.id;
+    }
+    return suppliers.length === 1 ? suppliers[0].id : undefined;
+  };
+
   const search = async () => {
     if (!isStatistics.value && !form.supplierId) {
       resetResult();
@@ -466,7 +481,18 @@
     }
     loading.value = true;
     try {
-      const query = { ...form };
+      const supplierId = form.supplierId
+        ? await resolveSupplierId()
+        : undefined;
+      if (
+        form.supplierId &&
+        (supplierId === undefined || supplierId === null)
+      ) {
+        resetResult();
+        Message.warning('璇烽€夋嫨鏈夋晥鐨勪緵搴斿晢');
+        return;
+      }
+      const query = { ...form, supplierId };
       if (isStatement.value) {
         const { data } = await listPayableStatement(query);
         Object.assign(result, data || {});
@@ -479,6 +505,9 @@
         const { data } = await listPayableDetail(query);
         Object.assign(result, data || {});
         records.value = data?.records || [];
+      }
+      if (result.supplierName) {
+        form.supplierId = result.supplierName;
       }
     } finally {
       loading.value = false;

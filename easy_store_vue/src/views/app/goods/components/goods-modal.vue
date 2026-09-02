@@ -58,8 +58,26 @@
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item field="imgUrl" label="缩略图">
-                <image-upload ref="uploadRef" v-model="form.imgUrl" />
+              <a-form-item
+                field="imgUrl"
+                label="缩略图"
+                :label-col-props="{ span: 24 }"
+                :wrapper-col-props="{ span: 24 }"
+                class="thumbnail-form-item"
+              >
+                <div class="thumbnail-field">
+                  <image-upload ref="uploadRef" v-model="form.imgUrl" />
+                  <a-button
+                    v-if="form.imgUrl"
+                    class="image-preview-button"
+                    type="text"
+                    size="small"
+                    @click="openImagePreview"
+                  >
+                    <template #icon><icon-eye /></template>
+                    预览
+                  </a-button>
+                </div>
               </a-form-item>
             </a-col>
           </a-row>
@@ -115,6 +133,7 @@
                   placeholder="0"
                   :disabled="true"
                   :min="0"
+                  :precision="2"
                 />
               </a-form-item>
             </a-col>
@@ -126,6 +145,7 @@
                   :disabled="form.id !== undefined"
                   placeholder="0"
                   :min="0"
+                  :precision="2"
                 />
               </a-form-item>
             </a-col>
@@ -192,6 +212,7 @@
                   v-model="form.maxStock"
                   placeholder="0"
                   :min="0"
+                  :precision="2"
                 />
               </a-form-item>
             </a-col>
@@ -201,6 +222,7 @@
                   v-model="form.minStock"
                   placeholder="0"
                   :min="0"
+                  :precision="2"
                 />
               </a-form-item>
             </a-col>
@@ -222,11 +244,23 @@
         </a-form>
       </div>
     </a-modal>
+
+    <a-modal
+      v-model:visible="imagePreviewVisible"
+      title="缩略图预览"
+      :footer="false"
+      :width="720"
+      :mask-closable="true"
+    >
+      <div class="image-preview-container">
+        <img :src="previewImageUrl" alt="缩略图预览" />
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { reactive, ref } from 'vue';
+  import { computed, reactive, ref } from 'vue';
   import { Message } from '@arco-design/web-vue';
   import imageUpload from '@/components/upload/image-upload.vue';
   import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
@@ -243,6 +277,19 @@
   const supplierLoading = ref(false);
   const unitLoading = ref(false);
   const uploadRef = ref(null);
+  const imagePreviewVisible = ref(false);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  const previewImageUrl = computed(() => {
+    const imageUrl = String(form.imgUrl || '').trim();
+    if (!imageUrl) return '';
+    if (/^(https?:)?\/\//i.test(imageUrl) || /^(blob|data):/i.test(imageUrl)) {
+      return imageUrl;
+    }
+    return `${apiBaseUrl}/api/upload/static${
+      imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+    }`;
+  });
 
   const defaultForm: AppGoods = {
     id: undefined,
@@ -310,9 +357,15 @@
 
   const handleCancel = () => {
     visible.value = false;
+    imagePreviewVisible.value = false;
     Object.assign(form, defaultForm);
     supplierList.value = [];
     unitList.value = [];
+  };
+
+  const openImagePreview = () => {
+    if (!previewImageUrl.value) return;
+    imagePreviewVisible.value = true;
   };
 
   const handleOk = async () => {
@@ -375,5 +428,37 @@
 
   .del-icon:hover {
     transform: scale(1.5);
+  }
+
+  .image-preview-button {
+    position: absolute;
+    left: -65px;
+    top: 50px;
+    padding: 0;
+  }
+
+  .thumbnail-field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    position: relative;
+  }
+
+  .image-preview-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    max-height: 70vh;
+    overflow: auto;
+    background: var(--color-fill-2);
+  }
+
+  .image-preview-container img {
+    display: block;
+    max-width: 100%;
+    max-height: 65vh;
+    object-fit: contain;
   }
 </style>

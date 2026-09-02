@@ -75,9 +75,9 @@ public class AppPurchaseOrderItemServiceImpl extends ServiceImpl<AppPurchaseOrde
     }
 
     @Override
-    public Integer sumQuantityGoodsId(String goodsId) {
+    public Double sumQuantityGoodsId(String goodsId) {
         if(goodsId == null)
-         return 0;
+         return 0D;
         QueryWrapper<AppPurchaseOrderItem> wrapper = new QueryWrapper<>();
         wrapper.select("COALESCE(SUM(quantity), 0) as total")
                 .eq("goods_id", goodsId)
@@ -85,11 +85,11 @@ public class AppPurchaseOrderItemServiceImpl extends ServiceImpl<AppPurchaseOrde
                         .or()
                         .inSql("order_id", "select id from app_purchase_order where is_del = 0 and status = 1"));
         Map<String,Object> map= getMap(wrapper);
-        return Integer.parseInt(map.get("total").toString());
+        return Double.parseDouble(map.get("total").toString());
     }
 
     @Override
-    public void insertInitStore(String goodsId, Integer store) {
+    public void insertInitStore(String goodsId, Double store) {
         if(goodsId== null || store == null) return;
         AppPurchaseOrderItem orderItem  = getOne(new LambdaQueryWrapper<AppPurchaseOrderItem>().eq(AppPurchaseOrderItem::getGoodsId, goodsId).eq(AppPurchaseOrderItem::getIsInit,1).last("limit 1"));
         if(orderItem == null ) orderItem = new AppPurchaseOrderItem();

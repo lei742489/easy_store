@@ -105,14 +105,14 @@ public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, A
             }
             AppStockCheckItem oldItem = item.getId() == null ? null : oldItemMap.get(item.getId());
             boolean sameGoods = oldItem != null && StringUtils.equals(oldItem.getGoodsId(), goodsId);
-            int bookQuantity = sameGoods
-                    ? safeInt(oldItem.getBookQuantity())
-                    : safeInt(goods.getStock());
+            double bookQuantity = sameGoods
+                    ? safeDouble(oldItem.getBookQuantity())
+                    : safeDouble(goods.getStock());
             BigDecimal unitPrice = sameGoods
                     ? decimal(oldItem.getUnitPrice())
                     : decimal(goods.getCostPrice());
-            int actualQuantity = safeInt(item.getActualQuantity());
-            int profitLossQuantity = actualQuantity - bookQuantity;
+            double actualQuantity = safeDouble(item.getActualQuantity());
+            double profitLossQuantity = actualQuantity - bookQuantity;
             BigDecimal profitLossAmount = unitPrice.multiply(BigDecimal.valueOf(profitLossQuantity));
 
             item.setCheckId(entity.getId());
@@ -153,8 +153,8 @@ public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, A
         }
     }
 
-    private int safeInt(Integer value) {
-        return value == null ? 0 : value;
+    private double safeDouble(Double value) {
+        return value == null ? 0D : value;
     }
 
     private BigDecimal decimal(Number value) {

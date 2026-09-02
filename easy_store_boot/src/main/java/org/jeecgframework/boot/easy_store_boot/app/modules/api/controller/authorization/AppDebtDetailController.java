@@ -122,7 +122,9 @@ public class AppDebtDetailController {
                 SALE_DEBT_AMOUNT_SQL + " AS receivable_amount, 0 AS received_amount " +
                 "FROM app_sale_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_receive_payment_amount_item GROUP BY order_no) receive_item " +
+                "FROM app_receive_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_receive_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) receive_item " +
                 "ON app_sale_order.order_no = receive_item.order_no " +
                 "WHERE customer_id = ? AND status = 1 AND COALESCE(is_del, 0) = 0 " +
                 "AND " + SALE_DEBT_FILTER_SQL + " AND ABS(" + SALE_DEBT_AMOUNT_SQL + ") >= 0.005" +
@@ -165,7 +167,9 @@ public class AppDebtDetailController {
         String ownerCondition = cashierId == null ? "" : " AND cashier_id = ?";
         String sql = "SELECT COALESCE(SUM(" + SALE_DEBT_AMOUNT_SQL + "), 0) FROM app_sale_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_receive_payment_amount_item GROUP BY order_no) receive_item " +
+                "FROM app_receive_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_receive_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) receive_item " +
                 "ON app_sale_order.order_no = receive_item.order_no " +
                 "WHERE customer_id = ? AND status = 1 AND COALESCE(is_del, 0) = 0 " +
                 "AND " + SALE_DEBT_FILTER_SQL + " AND ABS(" + SALE_DEBT_AMOUNT_SQL + ") >= 0.005" +

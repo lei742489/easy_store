@@ -8,8 +8,11 @@
       size="small"
       :scroll="{ x: '100%', y: props.entryStyle ? 320 : 258 }"
       :scrollbar="true"
+      :hoverable="false"
       :summary="true"
       :class="{ 'entry-style-table': props.entryStyle }"
+      :row-class="orderRowClass"
+      @row-click="handleOrderRowClick"
     >
       <template #index="{ rowIndex }">
         {{ rowIndex + 1 }}
@@ -105,6 +108,7 @@
         <a-input-number
           v-if="orderType == 1"
           v-model="data[rowIndex].quantity"
+          :precision="2"
           :placeholder="props.entryStyle ? '0' : ''"
           @change="updateTotalAmount(data[rowIndex])"
         ></a-input-number>
@@ -112,6 +116,7 @@
         <a-input-number
           v-else
           v-model="data[rowIndex].quantity"
+          :precision="2"
           style="color: red"
           :placeholder="props.entryStyle ? '0' : ''"
           @change="(val:number | undefined) => handleNegativeChange(val, rowIndex, 1)"
@@ -349,6 +354,7 @@
   const goodsPanelTop = ref(0);
   const goodsPanelLeft = ref(0);
   const goodsPanelWidth = ref(0);
+  const activeOrderRow = ref<OrderItemRow | null>(null);
   const highlightedGoodsIndex = ref(0);
   const hideZeroStock = ref(true);
   const lastSearchToken = ref(0);
@@ -647,12 +653,31 @@
   const handleDocumentMouseDown = (event: MouseEvent) => {
     const root = itemFormRef.value;
     const target = event.target as Node;
+    const targetElement = target instanceof Element ? target : null;
+    const row = targetElement?.closest('.arco-table-tbody .arco-table-tr');
+    const tabBar = targetElement?.closest('.tab-bar-container');
     const panel = root?.querySelector('.goods-search-panel');
     const inputWrap = root?.querySelector(
       `[data-goods-${activeGoodsSearchField.value}-row="${activeGoodsRowIndex.value}"]`
     );
-    if (!root || panel?.contains(target) || inputWrap?.contains(target)) return;
+    if (!root) return;
+    if (tabBar) {
+      hideGoodsPanel();
+      return;
+    }
+    if (!row && !panel?.contains(target)) {
+      activeOrderRow.value = null;
+    }
+    if (panel?.contains(target) || inputWrap?.contains(target)) return;
     hideGoodsPanel();
+  };
+
+  const handleOrderRowClick = (record: OrderItemRow) => {
+    activeOrderRow.value = record;
+  };
+
+  const orderRowClass = (record: OrderItemRow) => {
+    return activeOrderRow.value === record ? 'active-order-item-row' : '';
   };
 
   const initItemList = (size: number) => {
@@ -695,6 +720,7 @@
       data.value = [];
       initItemList(0);
     }
+    activeOrderRow.value = null;
     const res = await searchKey('', 1);
     goodsSearchData.value = res.data;
   };
@@ -838,6 +864,7 @@
 
   const clearAll = () => {
     data.value = [];
+    activeOrderRow.value = null;
     initItemList(0);
     emitChange();
   };
@@ -925,6 +952,11 @@
       line-height: 35px;
       white-space: nowrap;
     }
+
+    :deep(.active-order-item-row > .arco-table-td) {
+      background: rgb(var(--purple-1),0.7);
+    }
+
   }
 
   .entry-row-count {

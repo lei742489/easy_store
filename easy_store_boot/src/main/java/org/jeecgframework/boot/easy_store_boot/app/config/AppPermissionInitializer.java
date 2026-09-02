@@ -127,9 +127,9 @@ public class AppPermissionInitializer {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                 "goods_id TEXT NOT NULL," +
                 "unit TEXT," +
-                "book_quantity INTEGER DEFAULT 0," +
-                "actual_quantity INTEGER DEFAULT 0," +
-                "profit_loss_quantity INTEGER DEFAULT 0," +
+                "book_quantity REAL DEFAULT 0," +
+                "actual_quantity REAL DEFAULT 0," +
+                "profit_loss_quantity REAL DEFAULT 0," +
                 "unit_price REAL DEFAULT 0," +
                 "profit_loss_amount REAL DEFAULT 0," +
                 "check_id INTEGER NOT NULL," +

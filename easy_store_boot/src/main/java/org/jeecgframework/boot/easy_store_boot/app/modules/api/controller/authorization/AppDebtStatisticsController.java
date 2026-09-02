@@ -166,7 +166,9 @@ public class AppDebtStatisticsController {
         return "SELECT app_sale_order.customer_id AS customerId, " +
                 "COALESCE(SUM(" + SALE_DEBT_AMOUNT_SQL + "), 0) AS amount FROM app_sale_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_receive_payment_amount_item GROUP BY order_no) receive_item " +
+                "FROM app_receive_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_receive_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) receive_item " +
                 "ON app_sale_order.order_no = receive_item.order_no " +
                 "WHERE app_sale_order.status = 1 " +
                 "AND COALESCE(app_sale_order.is_del, 0) = 0 " +

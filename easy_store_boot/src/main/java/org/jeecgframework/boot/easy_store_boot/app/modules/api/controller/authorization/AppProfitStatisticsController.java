@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jeecgframework.boot.easy_store_boot.app.common.CustomerSupplierKeywordResolver;
 import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
@@ -39,6 +40,8 @@ public class AppProfitStatisticsController {
     private IAppUserService userService;
     @Autowired
     private DatabaseDialect databaseDialect;
+    @Autowired
+    private CustomerSupplierKeywordResolver customerSupplierKeywordResolver;
 
     @PostMapping("list")
     public Result<?> list(@RequestBody JSONObject param) {
@@ -165,7 +168,7 @@ public class AppProfitStatisticsController {
 
         String cashierId = isRoot(user) ? null : String.valueOf(user.getId());
         appendEquals(whereSql, params, "o.cashier_id", cashierId);
-        appendEquals(whereSql, params, "o.customer_id", param.getString("customerId"));
+        appendCustomerFilter(whereSql, params, param.getString("customerId"));
         if (startTime != null) {
             whereSql.append(" AND ").append(saleBusinessTimeSql()).append(" >= ?");
             params.add(startTime);
@@ -189,6 +192,26 @@ public class AppProfitStatisticsController {
         }
         whereSql.append(" AND ").append(column).append(" = ?");
         params.add(value);
+    }
+
+    private void appendCustomerFilter(StringBuilder whereSql, List<Object> params, String rawValue) {
+        if (StringUtils.isBlank(rawValue)) {
+            return;
+        }
+        List<String> customerIds = customerSupplierKeywordResolver.resolveCustomerIds(rawValue);
+        if (customerIds.isEmpty()) {
+            whereSql.append(" AND 1 = 0");
+            return;
+        }
+        whereSql.append(" AND o.customer_id IN (");
+        for (int i = 0; i < customerIds.size(); i++) {
+            if (i > 0) {
+                whereSql.append(", ");
+            }
+            whereSql.append("?");
+            params.add(customerIds.get(i));
+        }
+        whereSql.append(")");
     }
 
     private boolean isRoot(AppUser user) {

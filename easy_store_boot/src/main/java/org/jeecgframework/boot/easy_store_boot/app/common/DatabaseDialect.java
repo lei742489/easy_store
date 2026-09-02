@@ -39,11 +39,11 @@ public class DatabaseDialect {
         return isMySql() ? "CURRENT_TIMESTAMP(3)" : "strftime('%Y-%m-%d %H:%M:%f', 'now')";
     }
 
-    public String currentTimestampMinusMonths(int months) {
+    public String currentTimestampMinusDays(int days) {
         if (isMySql()) {
-            return "DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL " + months + " MONTH)";
+            return "DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL " + days + " DAY)";
         }
-        return "strftime('%Y-%m-%d %H:%M:%f', 'now', '-" + months + " months')";
+        return "strftime('%Y-%m-%d %H:%M:%f', 'now', '-" + days + " days')";
     }
 
     /**

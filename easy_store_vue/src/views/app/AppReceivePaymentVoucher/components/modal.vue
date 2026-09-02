@@ -251,6 +251,7 @@
   const showModal = (item: AppReceivePaymentVoucher) => {
     resetForm();
     visible.value = true;
+    if (Object.keys(item).length !== 0) Object.assign(form, item);
     if (item.id) {
       title.value = '编辑-收款单';
       nextTick(() => {
@@ -265,7 +266,7 @@
         purchaseOrderTableRef.value?.query();
       });
     }
-    if (Object.keys(item).length !== 0) Object.assign(form, item);
+    void fetchSupplierData();
   };
 
   const closeForm = (notify = true) => {
@@ -377,7 +378,6 @@
   };
 
   const fetchSupplierData = async () => {
-    if (customerList.value.length !== 0) return;
     await reloadCustomerData();
   };
 

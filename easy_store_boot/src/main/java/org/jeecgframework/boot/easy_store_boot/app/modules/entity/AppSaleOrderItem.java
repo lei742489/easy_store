@@ -51,7 +51,7 @@ public class AppSaleOrderItem implements Serializable {
 
     @ApiModelProperty("数量")
     @Excel(name = "数量", width = 15)
-    private Integer quantity;
+    private Double quantity;
 
     @ApiModelProperty("单价")
     @Excel(name = "单价", width = 15,numFormat = "0.00")

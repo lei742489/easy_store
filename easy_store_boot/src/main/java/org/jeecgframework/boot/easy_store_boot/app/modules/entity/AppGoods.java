@@ -62,11 +62,11 @@ public class AppGoods implements Serializable {
 
     @ApiModelProperty("初始库存")
     @Excel(name = "初始库存", width = 15)
-    private Integer initStock;
+    private Double initStock;
 
     @ApiModelProperty("当前库存")
     @Excel(name = "当前库存", width = 15)
-    private Integer stock;
+    private Double stock;
 
     @ApiModelProperty("库存总成本")
     @Excel(name = "库存总成本", width = 15,numFormat = "0.00")
@@ -94,11 +94,11 @@ public class AppGoods implements Serializable {
 
     @ApiModelProperty("最大库存")
     @Excel(name = "最大库存", width = 15)
-    private Integer maxStock;
+    private Double maxStock;
 
     @ApiModelProperty("最小库存")
     @Excel(name = "最小库存", width = 15)
-    private Integer minStock;
+    private Double minStock;
 
     @ApiModelProperty("供应商")
     @DictField(dictTable = "app_supplier", dicText = "name", dicCode = "id")

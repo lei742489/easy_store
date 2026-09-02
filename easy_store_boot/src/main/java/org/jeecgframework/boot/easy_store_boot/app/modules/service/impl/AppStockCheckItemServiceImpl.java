@@ -48,15 +48,15 @@ public class AppStockCheckItemServiceImpl extends ServiceImpl<AppStockCheckItemM
     }
 
     @Override
-    public Integer sumProfitLossQuantityByGoodsId(String goodsId) {
+    public Double sumProfitLossQuantityByGoodsId(String goodsId) {
         QueryWrapper<AppStockCheckItem> wrapper = new QueryWrapper<>();
         wrapper.select("COALESCE(SUM(profit_loss_quantity), 0) AS total")
                 .eq("goods_id", goodsId)
                 .inSql("check_id", "SELECT id FROM app_stock_check WHERE is_del = 0");
         Map<String, Object> result = getMap(wrapper);
         if (result == null || result.get("total") == null) {
-            return 0;
+            return 0D;
         }
-        return new BigDecimal(result.get("total").toString()).intValue();
+        return new BigDecimal(result.get("total").toString()).doubleValue();
     }
 }

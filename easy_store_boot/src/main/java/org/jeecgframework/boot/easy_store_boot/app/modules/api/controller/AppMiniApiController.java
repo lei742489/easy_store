@@ -407,12 +407,12 @@ public class AppMiniApiController {
             String sourceGoodsId = firstNotBlank(sourceItem.getString("goodsId"), sourceItem.getString("id"));
             AppGoods goods = findGoods(sourceGoodsId, goodsCode, title);
             String displayGoodsName = goods == null ? title : goods.getTitle();
-            Integer sourceQuantity = sourceItem.getInteger("num");
-            if (sourceQuantity == null || sourceQuantity == 0) {
+            Double sourceQuantity = sourceItem.getDouble("num");
+            if (sourceQuantity == null || sourceQuantity == 0D) {
                 throw new AppRunTimeException("商品数量不能为空：" + displayGoodsName);
             }
             boolean saleReturn = isSaleReturn(orderType);
-            int quantity = Math.abs(sourceQuantity);
+            double quantity = Math.abs(sourceQuantity);
             if (saleReturn) {
                 quantity = -quantity;
             }

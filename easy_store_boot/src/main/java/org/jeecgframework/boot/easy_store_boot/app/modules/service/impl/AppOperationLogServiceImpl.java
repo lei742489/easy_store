@@ -41,9 +41,9 @@ public class AppOperationLogServiceImpl implements IAppOperationLogService {
     public void cleanupExpired() {
         try {
             jdbcTemplate.update("DELETE FROM app_operation_log " +
-                    "WHERE operate_time < " + databaseDialect.currentTimestampMinusMonths(3));
+                    "WHERE operate_time < " + databaseDialect.currentTimestampMinusDays(60));
         } catch (Exception e) {
-            log.warn("清理三个月前操作日志失败", e);
+            log.warn("清理60天前操作日志失败", e);
         }
     }
 }

@@ -251,6 +251,7 @@
   const showModal = (item: AppPaymentVoucher) => {
     resetForm();
     visible.value = true;
+    if (Object.keys(item).length !== 0) Object.assign(form, item);
     if (item.id) {
       title.value = '编辑-付款单';
       nextTick(() => {
@@ -262,9 +263,10 @@
       initOrderNo();
       nextTick(() => {
         settlerItemTableRef.value?.initData();
+        purchaseOrderTableRef.value?.query();
       });
     }
-    if (Object.keys(item).length !== 0) Object.assign(form, item);
+    void fetchSupplierData();
   };
 
   const closeForm = (notify = true) => {
@@ -375,7 +377,6 @@
   };
 
   const fetchSupplierData = async () => {
-    if (supplierList.value.length !== 0) return;
     await reloadSupplierData();
   };
 

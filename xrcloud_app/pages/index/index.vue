@@ -89,11 +89,31 @@ const uniIconMap = {
 }
 
 const appPageMap = {
+  sale_order_add: '/pages/business/index',
+  purchase_order_add: '/pages/business/index',
+  receive_payment_add: '/pages/business/index?tab=receive',
+  payment_add: '/pages/business/index?tab=payment',
   sale_order_list: '/pages/sale-order/list',
   purchase_order_list: '/pages/purchase-order/list',
+  receive_payment_list: '/pages/receive-payment/list',
+  payment_list: '/pages/payment/list',
+  account_settle: '/pages/account-settle/list',
   goods: '/pages/goods/list',
   customer: '/pages/partner-list/index?mode=customer',
-  supplier: '/pages/partner-list/index?mode=supplier'
+  supplier: '/pages/partner-list/index?mode=supplier',
+  debt_stats: '/pages/debt-statistics/index',
+  debt_detail: '/pages/debt-detail/index',
+  payable_stats: '/pages/payable-statistics/index',
+  payable_detail: '/pages/payable-detail/index',
+  sale_stats: '/pages/sale-statistics/index',
+  purchase_stats: '/pages/purchase-statistics/index',
+  fund_stats: '/pages/fund-statistics/index',
+  profit_stats: '/pages/profit-statistics/index',
+  customer_statement: '/pages/receivable-statement/index',
+  payable_order: '/pages/payable-statement/index',
+  stock_stats: '/pages/stock-statistics/index',
+  stock_warning: '/pages/stock-warning/index',
+  stock_check: '/pages/stock-check/list'
 }
 
 export default {
@@ -217,6 +237,26 @@ export default {
       if (!item) return
       const appPage = appPageMap[item.code]
       if (appPage) {
+        if (
+          item.code === 'sale_order_add' ||
+          item.code === 'purchase_order_add' ||
+          item.code === 'receive_payment_add' ||
+          item.code === 'payment_add'
+        ) {
+          const tabMap = {
+            sale_order_add: 'sale',
+            purchase_order_add: 'purchase',
+            receive_payment_add: 'receive',
+            payment_add: 'payment'
+          }
+          uni.setStorageSync('easy-store-business-route', {
+            tab: tabMap[item.code],
+            mode: 'add',
+            reset: '1'
+          })
+          uni.switchTab({ url: appPage })
+          return
+        }
         uni.navigateTo({ url: appPage })
         return
       }
@@ -243,7 +283,7 @@ export default {
 .section { margin-bottom: 20rpx; padding: 24rpx 22rpx 20rpx; background: #fff; border-radius: 18rpx; box-shadow: 0 6rpx 20rpx rgba(67, 47, 119, .05); }
 .section-title { color: #454252; font-size: 28rpx; font-weight: 600; }
 .menu-grid { display: flex; flex-wrap: wrap; gap: 30rpx; margin-top: 20rpx; justify-content: flex-start; }
-.menu-card { position: relative; display: flex; flex: 0 0 142rpx; flex-direction: column; align-items: center; justify-content: center; height: 142rpx; box-sizing: border-box; color: #5a5865; font-size: 23rpx; text-align: center; background: #f7f7fa; border: 1rpx solid #f0eef5; border-radius: 14rpx; box-shadow: 0 5rpx 12rpx rgba(67, 47, 119, .08); }
+.menu-card { position: relative; display: flex; flex: 0 0 142rpx; flex-direction: column; align-items: center; justify-content: center; height: 142rpx; box-sizing: border-box; color: #5a5865; font-size: 23rpx; text-align: center; background: #fefefe; border: 1rpx solid #fefefe; border-radius: 14rpx; box-shadow: 0 5rpx 12rpx rgba(67, 47, 119, .08); }
 .menu-card:active { background: #f0edf8; box-shadow: 0 2rpx 6rpx rgba(67, 47, 119, .12); }
 .menu-card > text { display: block; width: 100%; padding: 0 6rpx; box-sizing: border-box; overflow: hidden; line-height: 30rpx; text-overflow: ellipsis; white-space: nowrap; }
 .feature-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 70rpx; height: 70rpx; margin-bottom: 12rpx; background: #fff; border-radius: 14rpx; }

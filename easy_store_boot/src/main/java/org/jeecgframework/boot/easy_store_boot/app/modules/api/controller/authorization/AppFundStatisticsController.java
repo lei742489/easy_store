@@ -154,16 +154,203 @@ public class AppFundStatisticsController {
             throw new AppRunTimeException("请选择收支项目");
         }
 
-        for (FixedQueryItem item : FIXED_QUERY_ITEMS) {
-            if (item.itemKey.equals(itemKey)) {
-                return Result.ok(queryFixedDetail(itemKey, startTime, endTime));
-            }
+        DetailQuery detailQuery = buildFixedDetailQuery(itemKey, startTime, endTime);
+        if (detailQuery == null && itemKey.startsWith("item_")) {
+            detailQuery = buildItemDetailQuery(
+                    parseItemId(itemKey.substring(5)), startTime, endTime);
         }
-        if (itemKey.startsWith("item_")) {
-            Integer itemId = parseItemId(itemKey.substring(5));
-            return Result.ok(queryItemDetail(itemId, startTime, endTime));
+        if (detailQuery == null) {
+            throw new AppRunTimeException("收支项目参数不正确");
         }
-        throw new AppRunTimeException("收支项目参数不正确");
+
+        int current = Math.max(param.getIntValue("current"), 1);
+        int pageSize = param.getIntValue("pageSize");
+        if (pageSize < 1) {
+            pageSize = 50;
+        }
+        pageSize = Math.min(pageSize, 200);
+        int offset = (current - 1) * pageSize;
+
+        String detailSql = detailQuery.sql;
+        Object[] detailParams = detailQuery.params.toArray();
+        Long total = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM (" + detailSql + ") detail_rows",
+                detailParams,
+                Long.class);
+        Map<String, Object> totalRow = jdbcTemplate.queryForMap(
+                "SELECT COALESCE(SUM(COALESCE(income, 0)), 0) AS incomeTotal, " +
+                        "COALESCE(SUM(COALESCE(expense, 0)), 0) AS expenseTotal " +
+                        "FROM (" + detailSql + ") detail_rows",
+                detailParams);
+
+        List<Object> pageParams = new ArrayList<>(detailQuery.params);
+        pageParams.add(pageSize);
+        pageParams.add(offset);
+        List<Map<String, Object>> pageRows = jdbcTemplate.queryForList(
+                "SELECT * FROM (" + detailSql + ") detail_rows " +
+                        "ORDER BY businessTime ASC, orderNo ASC LIMIT ? OFFSET ?",
+                pageParams.toArray());
+
+        JSONArray records = new JSONArray();
+        int rowNo = offset + 1;
+        for (Map<String, Object> row : pageRows) {
+            JSONObject record = new JSONObject();
+            record.putAll(row);
+            record.put("rowNo", rowNo++);
+            records.add(record);
+        }
+
+        double incomeTotal = numberValue(totalRow.get("incomeTotal"));
+        double expenseTotal = numberValue(totalRow.get("expenseTotal"));
+        JSONObject result = new JSONObject();
+        result.put("current", current);
+        result.put("pageSize", pageSize);
+        result.put("total", total == null ? 0L : total);
+        result.put("incomeTotal", incomeTotal);
+        result.put("expenseTotal", expenseTotal);
+        result.put("netTotal", incomeTotal - expenseTotal);
+        result.put("records", records);
+        return Result.ok(result);
+    }
+
+    private DetailQuery buildFixedDetailQuery(String itemKey, Long startTime, Long endTime) {
+        if (ITEM_SALE_INCOME.equals(itemKey)) {
+            return buildSaleDetailQuery(startTime, endTime);
+        }
+        if (ITEM_PURCHASE_EXPENSE.equals(itemKey)) {
+            return buildPurchaseDetailQuery(startTime, endTime);
+        }
+        if (ITEM_RECEIVE_DEBT.equals(itemKey)) {
+            return buildReceiveDetailQuery(startTime, endTime);
+        }
+        if (ITEM_PAYMENT_DEBT.equals(itemKey)) {
+            return buildPaymentDetailQuery(startTime, endTime);
+        }
+        if (ITEM_FREIGHT.equals(itemKey)) {
+            return buildFreightDetailQuery(startTime, endTime);
+        }
+        return null;
+    }
+
+    private DetailQuery buildSaleDetailQuery(Long startTime, Long endTime) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(businessTimeSql("o")).append(" AS businessTime, ")
+                .append("o.order_no AS orderNo, ")
+                .append("CASE WHEN o.note IS NOT NULL AND trim(o.note) <> '' THEN o.note ELSE '销售收入' END AS summary, ")
+                .append("COALESCE(c.name, '') AS counterparty, ")
+                .append("CASE WHEN COALESCE(o.paid_amount, 0) > 0 THEN o.paid_amount ELSE 0 END AS income, ")
+                .append("CASE WHEN COALESCE(o.paid_amount, 0) < 0 THEN -o.paid_amount ELSE 0 END AS expense ")
+                .append("FROM app_sale_order o ")
+                .append("LEFT JOIN app_customer c ON c.id = o.customer_id ")
+                .append("WHERE o.status = 1 AND COALESCE(o.is_del, 0) = 0 ")
+                .append("AND o.settle_id IS NOT NULL AND trim(o.settle_id) <> '' ");
+        appendDateRange(sql, params, businessTimeSql("o"), startTime, endTime);
+        return new DetailQuery(sql.toString(), params);
+    }
+
+    private DetailQuery buildPurchaseDetailQuery(Long startTime, Long endTime) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(businessTimeSql("o")).append(" AS businessTime, ")
+                .append("o.order_no AS orderNo, ")
+                .append("CASE WHEN o.note IS NOT NULL AND trim(o.note) <> '' THEN o.note ")
+                .append("WHEN o.order_type = 2 THEN '进货退货' ELSE '采购进货' END AS summary, ")
+                .append("COALESCE(s.name, '') AS counterparty, ")
+                .append("CASE WHEN COALESCE(o.paid_amount, 0) < 0 THEN -o.paid_amount ELSE 0 END AS income, ")
+                .append("CASE WHEN COALESCE(o.paid_amount, 0) > 0 THEN o.paid_amount ELSE 0 END AS expense ")
+                .append("FROM app_purchase_order o ")
+                .append("LEFT JOIN app_supplier s ON s.id = o.supplier_id ")
+                .append("WHERE o.status = 1 AND COALESCE(o.is_del, 0) = 0 ")
+                .append("AND o.settle_id IS NOT NULL AND trim(o.settle_id) <> '' ");
+        appendDateRange(sql, params, businessTimeSql("o"), startTime, endTime);
+        return new DetailQuery(sql.toString(), params);
+    }
+
+    private DetailQuery buildReceiveDetailQuery(Long startTime, Long endTime) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(businessTimeSql("r")).append(" AS businessTime, ")
+                .append("r.order_no AS orderNo, ")
+                .append("CASE WHEN r.note IS NOT NULL AND trim(r.note) <> '' THEN r.note ELSE '收定金/欠款' END AS summary, ")
+                .append("COALESCE(c.name, '') AS counterparty, ")
+                .append("CASE WHEN COALESCE(si.amount, 0) > 0 THEN si.amount ELSE 0 END AS income, ")
+                .append("CASE WHEN COALESCE(si.amount, 0) < 0 THEN -si.amount ELSE 0 END AS expense ")
+                .append("FROM app_receive_payment_voucher r ")
+                .append("INNER JOIN (SELECT payment_id, SUM(COALESCE(amount, 0)) AS amount ")
+                .append("FROM app_receive_payment_settle_item GROUP BY payment_id) si ON si.payment_id = r.id ")
+                .append("LEFT JOIN app_customer c ON c.id = r.customer_id ")
+                .append("WHERE r.status = 1 AND COALESCE(r.is_del, 0) = 0 ");
+        appendDateRange(sql, params, businessTimeSql("r"), startTime, endTime);
+        return new DetailQuery(sql.toString(), params);
+    }
+
+    private DetailQuery buildPaymentDetailQuery(Long startTime, Long endTime) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(businessTimeSql("p")).append(" AS businessTime, ")
+                .append("p.order_no AS orderNo, ")
+                .append("CASE WHEN p.note IS NOT NULL AND trim(p.note) <> '' THEN p.note ELSE '付定金/欠款' END AS summary, ")
+                .append("COALESCE(s.name, '') AS counterparty, ")
+                .append("CASE WHEN COALESCE(si.amount, 0) < 0 THEN -si.amount ELSE 0 END AS income, ")
+                .append("CASE WHEN COALESCE(si.amount, 0) > 0 THEN si.amount ELSE 0 END AS expense ")
+                .append("FROM app_payment_voucher p ")
+                .append("INNER JOIN (SELECT payment_id, SUM(COALESCE(amount, 0)) AS amount ")
+                .append("FROM app_payment_settle_item GROUP BY payment_id) si ON si.payment_id = p.id ")
+                .append("LEFT JOIN app_supplier s ON s.id = p.supplier_id ")
+                .append("WHERE p.status = 1 AND COALESCE(p.is_del, 0) = 0 ");
+        appendDateRange(sql, params, businessTimeSql("p"), startTime, endTime);
+        return new DetailQuery(sql.toString(), params);
+    }
+
+    private DetailQuery buildFreightDetailQuery(Long startTime, Long endTime) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(businessTimeSql("o")).append(" AS businessTime, ")
+                .append("o.order_no AS orderNo, ")
+                .append("CASE WHEN o.note IS NOT NULL AND trim(o.note) <> '' THEN o.note ELSE '销售运费' END AS summary, ")
+                .append("COALESCE(c.name, '') AS counterparty, ")
+                .append("CASE WHEN COALESCE(o.freight_amount, 0) > 0 THEN o.freight_amount ELSE 0 END AS income, ")
+                .append("CASE WHEN COALESCE(o.freight_amount, 0) < 0 THEN -o.freight_amount ELSE 0 END AS expense ")
+                .append("FROM app_sale_order o ")
+                .append("LEFT JOIN app_customer c ON c.id = o.customer_id ")
+                .append("WHERE o.status = 1 AND COALESCE(o.is_del, 0) = 0 ")
+                .append("AND ABS(COALESCE(o.freight_amount, 0)) >= 0.005 ");
+        appendDateRange(sql, params, businessTimeSql("o"), startTime, endTime);
+        sql.append(" UNION ALL ")
+                .append("SELECT ").append(businessTimeSql("o")).append(" AS businessTime, ")
+                .append("o.order_no AS orderNo, ")
+                .append("CASE WHEN o.note IS NOT NULL AND trim(o.note) <> '' THEN o.note ELSE '进货运费' END AS summary, ")
+                .append("COALESCE(s.name, '') AS counterparty, ")
+                .append("CASE WHEN COALESCE(o.freight_amount, 0) < 0 THEN -o.freight_amount ELSE 0 END AS income, ")
+                .append("CASE WHEN COALESCE(o.freight_amount, 0) > 0 THEN o.freight_amount ELSE 0 END AS expense ")
+                .append("FROM app_purchase_order o ")
+                .append("LEFT JOIN app_supplier s ON s.id = o.supplier_id ")
+                .append("WHERE o.status = 1 AND COALESCE(o.is_del, 0) = 0 ")
+                .append("AND ABS(COALESCE(o.freight_amount, 0)) >= 0.005 ");
+        appendDateRange(sql, params, businessTimeSql("o"), startTime, endTime);
+        return new DetailQuery(sql.toString(), params);
+    }
+
+    private DetailQuery buildItemDetailQuery(Integer itemId, Long startTime, Long endTime) {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(businessTimeSql("r")).append(" AS businessTime, ")
+                .append("r.order_no AS orderNo, ")
+                .append("COALESCE(r.summary, i.name) AS summary, ")
+                .append("COALESCE(r.counterparty, '') AS counterparty, ")
+                .append("COALESCE(r.income, 0) AS income, ")
+                .append("COALESCE(r.expense, 0) AS expense ")
+                .append("FROM app_income_expense_record r ")
+                .append("INNER JOIN app_income_expense_item i ON i.name = r.fund_item ")
+                .append("WHERE COALESCE(r.is_del, 0) = 0 ")
+                .append("AND COALESCE(i.is_del, 0) = 0 ")
+                .append("AND COALESCE(i.disabled, 0) = 0 ")
+                .append("AND COALESCE(i.participate_performance, 0) = 1 ")
+                .append("AND i.id = ? ");
+        params.add(itemId);
+        appendDateRange(sql, params, businessTimeSql("r"), startTime, endTime);
+        return new DetailQuery(sql.toString(), params);
     }
 
     private List<Map<String, Object>> queryItemRows(Long startTime, Long endTime,
@@ -555,6 +742,16 @@ public class AppFundStatisticsController {
 
     private String businessTimeSql(String alias) {
         return databaseDialect.epochMillis(alias + ".create_time");
+    }
+
+    private static class DetailQuery {
+        private final String sql;
+        private final List<Object> params;
+
+        private DetailQuery(String sql, List<Object> params) {
+            this.sql = sql;
+            this.params = params;
+        }
     }
 
     private static class FixedQueryItem {

@@ -23,6 +23,10 @@ export function exportXlsFile(data: Customer) {
   exportXls('api/user/customer/exportXls', data);
 }
 
+export function refreshPayable() {
+  return axios.post<number>('api/user/customer/refreshPayable');
+}
+
 export function importExcel(file: File) {
   return uploadFile('api/user/customer/importExcel', file);
 }

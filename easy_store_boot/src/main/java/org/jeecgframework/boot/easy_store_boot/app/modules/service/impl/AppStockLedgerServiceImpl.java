@@ -422,7 +422,7 @@ public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper,
 
     private void updateGoodsSnapshot(String goodsId, StockState state) {
         jdbcTemplate.update("UPDATE app_goods SET stock = ?, stock_cost = ?, cost_price = ? WHERE id = ?",
-                state.stockQty.setScale(0, RoundingMode.HALF_UP).intValue(),
+                state.stockQty.setScale(2, RoundingMode.HALF_UP).doubleValue(),
                 money(state.stockAmount), number(state.costPrice, 4), goodsId);
     }
 

@@ -22,7 +22,7 @@ public interface IAppSaleOrderItemService extends IService<AppSaleOrderItem> {
 
     void removeByUpdate(List<AppSaleOrderItem> updateList,Integer orderId);
 
-    Integer sumQuantityGoodsId(String goodsId);
+    Double sumQuantityGoodsId(String goodsId);
 
 
 }

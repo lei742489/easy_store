@@ -110,6 +110,7 @@
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
   import CustomerSelect from '@/views/app/customer/components/customer-select-modal.vue';
+  import { list as getCustomerList } from '@/views/app/customer/api/api-customer';
   import TimeSelect from '@/components/menu/time-select.vue';
   import { DebtDetailRecord, DebtDetailResult, listDebtDetail } from './api';
 
@@ -225,6 +226,20 @@
     resetResult();
   };
 
+  const resolveCustomerId = async () => {
+    const value = String(form.customerId ?? '').trim();
+    if (!value) return undefined;
+    if (/^\d+$/.test(value)) return Number(value);
+
+    const { data } = await getCustomerList(value);
+    const customers = data || [];
+    const customer = customers.find((item) => item.name === value);
+    if (customer?.id !== undefined && customer.id !== null) {
+      return customer.id;
+    }
+    return customers.length === 1 ? customers[0].id : undefined;
+  };
+
   const search = async () => {
     if (!form.customerId) {
       resetResult();
@@ -233,8 +248,20 @@
     }
     loading.value = true;
     try {
-      const { data } = await listDebtDetail({ ...form });
+      const customerId = await resolveCustomerId();
+      if (customerId === undefined || customerId === null) {
+        resetResult();
+        Message.warning('请选择有效的客户');
+        return;
+      }
+      const { data } = await listDebtDetail({
+        ...form,
+        customerId,
+      });
       Object.assign(result, data || {});
+      if (data?.customerName) {
+        form.customerId = data.customerName;
+      }
       records.value = data?.records || [];
     } finally {
       loading.value = false;

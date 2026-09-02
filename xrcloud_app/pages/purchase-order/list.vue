@@ -95,7 +95,12 @@
     </view>
 
     <view v-if="records.length" class="order-list">
-      <view v-for="order in records" :key="order.id" class="order-card">
+      <view
+        v-for="order in records"
+        :key="order.id"
+        class="order-card"
+        @click="openEditForm(order)"
+      >
         <view class="card-header">
           <view class="order-main">
             <text class="order-no">{{ order.orderNo || '-' }}</text>
@@ -243,6 +248,7 @@ export default {
       return
     }
     if (!this.initialized) this.initialize()
+    else this.queryOrders(true)
   },
   onReachBottom() {
     this.loadMore()
@@ -255,6 +261,14 @@ export default {
     this.queryOrders(true).finally(() => uni.stopPullDownRefresh())
   },
   methods: {
+    openEditForm(order) {
+      if (!order || order.id === undefined || order.id === null) return
+      const storageKey = `easy-store-purchase-edit-${Date.now()}`
+      uni.setStorageSync(storageKey, order)
+      uni.setStorageSync('easy-store-business-tab', 'purchase')
+      uni.setStorageSync('easy-store-purchase-edit-key', storageKey)
+      uni.switchTab({ url: '/pages/business/index' })
+    },
     redirectToLogin() {
       if (this.redirecting) return
       this.redirecting = true

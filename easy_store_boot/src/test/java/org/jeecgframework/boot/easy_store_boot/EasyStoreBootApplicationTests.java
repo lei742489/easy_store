@@ -130,10 +130,10 @@ class EasyStoreBootApplicationTests {
             appGoods.setSalePrc(map.getDouble("sale_prc"));
             appGoods.setTradePrc(map.getDouble("trade_prc"));
             appGoods.setInitCost(map.getInteger("init_prc"));
-            appGoods.setInitStock(map.getInteger("init_stock"));
-            appGoods.setStock(map.getInteger("cur_stock"));
-            appGoods.setMinStock(map.getInteger("min_stock"));
-            appGoods.setMaxStock(map.getInteger("max_stock"));
+            appGoods.setInitStock(map.getDouble("init_stock"));
+            appGoods.setStock(map.getDouble("cur_stock"));
+            appGoods.setMinStock(map.getDouble("min_stock"));
+            appGoods.setMaxStock(map.getDouble("max_stock"));
             appGoods.setNote(map.getString("remark"));
             appGoods.setCreateTime(map.getDate("create_at"));
             appGoods.setUpdateTime(map.getDate("revise_at"));

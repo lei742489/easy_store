@@ -6,7 +6,11 @@
       :options="timeMenu"
       style="width: 95px"
     ></a-select>
-    <a-range-picker v-model="timeSelect" @change="onChange" />
+    <a-range-picker
+      v-model="timeSelect"
+      value-format="YYYY-MM-DD"
+      @change="onChange"
+    />
   </div>
 </template>
 

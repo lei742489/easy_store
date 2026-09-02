@@ -133,7 +133,7 @@ public class AppPayableReportController {
                 if (orderId != null) {
                     for (Map<String, Object> item : queryPurchaseItems(orderId)) {
                         records.add(buildStatementRow(rowNo++, "item", stringValue(item.get("goodsName")),
-                                stringValue(item.get("unit")), integerValue(item.get("quantity")),
+                                stringValue(item.get("unit")), numberValue(item.get("quantity")).doubleValue(),
                                 numberValue(item.get("unitPrice")).doubleValue(), null,
                                 numberValue(item.get("totalAmount")).doubleValue(), null,
                                 stringValue(item.get("note")), 0D, 0D, balance));
@@ -264,7 +264,9 @@ public class AppPayableReportController {
                 PURCHASE_DEBT_AMOUNT_SQL + " AS payable_amount, 0 AS paid_amount " +
                 "FROM app_purchase_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_payment_amount_item GROUP BY order_no) payment_item " +
+                "FROM app_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) payment_item " +
                 "ON app_purchase_order.order_no = payment_item.order_no " +
                 "WHERE app_purchase_order.supplier_id = ? AND app_purchase_order.status = 1 " +
                 "AND COALESCE(app_purchase_order.is_del, 0) = 0 " +
@@ -312,7 +314,9 @@ public class AppPayableReportController {
                 PURCHASE_DEBT_AMOUNT_SQL + " AS payable_amount, 0 AS paid_amount " +
                 "FROM app_purchase_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_payment_amount_item GROUP BY order_no) payment_item " +
+                "FROM app_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) payment_item " +
                 "ON app_purchase_order.order_no = payment_item.order_no " +
                 "WHERE app_purchase_order.supplier_id = ? AND app_purchase_order.status = 1 " +
                 "AND COALESCE(app_purchase_order.is_del, 0) = 0 " +
@@ -400,7 +404,9 @@ public class AppPayableReportController {
         return "SELECT app_purchase_order.supplier_id AS ownerId, " +
                 "COALESCE(SUM(" + PURCHASE_DEBT_AMOUNT_SQL + "), 0) AS amount FROM app_purchase_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_payment_amount_item GROUP BY order_no) payment_item " +
+                "FROM app_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) payment_item " +
                 "ON app_purchase_order.order_no = payment_item.order_no " +
                 "WHERE app_purchase_order.status = 1 AND COALESCE(app_purchase_order.is_del, 0) = 0 " +
                 "AND " + PURCHASE_DEBT_FILTER_SQL + " AND ABS(" + PURCHASE_DEBT_AMOUNT_SQL + ") >= 0.005";
@@ -489,7 +495,7 @@ public class AppPayableReportController {
         return row;
     }
 
-    private JSONObject buildStatementRow(int rowNo, String rowType, String goodsName, String unit, Integer quantity,
+    private JSONObject buildStatementRow(int rowNo, String rowType, String goodsName, String unit, Double quantity,
                                          Double unitPrice, Double freightAmount, Double totalAmount,
                                          Double discountAmount, String note, double payableAmount,
                                          double paidAmount, double endingBalance) {

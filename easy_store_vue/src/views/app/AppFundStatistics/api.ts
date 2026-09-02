@@ -15,6 +15,7 @@ export interface FundStatisticsQuery {
   itemKey?: string;
   startDate?: string;
   endDate?: string;
+  userId?: number | string;
 }
 
 export interface FundStatisticsRecord {
@@ -46,8 +47,19 @@ export interface FundStatisticsDetail {
   isSummary?: boolean;
 }
 
+export interface FundStatisticsDetailResult {
+  current?: number;
+  pageSize?: number;
+  total?: number;
+  incomeTotal?: number;
+  expenseTotal?: number;
+  netTotal?: number;
+  records?: FundStatisticsDetail[];
+}
+
 export function listFundStatisticsItems(data?: {
   itemType?: 'income' | 'expense';
+  userId?: number | string;
 }) {
   return axios.post<FundStatisticsItem[]>(
     'api/user/appFundStatistics/items',
@@ -65,9 +77,12 @@ export function listFundStatistics(data: FundStatisticsQuery) {
 export function listFundStatisticsDetail(
   data: Pick<FundStatisticsQuery, 'startDate' | 'endDate'> & {
     itemKey: string;
+    userId?: number | string;
+    current?: number;
+    pageSize?: number;
   }
 ) {
-  return axios.post<FundStatisticsDetail[]>(
+  return axios.post<FundStatisticsDetailResult>(
     'api/user/appFundStatistics/detail',
     data
   );

@@ -1,6 +1,6 @@
 <template>
   <view class="customer-select">
-    <view class="input-wrap" @click="openSelectPage">
+    <view class="input-wrap" :class="{ disabled }" @click="openSelectPage">
       <text class="customer-text" :class="{ placeholder: !modelValue }">
         {{ modelValue || placeholder }}
       </text>
@@ -27,11 +27,16 @@ export default {
     placeholder: {
       type: String,
       default: '名称 / 联系人 / 手机 / 拼音'
+    },
+    disabled: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['update:modelValue', 'select'],
+  emits: ['update:modelValue', 'select', 'select-item'],
   methods: {
     openSelectPage() {
+      if (this.disabled) return
       uni.navigateTo({
         url: `/pages/partner-select/index?mode=customer&title=${encodeURIComponent('客户查询')}&keyword=${encodeURIComponent(this.modelValue || '')}`,
         success: (res) => {
@@ -42,11 +47,13 @@ export default {
             const value = String(payload.name || payload.id || '').trim()
             this.$emit('update:modelValue', value)
             this.$emit('select', value)
+            this.$emit('select-item', payload)
           })
         }
       })
     },
     clearValue() {
+      if (this.disabled) return
       this.$emit('update:modelValue', '')
       this.$emit('select', '')
     }
@@ -71,6 +78,11 @@ export default {
   background: #fff;
   border: 1rpx solid #ded9e8;
   border-radius: 10rpx;
+}
+
+.input-wrap.disabled {
+  background: #f7f5fb;
+  opacity: .75;
 }
 
 .customer-text {

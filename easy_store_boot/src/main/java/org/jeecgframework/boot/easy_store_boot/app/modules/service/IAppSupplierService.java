@@ -16,6 +16,8 @@ public interface IAppSupplierService extends IService<AppSupplier> {
 
     Double updatePayable(String supplerId);
 
+    int refreshAllPayable();
+
     List<AppSupplier> searchByName(String name);
 
 

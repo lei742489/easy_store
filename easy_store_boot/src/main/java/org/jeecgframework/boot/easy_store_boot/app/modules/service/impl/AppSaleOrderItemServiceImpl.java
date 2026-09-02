@@ -82,15 +82,15 @@ public class AppSaleOrderItemServiceImpl extends ServiceImpl<AppSaleOrderItemMap
     }
 
     @Override
-    public Integer sumQuantityGoodsId(String goodsId) {
+    public Double sumQuantityGoodsId(String goodsId) {
         if(goodsId == null)
-            return 0;
+            return 0D;
         QueryWrapper<AppSaleOrderItem> wrapper = new QueryWrapper<>();
         wrapper.select("COALESCE(SUM(quantity), 0) as total")
                 .eq("goods_id", goodsId)
                 .inSql("order_id", "select id from app_sale_order where is_del = 0 and status = 1");
         Map<String,Object> map= getMap(wrapper);
-        return Integer.parseInt(map.get("total").toString());
+        return Double.parseDouble(map.get("total").toString());
     }
 
 }

@@ -58,6 +58,18 @@ public class AppSupplierServiceImpl extends ServiceImpl<AppSupplierMapper, AppSu
     }
 
     @Override
+    public int refreshAllPayable() {
+        int refreshedCount = 0;
+        for (AppSupplier supplier : list()) {
+            if (supplier.getId() != null) {
+                updatePayable(String.valueOf(supplier.getId()));
+                refreshedCount++;
+            }
+        }
+        return refreshedCount;
+    }
+
+    @Override
     public List<AppSupplier> searchByName(String name) {
         if(StringUtils.isEmpty(name))
             return Collections.emptyList();

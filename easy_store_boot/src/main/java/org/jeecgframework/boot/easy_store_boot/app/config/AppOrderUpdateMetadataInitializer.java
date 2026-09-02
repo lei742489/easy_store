@@ -44,6 +44,7 @@ public class AppOrderUpdateMetadataInitializer {
         createStockLedgerTable();
         createSaleCostAdjustmentTable();
         createSalePendingGoodsTable();
+        migrateQuantityColumns();
     }
 
     private void repairOrderDateTimeColumns() {
@@ -238,6 +239,36 @@ public class AppOrderUpdateMetadataInitializer {
                 "ON app_sale_pending_goods(order_id, status, is_del)");
         createIndexIfAbsent("CREATE INDEX idx_sale_pending_goods_item " +
                 "ON app_sale_pending_goods(order_item_id, is_del)");
+    }
+
+    private void migrateQuantityColumns() {
+        if (!databaseDialect.isMySql()) {
+            return;
+        }
+        String[][] columns = {
+                {"app_sale_order_item", "quantity"},
+                {"app_purchase_order_item", "quantity"},
+                {"app_goods", "init_stock"},
+                {"app_goods", "stock"},
+                {"app_goods", "min_stock"},
+                {"app_goods", "max_stock"},
+                {"app_stock_check", "profit_loss_quantity"},
+                {"app_stock_check_item", "book_quantity"},
+                {"app_stock_check_item", "actual_quantity"},
+                {"app_stock_check_item", "profit_loss_quantity"}
+        };
+        for (String[] column : columns) {
+            convertQuantityColumn(column[0], column[1]);
+        }
+    }
+
+    private void convertQuantityColumn(String tableName, String columnName) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE " + tableName
+                    + " MODIFY COLUMN " + columnName + " DECIMAL(18,2) DEFAULT 0");
+        } catch (Exception ignored) {
+            // The column may already have the target type, or the table may not exist yet.
+        }
     }
 
     private void addColumnIfAbsent(String tableName, String columnName, String columnType) {

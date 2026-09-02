@@ -249,6 +249,12 @@
             </a-button>
           </div>
           <div style="display: flex; flex-direction: row; gap: 14px">
+            <a-button @click="handleConvertToSale">
+              <template #icon>
+                <icon-swap />
+              </template>
+              转销售单
+            </a-button>
             <a-button @click="handleCLodopPrint">
               <template #icon>
                 <icon-printer />
@@ -416,9 +422,7 @@
   };
 
   const fetchSupplierData = async () => {
-    if (supplierList.value.length === 0) {
-      await reloadSupplierData();
-    }
+    await reloadSupplierData();
     selectDefaultSupplier();
   };
 
@@ -474,7 +478,7 @@
         }
       }
     }
-    fetchSupplierData();
+    void fetchSupplierData();
 
     nextTick(() => {
       setTimeout(() => {
@@ -700,6 +704,58 @@
     } finally {
       clodopLoading.value = false;
     }
+  };
+
+  const handleConvertToSale = () => {
+    const items = itemTableRef.value?.getItemsList() || [];
+    if (items.length === 0) {
+      Message.warning('请先录入货品信息');
+      return;
+    }
+
+    const saleItems = items.map((item) => ({
+      goodsId: item.goodsId,
+      goodsId_dictText: item.goodsId_dictText,
+      goodsCode: item.goodsCode,
+      goodsName: item.goodsName,
+      categoryId: item.categoryId,
+      categoryId_dictText: item.categoryId_dictText,
+      unit: item.unit,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalAmount: item.totalAmount,
+      costPrice: item.unitPrice,
+      stock: item.stock,
+      note: item.note,
+    }));
+    const totalAmount = saleItems.reduce(
+      (total, item) =>
+        addPrice(
+          total,
+          item.totalAmount !== undefined
+            ? item.totalAmount
+            : mulPrice(item.quantity || 0, item.unitPrice || 0)
+        ),
+      0
+    );
+
+    router.push({
+      name: 'SalesOrderAdd',
+      state: {
+        editItem: JSON.stringify({
+          orderType: 1,
+          totalAmount,
+          discountedAmount: totalAmount,
+          payableAmount: totalAmount,
+          paidAmount: 0,
+          freightAmount: 0,
+          discountRate: 100,
+          status: 1,
+          items: saleItems,
+        }),
+        openAt: Date.now(),
+      },
+    });
   };
 
   const handleList = () => {

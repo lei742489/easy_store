@@ -1,0 +1,61 @@
+.form-scroll {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.form-content {
+  min-height: 100%;
+  padding: 22rpx;
+  box-sizing: border-box;
+}
+
+.form-section {
+  margin-bottom: 18rpx;
+  padding: 22rpx;
+  background: #fff;
+  border: 1rpx solid #ece9f2;
+  border-radius: 16rpx;
+  box-shadow: 0 6rpx 20rpx rgba(67, 47, 119, .06);
+}
+
+.section-title {
+  display: block;
+  color: #454252;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.section-body {
+  min-height: 108rpx;
+  margin-top: 16rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+  background: #faf9fc;
+  border: 1rpx dashed #ded9e8;
+  border-radius: 10rpx;
+}
+
+.section-body.large {
+  min-height: 260rpx;
+}
+
+.placeholder-line {
+  width: 72%;
+  height: 20rpx;
+  margin-bottom: 14rpx;
+  background: #eeeaf4;
+  border-radius: 6rpx;
+}
+
+.placeholder-line.short {
+  width: 42%;
+}
+
+.placeholder-line:last-child {
+  margin-bottom: 0;
+}
+
+.bottom-space {
+  height: 30rpx;
+}

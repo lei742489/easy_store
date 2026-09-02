@@ -399,9 +399,7 @@
   };
 
   const fetchSupplierData = async () => {
-    if (customerList.value.length === 0) {
-      await reloadCustomerData();
-    }
+    await reloadCustomerData();
     selectDefaultCustomer();
   };
 
@@ -445,7 +443,7 @@
       initOrderNo();
     }
     if (Object.keys(item).length !== 0) Object.assign(form, item);
-    fetchSupplierData();
+    void fetchSupplierData();
 
     nextTick(() => {
       setTimeout(() => {

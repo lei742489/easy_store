@@ -20,7 +20,7 @@
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :span="12">
+              <a-col :span="10">
                 <a-form-item field="status" label="货品">
                   <a-auto-complete
                     v-model="formModel.title"
@@ -33,7 +33,7 @@
                   </a-auto-complete>
                 </a-form-item>
               </a-col>
-              <a-col :span="6">
+              <a-col :span="8">
                 <a-form-item field="zeroStock" label="零库存">
                   <a-space>
                     <a-switch

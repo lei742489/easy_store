@@ -12,5 +12,5 @@ public interface IAppStockCheckItemService extends IService<AppStockCheckItem> {
 
     void removeByUpdate(List<AppStockCheckItem> updateList, Integer checkId);
 
-    Integer sumProfitLossQuantityByGoodsId(String goodsId);
+    Double sumProfitLossQuantityByGoodsId(String goodsId);
 }

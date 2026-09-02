@@ -95,4 +95,9 @@ public class AppCustomController extends ApiBaseController<AppCustomer,IAppCusto
         return Result.ok(service.list(wrapper));
     }
 
+    @PostMapping("refreshPayable")
+    public Result<?> refreshPayable() {
+        return Result.ok(service.refreshAllPayable());
+    }
+
 }

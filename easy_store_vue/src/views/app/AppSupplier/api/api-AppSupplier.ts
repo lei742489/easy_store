@@ -27,6 +27,10 @@ export function exportXlsFile(data: AppSupplier) {
   exportXls('api/user/appSupplier/exportXls', data);
 }
 
+export function refreshPayable() {
+  return axios.post<number>('api/user/appSupplier/refreshPayable');
+}
+
 export function importExcel(file: File) {
   return uploadFile('api/user/appSupplier/importExcel', file);
 }

@@ -80,6 +80,18 @@ public class AppCustomerServiceImpl extends ServiceImpl<AppCustomerMapper, AppCu
         updateById(appCustomer);
         return f2;
     }
+
+    @Override
+    public int refreshAllPayable() {
+        int refreshedCount = 0;
+        for (AppCustomer customer : list()) {
+            if (customer.getId() != null) {
+                updatePayable(String.valueOf(customer.getId()));
+                refreshedCount++;
+            }
+        }
+        return refreshedCount;
+    }
 }
 
 

@@ -21,6 +21,7 @@
                   />
                 </a-form-item>
               </a-col>
+              
               <a-col :span="18">
                 <a-form-item field="businessDate" label="日期">
                   <time-select
@@ -30,6 +31,7 @@
                   />
                 </a-form-item>
               </a-col>
+              
             </a-row>
           </a-form>
         </a-col>
@@ -106,10 +108,12 @@
   import getAdaptiveTableScrollY from '@/hooks/table-scroll';
   import { computed, h, onMounted, reactive, ref } from 'vue';
   import { useRouter } from 'vue-router';
+  import { Message } from '@arco-design/web-vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
   import CustomerSelect from '@/views/app/customer/components/customer-select-modal.vue';
+  import { list as getCustomerList } from '@/views/app/customer/api/api-customer';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     DebtStatisticsRecord,
@@ -229,10 +233,41 @@
     [form.startDate, form.endDate] = dates;
   };
 
+  const resolveCustomerId = async () => {
+    const value = String(form.customerId ?? '').trim();
+    if (!value) return undefined;
+    if (/^\d+$/.test(value)) return Number(value);
+
+    const { data } = await getCustomerList(value);
+    const customers = data || [];
+    const customer = customers.find((item) => item.name === value);
+    if (customer?.id !== undefined && customer.id !== null) {
+      return customer.id;
+    }
+    return customers.length === 1 ? customers[0].id : undefined;
+  };
+
   const search = async () => {
     loading.value = true;
     try {
-      const { data } = await listDebtStatistics({ ...form });
+      const customerId = form.customerId
+        ? await resolveCustomerId()
+        : undefined;
+      if (
+        form.customerId &&
+        (customerId === undefined || customerId === null)
+      ) {
+        records.value = [];
+        Object.assign(result, {
+          openingTotal: 0,
+          receivableTotal: 0,
+          receivedTotal: 0,
+          endingTotal: 0,
+        });
+        Message.warning('请选择有效的客户');
+        return;
+      }
+      const { data } = await listDebtStatistics({ ...form, customerId });
       Object.assign(result, data || {});
       records.value = data?.records || [];
     } finally {

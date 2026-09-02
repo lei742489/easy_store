@@ -30,7 +30,6 @@
                 <a-form-item field="businessDate" label="日期">
                   <time-select
                     ref="timeSelectRef"
-                    :default-time-idx="2"
                     @change="timeSelectChange"
                   />
                 </a-form-item>
@@ -73,7 +72,7 @@
       </a-space>
     </a-card>
 
-    <a-card class="general-card table-card" :bordered="false">
+    <a-card class="general-card" :bordered="false">
       <a-table
         row-key="rowNo"
         :loading="loading"
@@ -81,24 +80,43 @@
         :columns="columns"
         :data="tableData"
         :bordered="{ cell: true }"
-        :scroll="{ x: 1180, y: getAdaptiveTableScrollY(500) }"
+        :scroll="{ x: 1180, y: getAdaptiveTableScrollY(540) }"
         :row-class="rowClass"
       />
+      <div v-if="searched" class="pagination-wrap">
+        <a-pagination
+          :current="pagination.current"
+          :page-size="pagination.pageSize"
+          :total="pagination.total"
+          show-page-size
+          show-total
+          @change="onPageChange"
+          @page-size-change="onPageSizeChange"
+        />
+      </div>
     </a-card>
   </div>
 </template>
 
 <script lang="ts" setup>
   import getAdaptiveTableScrollY from '@/hooks/table-scroll';
-  import { computed, h, onMounted, reactive, ref } from 'vue';
+  import {
+    computed,
+    h,
+    onMounted,
+    reactive,
+    ref,
+  } from 'vue';
   import { Message } from '@arco-design/web-vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { useRoute } from 'vue-router';
+  import { useUserStore } from '@/store';
   import { formatPrice } from '@/api/common';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     FundStatisticsDetail,
+    FundStatisticsDetailResult,
     FundStatisticsItem,
     listFundStatisticsDetail,
     listFundStatisticsItems,
@@ -110,17 +128,33 @@
   }
 
   const route = useRoute();
+  const userStore = useUserStore();
   const loading = ref(false);
   const itemLoading = ref(false);
   const timeSelectRef = ref<InstanceType<typeof TimeSelect> | null>(null);
   const itemOptions = ref<Array<{ label: string; value: string }>>([]);
   const records = ref<DetailRow[]>([]);
   const searched = ref(false);
+  const result = reactive<FundStatisticsDetailResult>({});
+  const pagination = reactive({
+    current: 1,
+    pageSize: 50,
+    total: 0,
+  });
   const form = reactive({
     itemKey: String(route.query.itemKey || '') || undefined,
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
+    startDate:
+      String(route.query.startDate || '') ||
+      dayjs().startOf('month').format('YYYY-MM-DD'),
+    endDate:
+      String(route.query.endDate || '') ||
+      dayjs().endOf('month').format('YYYY-MM-DD'),
   });
+  const hasRouteDate =
+    typeof route.query.startDate === 'string' &&
+    typeof route.query.endDate === 'string' &&
+    Boolean(route.query.startDate) &&
+    Boolean(route.query.endDate);
 
   const formatAmount = (value?: number) =>
     `￥${formatPrice(Number(value || 0))}`;
@@ -181,10 +215,9 @@
 
   const tableData = computed<DetailRow[]>(() => {
     if (!searched.value) return [];
-    const total = records.value.reduce(
-      (sum, record) => sum + Number(record.amount || 0),
-      0
-    );
+    const total =
+      result.netTotal ??
+      records.value.reduce((sum, record) => sum + Number(record.amount || 0), 0);
     return [
       {
         rowNo: '合计',
@@ -201,7 +234,9 @@
   const fetchItems = async () => {
     itemLoading.value = true;
     try {
-      const { data } = await listFundStatisticsItems();
+      const { data } = await listFundStatisticsItems({
+        userId: userStore.id,
+      });
       itemOptions.value = (data || [])
         .filter((item: FundStatisticsItem) => item.itemKey && item.name)
         .map((item: FundStatisticsItem) => ({
@@ -221,16 +256,20 @@
     loading.value = true;
     try {
       const { data } = await listFundStatisticsDetail({
+        userId: userStore.id,
         itemKey: form.itemKey,
         startDate: form.startDate,
         endDate: form.endDate,
+        current: pagination.current,
+        pageSize: pagination.pageSize,
       });
       const itemName =
         itemOptions.value.find((item) => item.value === form.itemKey)?.label ||
         '';
-      records.value = (data || []).map((item, index) => ({
+      Object.assign(result, data || {});
+      records.value = (data?.records || []).map((item, index) => ({
         ...item,
-        rowNo: index + 1,
+        rowNo: item.rowNo ?? (pagination.current - 1) * pagination.pageSize + index + 1,
         itemName,
         amount: Number(item.income || 0) - Number(item.expense || 0),
         businessDate:
@@ -238,6 +277,9 @@
             ? ''
             : dayjs(Number(item.businessTime)).format('YYYY-MM-DD'),
       }));
+      pagination.current = Number(data?.current || pagination.current);
+      pagination.pageSize = Number(data?.pageSize || pagination.pageSize);
+      pagination.total = Number(data?.total || 0);
       searched.value = true;
     } finally {
       loading.value = false;
@@ -245,6 +287,7 @@
   };
 
   const search = () => {
+    pagination.current = 1;
     fetchData();
   };
 
@@ -253,12 +296,34 @@
     form.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
     form.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
     records.value = [];
+    Object.assign(result, {
+      current: 1,
+      pageSize: pagination.pageSize,
+      total: 0,
+      incomeTotal: 0,
+      expenseTotal: 0,
+      netTotal: 0,
+      records: [],
+    });
+    pagination.current = 1;
+    pagination.total = 0;
     searched.value = false;
     timeSelectRef.value?.setPreset(2);
   };
 
   const timeSelectChange = (dates: string[]) => {
     [form.startDate, form.endDate] = dates;
+  };
+
+  const onPageChange = (current: number) => {
+    pagination.current = current;
+    fetchData();
+  };
+
+  const onPageSizeChange = (pageSize: number) => {
+    pagination.pageSize = pageSize;
+    pagination.current = 1;
+    fetchData();
   };
 
   const csvValue = (value: unknown) =>
@@ -367,6 +432,11 @@
   };
 
   onMounted(async () => {
+    if (hasRouteDate) {
+      timeSelectRef.value?.setRange([form.startDate, form.endDate]);
+    } else {
+      timeSelectRef.value?.setPreset(2);
+    }
     await fetchItems();
     if (form.itemKey) {
       fetchData();
@@ -391,8 +461,10 @@
     margin: 12px 0;
   }
 
-  .table-card {
-    min-height: calc(100vh - 190px);
+  .pagination-wrap {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 16px;
   }
 
   :deep(.summary-row) {

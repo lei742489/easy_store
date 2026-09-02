@@ -31,7 +31,7 @@
         <a-input-number
           v-model="data[rowIndex].actualQuantity"
           :min="0"
-          :precision="0"
+          :precision="2"
           @change="updateItem(data[rowIndex])"
         />
       </template>

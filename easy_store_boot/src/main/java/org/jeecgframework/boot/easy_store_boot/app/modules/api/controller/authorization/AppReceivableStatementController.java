@@ -120,7 +120,7 @@ public class AppReceivableStatementController {
                 if (orderId != null) {
                     for (Map<String, Object> item : queryOrderItems(orderId)) {
                         records.add(buildRow(rowNo++, "item", stringValue(item.get("goodsName")),
-                                stringValue(item.get("unit")), integerValue(item.get("quantity")),
+                                stringValue(item.get("unit")), numberValue(item.get("quantity")).doubleValue(),
                                 numberValue(item.get("unitPrice")).doubleValue(), null,
                                 numberValue(item.get("totalAmount")).doubleValue(), null,
                                 stringValue(item.get("note")), 0D, 0D, balance));
@@ -164,7 +164,9 @@ public class AppReceivableStatementController {
                 SALE_DEBT_AMOUNT_SQL + " AS receivable_amount, 0 AS received_amount " +
                 "FROM app_sale_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_receive_payment_amount_item GROUP BY order_no) receive_item " +
+                "FROM app_receive_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_receive_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) receive_item " +
                 "ON app_sale_order.order_no = receive_item.order_no " +
                 "WHERE app_sale_order.customer_id = ? AND app_sale_order.status = 1 " +
                 "AND COALESCE(app_sale_order.is_del, 0) = 0 " +
@@ -216,7 +218,9 @@ public class AppReceivableStatementController {
         String ownerCondition = cashierId == null ? "" : " AND app_sale_order.cashier_id = ?";
         String sql = "SELECT COALESCE(SUM(" + SALE_DEBT_AMOUNT_SQL + "), 0) FROM app_sale_order " +
                 "LEFT JOIN (SELECT order_no, SUM(COALESCE(amount, 0)) AS linked_amount " +
-                "FROM app_receive_payment_amount_item GROUP BY order_no) receive_item " +
+                "FROM app_receive_payment_amount_item " +
+                "WHERE order_id IN (SELECT id FROM app_receive_payment_voucher " +
+                "WHERE status = 1 AND COALESCE(is_del, 0) = 0) GROUP BY order_no) receive_item " +
                 "ON app_sale_order.order_no = receive_item.order_no " +
                 "WHERE app_sale_order.customer_id = ? AND app_sale_order.status = 1 " +
                 "AND COALESCE(app_sale_order.is_del, 0) = 0 " +
@@ -243,7 +247,7 @@ public class AppReceivableStatementController {
         return value == null ? 0D : value.doubleValue();
     }
 
-    private JSONObject buildRow(int rowNo, String rowType, String goodsName, String unit, Integer quantity,
+    private JSONObject buildRow(int rowNo, String rowType, String goodsName, String unit, Double quantity,
                                 Double unitPrice, Double freightAmount, Double totalAmount, Double discountAmount,
                                 String note, double receivableAmount, double receivedAmount, double endingBalance) {
         JSONObject row = new JSONObject();
