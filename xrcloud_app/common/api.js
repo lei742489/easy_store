@@ -1,5 +1,5 @@
 import request from './request'
-import { API_BASE_URL } from './config'
+import { API_BASE_URL, getClientDevType, getClientVersionAsync } from './config'
 import { getToken } from './auth'
 
 export const login = (data) => request({ url: '/api/login', data })
@@ -12,8 +12,23 @@ export const listHomeMenus = () =>
 export const pendingApproveCounts = () =>
   request({ url: '/api/user/appHomeMenu/pendingApproveCounts', data: {} })
 
+export const getHomeStatistics = (data = {}) =>
+  request({ url: '/api/user/appHomeStatistics/today', data })
+
+export const getHomeAssetStatistics = (data = {}) =>
+  request({ url: '/api/user/appHomeStatistics/asset', data })
+
 export const listSaleOrders = (data) =>
   request({ url: '/api/user/appSaleOrder/listPage', data })
+
+export const updateUserProfile = (data) =>
+  request({ url: '/api/user/updateProfile', data })
+
+export const updateUserPassword = (data) =>
+  request({ url: '/api/user/updatePwd', data })
+
+export const logout = (data = {}) =>
+  request({ url: '/api/user/logout', data })
 
 export const createSaleOrderNo = () =>
   request({ url: '/api/user/appSaleOrder/createOrderNo', data: {} })
@@ -231,16 +246,39 @@ export const listFundStatistics = (data) =>
 export const listFundStatisticsDetail = (data) =>
   request({ url: '/api/user/appFundStatistics/detail', data })
 
+export const listIncomeExpenseRecords = (data) =>
+  request({ url: '/api/user/appIncomeExpenseRecord/list', data })
+
+export const addIncomeExpenseRecord = (data) =>
+  request({ url: '/api/user/appIncomeExpenseRecord/add', data })
+
+export const listIncomeExpenseItems = (data = {}) =>
+  request({ url: '/api/user/appIncomeExpenseRecord/itemList', data })
+
 export const listProfitStatistics = (data) =>
   request({ url: '/api/user/appProfitStatistics/list', data })
 
 export const listProfitStatisticsDetail = (data) =>
   request({ url: '/api/user/appProfitStatistics/detail', data })
 
-export const uploadGoodsImage = (filePath) =>
-  new Promise((resolve, reject) => {
+export const listCashierStatistics = (data) =>
+  request({ url: '/api/user/appCashierStatistics/list', data })
+
+export const listCashierStatisticsDetail = (data) =>
+  request({ url: '/api/user/appCashierStatistics/detail', data })
+
+export const listCashierStatisticsPeriod = (data) =>
+  request({ url: '/api/user/appCashierStatistics/period', data })
+
+export const uploadGoodsImage = async (filePath) => {
+  const appVersion = await getClientVersionAsync()
+
+  return new Promise((resolve, reject) => {
     const token = getToken()
-    const header = {}
+    const header = {
+      devType: getClientDevType(),
+      appVersion
+    }
     if (token) header.token = token
 
     uni.uploadFile({
@@ -269,9 +307,64 @@ export const uploadGoodsImage = (filePath) =>
       }
     })
   })
+}
 
 export const listAppUsers = () =>
   request({ url: '/api/user/list', data: {} })
+
+export const listAppUserPage = (data) =>
+  request({ url: '/api/user/listPage', data })
+
+export const addAppUser = (data) =>
+  request({ url: '/api/user/add', data })
+
+export const editAppUser = (data) =>
+  request({ url: '/api/user/edit', data })
+
+export const removeAppUser = (data) =>
+  request({ url: '/api/user/remove', data })
+
+export const resetAppUserPassword = (data) =>
+  request({ url: '/api/user/resetPwd', data })
+
+export const listAppRolePage = (data) =>
+  request({ url: '/api/user/appRole/listPage', data })
+
+export const listAppRoles = () =>
+  request({ url: '/api/user/appRole/list', data: {} })
+
+export const addAppRole = (data) =>
+  request({ url: '/api/user/appRole/add', data })
+
+export const editAppRole = (data) =>
+  request({ url: '/api/user/appRole/edit', data })
+
+export const removeAppRole = (data) =>
+  request({ url: '/api/user/appRole/remove', data })
+
+export const listAppRoleMenuIds = (roleId) =>
+  request({ url: '/api/user/appRole/menuIds', data: { roleId } })
+
+export const listAppRolePermissionCodes = (roleId) =>
+  request({ url: '/api/user/appRole/permissionCodes', data: { roleId } })
+
+export const listAllAppMenus = () =>
+  request({ url: '/api/user/appHomeMenu/listAll', data: {} })
+
+export const listAppUnitPage = (data) =>
+  request({ url: '/api/user/appUnit/listPage', data })
+
+export const addAppUnit = (data) =>
+  request({ url: '/api/user/appUnit/add', data })
+
+export const editAppUnit = (data) =>
+  request({ url: '/api/user/appUnit/edit', data })
+
+export const removeAppUnit = (data) =>
+  request({ url: '/api/user/appUnit/remove', data })
+
+export const listAppOperationLogPage = (data) =>
+  request({ url: '/api/user/appOperationLog/listPage', data })
 
 export const searchCustomers = (key) =>
   request({ url: '/api/user/customer/searchKey', data: { key } })

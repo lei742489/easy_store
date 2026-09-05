@@ -1,11 +1,12 @@
-<template>
+﻿<template>
   <view class="page">
     <view id="top" class="hero">
       <uni-status-bar />
+	  <view style="height: 50rpx;"></view>
       <view class="hero-top">
         <view class="brand">
           <image class="brand-logo" src="/static/logo-big.png" mode="aspectFit" />
-          <text class="brand-name">新锐云</text>
+          <text class="brand-name">鏂伴攼浜?/text>
         </view>
         <uni-icons
           type="search"
@@ -15,21 +16,20 @@
         />
       </view>
       <view class="welcome-row">
-        <text class="welcome">欢迎回来！{{ displayName }}</text>
-        <text v-if="isRoot" class="root-label">老板模式</text>
-		<text v-else class="root-label">员工模式</text>
+        <text class="welcome">娆㈣繋鍥炴潵锛亄{ displayName }}</text>
+        <text class="root-label">{{roleLabel}}</text>
       </view>
     </view>
 
     <scroll-view class="content" scroll-y :show-scrollbar="false" :style="{ height: `${contentHeight}px` }">
       <view class="section announcement">
-        <view class="section-title-row"><text class="section-title">通知公告</text></view>
-        <view class="announcement-row"><view class="announcement-dot" /><text>欢迎使用 新锐云 进销存管理系统</text></view>
+        <view class="section-title-row"><text class="section-title">閫氱煡鍏憡</text></view>
+        <view class="announcement-row"><view class="announcement-dot" /><text>娆㈣繋浣跨敤 鏂伴攼浜?杩涢攢瀛樼鐞嗙郴缁?/text></view>
       </view>
 
       <view v-if="loading" class="loading-state">
         <uni-icons type="spinner-cycle" color="#722ed1" :size="30" />
-        <text>正在加载菜单...</text>
+        <text>姝ｅ湪鍔犺浇鑿滃崟...</text>
       </view>
       <view v-else-if="menuGroups.length" class="menu-sections">
         <view v-for="group in menuGroups" :key="group.code" class="section">
@@ -60,7 +60,7 @@
       </view>
       <view v-else class="empty-state">
         <uni-icons type="info" color="#aaa5b5" :size="52" />
-        <text>暂无可用功能</text>
+        <text>鏆傛棤鍙敤鍔熻兘</text>
       </view>
       <view class="bottom-space" />
     </scroll-view>
@@ -70,6 +70,7 @@
 <script>
 import { getUser, isLoggedIn, clearSession, updateUser } from '../../common/auth'
 import { getUserInfo, listHomeMenus, pendingApproveCounts } from '../../common/api'
+import checkUpdate from '@/uni_modules/uni-upgrade-center-app/utils/check-update'
 
 const iconMap = {
   sale_order_add: 'sm1', receive_payment_add: 'sm2', purchase_order_add: 'sm3', payment_add: 'sm4',
@@ -109,11 +110,16 @@ const appPageMap = {
   purchase_stats: '/pages/purchase-statistics/index',
   fund_stats: '/pages/fund-statistics/index',
   profit_stats: '/pages/profit-statistics/index',
+  cashier_stats: '/pages/cashier-statistics/index',
+  income_expense_record: '/pages/income-expense-record/index',
   customer_statement: '/pages/receivable-statement/index',
   payable_order: '/pages/payable-statement/index',
   stock_stats: '/pages/stock-statistics/index',
   stock_warning: '/pages/stock-warning/index',
-  stock_check: '/pages/stock-check/list'
+  stock_check: '/pages/stock-check/list',
+  app_user: '/pages/app-user/index',
+  app_unit: '/pages/app-unit/index',
+  operation_log: '/pages/operation-log/index'
 }
 
 export default {
@@ -131,12 +137,25 @@ export default {
     }
   },
   computed: {
-    displayName() { return this.user.realName || this.user.userName || '用户' },
-    isRoot() { return Number(this.user.isRoot) === 1 }
+    displayName() { return this.user.realName || this.user.userName || '鐢ㄦ埛' },
+    isRoot() { return Number(this.user.isRoot) === 1 },
+    roleLabel() {
+      let d =
+       this.isRoot
+        ? '绠＄悊鍛?
+        : this.user.roleId_dictText || this.user.roleName || '鏅€氬憳宸?
+
+        console.log(d)
+        return d
+    }
   },
   onReady() {
     this.pageAlive = true
     this.scheduleContentHeight()
+	// #ifdef APP-PLUS
+		checkUpdate();
+	// #endif
+  this.loadHome()
   },
   onShow() {
     this.pageAlive = true
@@ -144,7 +163,7 @@ export default {
       this.redirectToLogin()
       return
     }
-    this.loadHome()
+
   },
   onHide() {
     this.pageAlive = false
@@ -170,7 +189,7 @@ export default {
       }, 0)
     },
     updateContentHeight() {
-      // 只在首次渲染完成后测量，避免 onShow 时查询已销毁的页面节点。
+      // 鍙湪棣栨娓叉煋瀹屾垚鍚庢祴閲忥紝閬垮厤 onShow 鏃舵煡璇㈠凡閿€姣佺殑椤甸潰鑺傜偣銆?
       if (this.redirecting || !this.pageAlive) return
       const systemInfo = uni.getSystemInfoSync()
       try {
@@ -185,7 +204,7 @@ export default {
           })
           .exec()
       } catch (error) {
-        // 页面切换期间节点可能已经销毁，保留默认高度即可。
+        // 椤甸潰鍒囨崲鏈熼棿鑺傜偣鍙兘宸茬粡閿€姣侊紝淇濈暀榛樿楂樺害鍗冲彲銆?
       }
     },
     redirectToLogin() {
@@ -210,13 +229,28 @@ export default {
         if (Number(this.user.isRoot) === 1) requests.push(pendingApproveCounts())
         const results = await Promise.all(requests)
         if (!this.pageAlive || requestId !== this.loadRequestId) return
-        this.menuGroups = Array.isArray(results[0]) ? results[0] : []
+        this.menuGroups = Array.isArray(results[0])
+          ? results[0]
+            .map((group) => ({
+              ...group,
+              menus: Array.isArray(group.menus)
+                ? group.menus.filter(
+                    (item) =>
+                      item &&
+                      !['app_role', 'app_user', 'app_unit', 'operation_log'].includes(
+                        item.code
+                      )
+                  )
+                : []
+            }))
+            .filter((group) => group.menus.length)
+          : []
         this.pendingCounts = results[1] || {}
       } catch (error) {
         if (this.redirecting || !this.pageAlive || requestId !== this.loadRequestId) return
         clearSession()
         this.redirecting = true
-        uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+        uni.showToast({ title: '鐧诲綍宸插け鏁堬紝璇烽噸鏂扮櫥褰?, icon: 'none' })
         uni.reLaunch({ url: '/pages/login/index' })
       } finally {
         this.loading = false
@@ -260,7 +294,7 @@ export default {
         uni.navigateTo({ url: appPage })
         return
       }
-      if (item.url) uni.showToast({ title: `${item.name}将在后续版本接入`, icon: 'none' })
+      if (item.url) uni.showToast({ title: `${item.name}灏嗗湪鍚庣画鐗堟湰鎺ュ叆`, icon: 'none' })
     },
     openGoodsSearch() {
       uni.navigateTo({ url: '/pages/goods-quick-search/index' })
@@ -271,7 +305,7 @@ export default {
 
 <style lang="scss" scoped>
 .page { min-height: 100%; color: #303044; background: #f5f4fb; }
-.hero { padding: 30rpx 30rpx 28rpx; box-sizing: border-box; color: #fff; background: linear-gradient(135deg, #4a238d 0%, #722ed1 65%, #8e5de8 100%); border-radius: 0 0 34rpx 34rpx; }
+.hero { padding: 30rpx  28rpx; box-sizing: border-box; color: #fff; background: linear-gradient(135deg, #4a238d 0%, #722ed1 65%, #8e5de8 100%); border-radius: 0 0 34rpx 34rpx; }
 .hero-top, .welcome-row, .section-title-row, .announcement-row { display: flex; align-items: center; justify-content: space-between; }
 .brand, .hero-top { display: flex; align-items: center; }
 .brand-logo { width: 72rpx; height: 72rpx; margin-right: 14rpx; padding: 7rpx; box-sizing: border-box; background: #fff; border-radius: 15rpx; }
@@ -293,4 +327,6 @@ export default {
 .announcement-dot { width: 10rpx; height: 10rpx; margin-right: 12rpx; background: #722ed1; border-radius: 50%; }
 .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420rpx; color: #9895a3; font-size: 24rpx; gap: 18rpx; }
 .bottom-space { height: 20rpx; }
+
+.welcome-row > .role-label { order: 3; }
 </style>

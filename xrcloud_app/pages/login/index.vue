@@ -43,15 +43,14 @@
       </view>
     </scroll-view>
 
-    <text class="app-version">版本: v{{ appVersion }}</text>
+    <text class="app-version">版本：v{{ appVersion }}</text>
   </view>
 </template>
 
 <script>
-import { APP_NAME } from '../../common/config'
+import { APP_NAME, getClientVersion, getClientVersionAsync } from '../../common/config'
 import { login, getUserInfo } from '../../common/api'
 import {
-  getToken,
   saveSession,
   updateUser,
   clearSession,
@@ -64,17 +63,18 @@ export default {
     return {
       showPassword: false,
       loading: false,
-      appVersion: '1.0.0',
+      appVersion: getClientVersion(),
       appName: APP_NAME,
       form: { username: getLastLoginUsername(), password: '' }
     }
   },
   onLoad() {
-    const appBaseInfo = uni.getAppBaseInfo ? uni.getAppBaseInfo() : {}
-    this.appVersion = appBaseInfo.appVersion || this.appVersion
-    if (getToken()) uni.reLaunch({ url: '/pages/index/index' })
+    this.refreshAppVersion()
   },
   methods: {
+    async refreshAppVersion() {
+      this.appVersion = await getClientVersionAsync()
+    },
     async handleLogin() {
       if (this.loading) return
       const username = String(this.form.username || '').trim()

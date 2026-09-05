@@ -126,7 +126,7 @@
           </view>
         </view>
 
-        <view v-else>
+        <view v-else-if="isRoot">
           <view class="section-title">账务信息</view>
           <view class="form-row">
             <view class="form-col">
@@ -189,7 +189,7 @@
 </template>
 
 <script>
-import { clearSession, isLoggedIn } from '../../common/auth'
+import { clearSession, getUser, isLoggedIn } from '../../common/auth'
 import {
   addCustomer,
   addSupplier,
@@ -275,6 +275,7 @@ export default {
   data() {
     return {
       mode: 'customer',
+      user: getUser() || {},
       partnerId: '',
       form: emptyForm(),
       originalForm: emptyForm(),
@@ -303,6 +304,9 @@ export default {
     },
     isEdit() {
       return Boolean(this.partnerId)
+    },
+    isRoot() {
+      return Number(this.user.isRoot) === 1
     },
     pageTitle() {
       if (this.isCustomer) return this.isEdit ? '编辑客户' : '新增客户'

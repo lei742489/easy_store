@@ -322,6 +322,7 @@
     stock?: number;
     panelSelectedGoods?: boolean;
     totalAmount?: number;
+    totalAmountEdited?: boolean;
     costPrice?: number;
     orderId?: number;
     note?: string;
@@ -344,6 +345,7 @@
     stock: undefined,
     panelSelectedGoods: false,
     totalAmount: undefined,
+    totalAmountEdited: false,
     costPrice: undefined,
     note: undefined,
   };
@@ -585,6 +587,7 @@
     row.costPrice = undefined;
     row.unitPrice = undefined;
     row.totalAmount = undefined;
+    row.totalAmountEdited = false;
     data.value[rowIndex].panelSelectedGoods = false;
     emitChange();
     if (!value || !value.trim()) {
@@ -714,7 +717,7 @@
           };
         }
         return item;
-      });
+        });
       initItemList(itemList.length);
     } else {
       data.value = [];
@@ -743,9 +746,13 @@
   function emitChange() {
     let tList = 0;
     data.value.forEach((item) => {
+      const totalAmount =
+        item.totalAmount !== undefined && item.totalAmount !== null
+          ? item.totalAmount
+          : mulPrice(item.quantity || 0, item.unitPrice || 0);
       tList = addPrice(
         tList,
-        mulPrice(item.quantity || 0, item.unitPrice || 0)
+        totalAmount || 0
       );
     });
     emit('change', tList);
@@ -756,6 +763,7 @@
       goodsItem.quantity || 0,
       goodsItem.unitPrice || 0
     );
+    goodsItem.totalAmountEdited = false;
     emitChange();
   }
 
@@ -777,6 +785,7 @@
     row.panelSelectedGoods = true;
     row.quantity = orderType.value === 1 ? 1 : -1;
     row.unitPrice = getPanelUnitPrice(goods);
+    row.totalAmountEdited = false;
     if (row.unitPrice !== undefined) {
       updateTotalAmount(row);
     } else {
@@ -791,11 +800,17 @@
     if (goods) confirmGoods(goods);
   };
 
-  const updateUnitPrice = (goodsItem: OrderItemRow) => {
-    goodsItem.unitPrice = divPrice(
-      goodsItem.totalAmount || 0,
-      goodsItem.quantity || 0
-    );
+  const updateUnitPrice = (
+    goodsItem: OrderItemRow,
+    markTotalEdited = true
+  ) => {
+    const quantity = Number(goodsItem.quantity || 0);
+    const totalAmount = Number(goodsItem.totalAmount || 0);
+    goodsItem.unitPrice =
+      Number.isFinite(quantity) && quantity !== 0 && Number.isFinite(totalAmount)
+        ? divPrice(totalAmount, quantity)
+        : 0;
+    if (markTotalEdited) goodsItem.totalAmountEdited = true;
     emitChange();
   };
 
@@ -823,6 +838,7 @@
       goodsItem.costPrice = option.costPrice;
       goodsItem.unitPrice = undefined;
       goodsItem.totalAmount = undefined;
+      goodsItem.totalAmountEdited = false;
       emitChange();
     }
   };
@@ -880,7 +896,7 @@
           item.totalAmount = Math.abs(item.totalAmount || 0);
         }
 
-        updateUnitPrice(item);
+        updateUnitPrice(item, false);
       }
     });
   });

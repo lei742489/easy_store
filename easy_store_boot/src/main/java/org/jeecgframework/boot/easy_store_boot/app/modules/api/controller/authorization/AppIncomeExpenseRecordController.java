@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -85,9 +86,36 @@ public class AppIncomeExpenseRecordController {
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
                 orderNo, settleId, cashierId, cashierName, summary,
                 StringUtils.trimToEmpty(param.getString("counterparty")),
-                fundItem, income, expense, businessTime);
+                fundItem, income, expense, Timestamp.from(Instant.ofEpochMilli(businessTime)));
         accountSettleService.updateCurPrc(settleId, income - expense);
         return Result.ok(orderNo);
+    }
+
+    @PostMapping("remove")
+    @Transactional(rollbackFor = Exception.class)
+    public Result<?> remove(@RequestBody JSONObject param) {
+        assertRoot(param);
+        Integer id = param.getInteger("id");
+        if (id == null) {
+            throw new AppRunTimeException("记录编号不能为空");
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT settle_id AS settleId, COALESCE(income, 0) AS income, " +
+                        "COALESCE(expense, 0) AS expense " +
+                        "FROM app_income_expense_record " +
+                        "WHERE id = ? AND COALESCE(is_del, 0) = 0",
+                id);
+        if (rows.isEmpty()) {
+            throw new AppRunTimeException("记录不存在或已删除");
+        }
+        Map<String, Object> record = rows.get(0);
+
+        String settleId = stringValue(record.get("settleId"));
+        double income = numberValue(record.get("income"));
+        double expense = numberValue(record.get("expense"));
+        jdbcTemplate.update("UPDATE app_income_expense_record SET is_del = 1 WHERE id = ?", id);
+        accountSettleService.updateCurPrc(settleId, expense - income);
+        return Result.ok();
     }
 
     @PostMapping("itemList")
@@ -127,7 +155,7 @@ public class AppIncomeExpenseRecordController {
                         "VALUES (?, ?, ?, ?, ?, ?, 0)",
                 name, itemType, param.getBooleanValue("participatePerformance") ? 1 : 0,
                 param.getBooleanValue("disabled") ? 1 : 0,
-                System.currentTimeMillis(), System.currentTimeMillis());
+                currentTimestamp(), currentTimestamp());
         return Result.ok();
     }
 
@@ -151,7 +179,7 @@ public class AppIncomeExpenseRecordController {
                         "participate_performance = ?, disabled = ?, update_time = ? " +
                         "WHERE id = ? AND COALESCE(is_del, 0) = 0",
                 name, itemType, param.getBooleanValue("participatePerformance") ? 1 : 0,
-                param.getBooleanValue("disabled") ? 1 : 0, System.currentTimeMillis(), id);
+                param.getBooleanValue("disabled") ? 1 : 0, currentTimestamp(), id);
         return Result.ok();
     }
 
@@ -163,7 +191,7 @@ public class AppIncomeExpenseRecordController {
             throw new AppRunTimeException("收支项目编号不能为空");
         }
         jdbcTemplate.update("UPDATE app_income_expense_item SET is_del = 1, update_time = ? WHERE id = ?",
-                System.currentTimeMillis(), id);
+                currentTimestamp(), id);
         return Result.ok();
     }
 
@@ -212,7 +240,8 @@ public class AppIncomeExpenseRecordController {
 
         JSONArray records = new JSONArray();
         if (current == 1) {
-            records.add(buildRecord("期初", "", "", "期初结存", "", "", 0D, 0D, openingBalance));
+        records.add(buildRecord("期初", "", "", "期初结存", "", "", 0D, 0D, openingBalance,
+                "opening", null));
         }
 
         double balance = openingBalance + beforePageBalance;
@@ -224,7 +253,8 @@ public class AppIncomeExpenseRecordController {
             records.add(buildRecord(rowNo++, formatDate(numberValue(event.get("businessTime"))),
                     stringValue(event.get("orderNo")), stringValue(event.get("summary")),
                     stringValue(event.get("counterparty")), stringValue(event.get("fundItem")),
-                    income, expense, balance));
+                    income, expense, balance, stringValue(event.get("recordType")),
+                    event.get("recordId")));
         }
 
         JSONObject result = new JSONObject();
@@ -402,7 +432,7 @@ public class AppIncomeExpenseRecordController {
 
     private JSONObject buildRecord(Object rowNo, String businessDate, String orderNo, String summary,
                                    String counterparty, String fundItem, double income, double expense,
-                                   double balance) {
+                                   double balance, String recordType, Object recordId) {
         JSONObject record = new JSONObject();
         record.put("rowNo", rowNo);
         record.put("businessDate", businessDate);
@@ -413,6 +443,8 @@ public class AppIncomeExpenseRecordController {
         record.put("income", income);
         record.put("expense", expense);
         record.put("balance", balance);
+        record.put("recordType", recordType);
+        record.put("recordId", recordId);
         return record;
     }
 
@@ -488,6 +520,10 @@ public class AppIncomeExpenseRecordController {
 
     private String businessTimeSql(String alias) {
         return databaseDialect.epochMillis(alias + ".create_time");
+    }
+
+    private Timestamp currentTimestamp() {
+        return Timestamp.from(Instant.now());
     }
 
     private static class SqlAndParams {

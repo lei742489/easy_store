@@ -53,7 +53,10 @@
             class="goods-card-wrap"
           >
             <view class="goods-card-click-area" @click="selectAndReturn(goods)">
-              <uni-goods-card :goods="goods" />
+              <uni-goods-card
+                :goods="goods"
+                :price-mode="goodsCardPriceMode"
+              />
             </view>
             <view
               class="add-goods-button"
@@ -139,6 +142,9 @@ export default {
     }
   },
   computed: {
+    goodsCardPriceMode() {
+      return this.selectType === 'stockCheck' ? '' : 'businessOrder'
+    },
     hasMore() {
       return this.goodsList.length < this.total
     },
@@ -315,7 +321,8 @@ export default {
         order: 'desc',
         title: String(this.keyword || '').trim(),
         zeroStock: this.selectType === 'stockCheck',
-        userId: this.user.id
+        userId: this.user.id,
+        quoteScene: this.selectType === 'stockCheck' ? '' : 'businessOrder'
       }
       if (this.selectedCategoryId) params.categoryId = this.selectedCategoryId
       return params

@@ -38,7 +38,7 @@
           </text>
           <text v-if="item.subtitle" class="result-subtitle">{{ item.subtitle }}</text>
         </view>
-        <text class="debt-text">
+        <text v-if="isRoot" class="debt-text">
           欠款 ¥{{ formatAmount(getDebtAmount(item)) }}
         </text>
       </view>
@@ -52,6 +52,7 @@
 </template>
 
 <script>
+import { getUser } from '../../common/auth'
 import { listCustomers, listGoodsSuppliers } from '../../common/api'
 
 const normalizeText = (value) => String(value || '').trim()
@@ -61,6 +62,7 @@ export default {
     return {
       mode: 'supplier',
       title: '供应商查询',
+      user: getUser() || {},
       keyword: '',
       loading: false,
       items: [],
@@ -68,6 +70,9 @@ export default {
     }
   },
   computed: {
+    isRoot() {
+      return Number(this.user.isRoot) === 1
+    },
     placeholder() {
       return '名称 / 联系人 / 手机 / 拼音'
     },

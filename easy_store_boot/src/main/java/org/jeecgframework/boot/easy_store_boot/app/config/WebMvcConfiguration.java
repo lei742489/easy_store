@@ -7,6 +7,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.*;
+import org.jeecgframework.boot.easy_store_boot.app.config.handler.ClientVersionInterceptor;
 
 /**
  * Spring Boot 2.0 解决跨域问题
@@ -23,6 +24,11 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 	private String webAppPath;
 	@Value("${spring.resource.static-locations}")
 	private String staticLocations;
+
+	@Bean
+	public ClientVersionInterceptor clientVersionInterceptor() {
+		return new ClientVersionInterceptor();
+	}
 
 	@Bean
 	public CorsFilter corsFilter() {
@@ -46,6 +52,17 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 	@Override
 	public void addViewControllers(ViewControllerRegistry registry) {
 		registry.addViewController("/").setViewName("index.html");
+	}
+
+	@Override
+	public void addInterceptors(InterceptorRegistry registry) {
+		registry.addInterceptor(clientVersionInterceptor())
+				.addPathPatterns("/api/**")
+				.excludePathPatterns(
+						"/api/upload/static/**",
+						"/api/upload/pdf/**",
+						"/api/**/exportXls"
+				);
 	}
 
 }

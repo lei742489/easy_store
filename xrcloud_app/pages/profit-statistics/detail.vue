@@ -31,17 +31,17 @@
           <text class="summary-label">折后金额</text>
           <text class="summary-value">￥{{ formatAmount(totalDiscountedAmount) }}</text>
         </view>
-        <view class="summary-item">
+        <view v-if="isRoot" class="summary-item">
           <text class="summary-label">成本金额</text>
           <text class="summary-value">￥{{ formatAmount(totalCostAmount) }}</text>
         </view>
-        <view class="summary-item">
+        <view v-if="isRoot" class="summary-item">
           <text class="summary-label">利润金额</text>
           <text class="summary-value profit" :class="{ negative: totalProfitAmount < 0 }">
             ￥{{ formatAmount(totalProfitAmount) }}
           </text>
         </view>
-        <view class="summary-item">
+        <view v-if="isRoot" class="summary-item">
           <text class="summary-label">利润率</text>
           <text class="summary-value">{{ formatRate(totalProfitRate) }}</text>
         </view>
@@ -83,17 +83,17 @@
               <text class="metric-label">折后金额</text>
               <text class="metric-value">￥{{ formatAmount(record.discountedAmount) }}</text>
             </view>
-            <view class="metric-item">
+            <view v-if="isRoot" class="metric-item">
               <text class="metric-label">成本金额</text>
               <text class="metric-value">￥{{ formatAmount(record.costAmount) }}</text>
             </view>
-            <view class="metric-item">
+            <view v-if="isRoot" class="metric-item">
               <text class="metric-label">利润金额</text>
               <text class="metric-value profit" :class="{ negative: Number(record.profitAmount || 0) < 0 }">
                 ￥{{ formatAmount(record.profitAmount) }}
               </text>
             </view>
-            <view class="metric-item">
+            <view v-if="isRoot" class="metric-item">
               <text class="metric-label">利润率</text>
               <text class="metric-value">{{ formatRate(record.profitRate) }}</text>
             </view>
@@ -147,6 +147,9 @@ export default {
     }
   },
   computed: {
+    isRoot() {
+      return Number(this.user.isRoot) === 1
+    },
     totalQuantity() {
       return this.records.reduce((total, item) => total + Number(item.quantity || 0), 0)
     },

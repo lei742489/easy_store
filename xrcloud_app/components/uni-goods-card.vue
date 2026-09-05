@@ -14,7 +14,7 @@
       <!--
       <text v-if="goods.goodsCode" class="goods-code">货品代码：{{ goods.goodsCode }}</text>
       -->
-      
+
       <view class="goods-meta">
         <text>分类：{{ goods.categoryId_dictText || goods.categoryName || '未分类' }}</text>
         <text>单位：{{ goods.unit || '-' }}</text>
@@ -24,19 +24,20 @@
         <text class="stock-value" :class="{ negative: Number(goods.stock || 0) < 0 }">
           {{ formatQuantity(goods.stock) }}
         </text>
-        <text class="goods-cost">成本：{{ formatPrice(goods.costPrice) }}</text>
+        <text v-if="showCostPrice" class="goods-cost">成本：{{ formatPrice(goods.costPrice) }}</text>
       </view>
     </view>
-    <view class="price-row">
-      <text>零售：{{ formatPrice(goods.salePrc) }}</text>
-      <!-- <text>批发：{{ formatPrice(goods.tradePrc) }}</text> -->
-      <text>进货：{{ formatPrice(goods.purPrc) }}</text>
+    <view v-if="visiblePrices.length" class="price-row">
+      <text v-for="price in visiblePrices" :key="price.key">
+        {{ price.label }}：{{ formatPrice(goods[price.field]) }}
+      </text>
     </view>
   </view>
 </template>
 
 <script>
 import { API_BASE_URL } from '../common/config'
+import { getUser } from '../common/auth'
 
 export default {
   name: 'UniGoodsCard',
@@ -44,14 +45,36 @@ export default {
     goods: {
       type: Object,
       default: () => ({})
+    },
+    priceMode: {
+      type: String,
+      default: ''
     }
   },
   data() {
     return {
+      user: getUser() || {},
       imageFailed: false
     }
   },
   computed: {
+    isRoot() {
+      return Number(this.user.isRoot) === 1
+    },
+    showCostPrice() {
+      return this.isRoot
+    },
+    visiblePrices() {
+      const salePrice = { key: 'sale', label: '零售', field: 'salePrc' }
+      const tradePrice = { key: 'trade', label: '批发', field: 'tradePrc' }
+      const purchasePrice = { key: 'purchase', label: '进货', field: 'purPrc' }
+      if (this.priceMode === 'businessOrder') {
+        return this.isRoot
+          ? [salePrice, tradePrice, purchasePrice]
+          : [salePrice, tradePrice]
+      }
+      return [salePrice, purchasePrice]
+    },
     imageUrl() {
       if (this.imageFailed) return '/static/ico/none.png'
       const image = String(this.goods && this.goods.imgUrl || '').trim()
@@ -122,7 +145,7 @@ export default {
 .stock-value { margin-left: 12rpx; color: #33303f; font-size: 28rpx; font-weight: 600; }
 .stock-value.negative { color: #e5484d; }
 .goods-cost { margin-left: auto; color: #722ed1; font-size: 22rpx; }
-.price-row { display: grid; flex: 0 0 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; margin-top: 14rpx; padding-top: 12rpx; box-sizing: border-box; color: #8b8594; font-size: 22rpx; border-top: 1rpx solid #f0edf5; }
+.price-row { display: grid; flex: 0 0 100%; grid-template-columns: repeat(auto-fit, minmax(180rpx, 1fr)); gap: 8rpx 16rpx; width: 100%; margin-top: 14rpx; padding-top: 12rpx; box-sizing: border-box; color: #8b8594; font-size: 22rpx; border-top: 1rpx solid #f0edf5; }
 .price-row text { min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 420px) {

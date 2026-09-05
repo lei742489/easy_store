@@ -98,9 +98,14 @@
                 <text class="control-label">数量</text>
                 <input v-model="item.displayQuantity" class="number-input" type="digit" @blur="handleItemChange(item)" />
               </view>
-              <view class="goods-total">
+              <view class="number-control">
                 <text class="control-label">金额</text>
-                <text class="goods-total-value">{{ formatAmount(item.totalAmount) }}</text>
+                <input
+                  v-model="item.totalAmount"
+                  class="number-input"
+                  type="digit"
+                  @blur="handleItemTotalChange(item)"
+                />
               </view>
             </view>
             <view class="goods-item-note">
@@ -386,7 +391,8 @@ export default {
           quantity,
           unitPrice: toNumber(item.unitPrice),
           stock: toNumber(item.stock),
-          totalAmount: toNumber(item.totalAmount)
+          totalAmount: toNumber(item.totalAmount),
+          totalAmountEdited: item.totalAmount !== undefined && item.totalAmount !== null
         }
       })
       this.form = form
@@ -465,7 +471,8 @@ export default {
             displayQuantity: quantity,
             quantity,
             unitPrice: toNumber(item.unitPrice),
-            totalAmount: toNumber(item.totalAmount)
+            totalAmount: toNumber(item.totalAmount),
+            totalAmountEdited: item.totalAmountEdited === true
           }
         })
       this.recalculate()
@@ -473,13 +480,28 @@ export default {
     handleItemChange(item) {
       item.displayQuantity = Math.max(0, roundQuantity(item.displayQuantity, 0))
       item.unitPrice = toNumber(item.unitPrice)
+      item.totalAmountEdited = false
       this.recalculate()
+    },
+    handleItemTotalChange(item) {
+      const quantity = Math.abs(roundQuantity(
+        item.displayQuantity !== undefined ? item.displayQuantity : item.quantity,
+        0
+      ))
+      const amount = Math.abs(toNumber(item.totalAmount))
+      const sign = this.form.orderType === 2 ? -1 : 1
+      item.displayQuantity = quantity
+      item.quantity = quantity
+      item.totalAmount = quantity > 0 ? this.roundMoney(amount * sign) : 0
+      item.unitPrice = quantity > 0 ? this.roundMoney(amount / quantity) : 0
+      item.totalAmountEdited = true
+      this.recalculate(item)
     },
     removeItem(index) {
       this.form.items.splice(index, 1)
       this.recalculate()
     },
-    recalculate() {
+    recalculate(changedTotalItem = null) {
       const sign = this.form.orderType === 2 ? -1 : 1
       let total = 0
       this.form.items.forEach((item) => {
@@ -487,8 +509,10 @@ export default {
           item.displayQuantity !== undefined ? item.displayQuantity : item.quantity
         ))
         item.quantity = quantity
-        item.totalAmount = this.roundMoney(quantity * toNumber(item.unitPrice) * sign)
-        total += item.totalAmount
+        if (item !== changedTotalItem && !item.totalAmountEdited) {
+          item.totalAmount = this.roundMoney(quantity * toNumber(item.unitPrice) * sign)
+        }
+        total += toNumber(item.totalAmount)
       })
       this.form.totalAmount = this.roundMoney(total)
       const rate = Math.max(0, toNumber(this.form.discountRate, 100))

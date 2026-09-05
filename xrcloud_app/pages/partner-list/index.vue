@@ -39,7 +39,7 @@
 						<text class="partner-name">{{ item.name || '-' }}</text>
 						<text class="partner-subtitle">{{ getPartnerSubtitle(item) }}</text>
 					</view>
-					<view class="debt-box">
+					<view v-if="isRoot" class="debt-box">
 						<text class="debt-label">欠款：</text>
 						<text class="debt-value">¥{{ formatAmount(item.payable) }}</text>
 					</view>
@@ -95,6 +95,7 @@
 </template>
 
 <script>
+	import { getUser } from '../../common/auth'
 	import {
 		listCustomerPage,
 		listSupplierPage
@@ -117,6 +118,7 @@
 		data() {
 			return {
 				mode: 'customer',
+				user: getUser() || {},
 				listScrollTop: 0,
 				pageSize: 50,
 				modeState: {
@@ -141,6 +143,9 @@
 		computed: {
 			currentState() {
 				return this.modeState[this.mode]
+			},
+			isRoot() {
+				return Number(this.user.isRoot) === 1
 			},
 			keyword: {
 				get() {

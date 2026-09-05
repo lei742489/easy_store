@@ -22,6 +22,8 @@ export interface IncomeExpenseRecord {
   income?: number;
   expense?: number;
   balance?: number;
+  recordType?: string;
+  recordId?: number | string;
   isSummary?: boolean;
 }
 
@@ -64,6 +66,10 @@ export function listIncomeExpenseRecords(data: IncomeExpenseRecordQuery) {
 
 export function addIncomeExpenseRecord(data: ManualIncomeExpenseRecord) {
   return axios.post<string>('api/user/appIncomeExpenseRecord/add', data);
+}
+
+export function removeIncomeExpenseRecord(id: number | string) {
+  return axios.post('api/user/appIncomeExpenseRecord/remove', { id });
 }
 
 export function listIncomeExpenseItems(data?: {

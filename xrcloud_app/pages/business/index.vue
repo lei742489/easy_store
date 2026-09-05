@@ -63,21 +63,29 @@ import SaleForm from './components/sale-form.vue'
 import PurchaseForm from './components/purchase-form.vue'
 import VoucherForm from './components/voucher-form.vue'
 import { isLoggedIn } from '../../common/auth'
+import { listHomeMenus } from '../../common/api'
 
 const TAB_INDEX_MAP = {
-  sale: 0,
-  sales: 0,
-  saleOrder: 0,
-  purchase: 1,
-  purchases: 1,
-  purchaseOrder: 1,
-  receive: 2,
-  receivePayment: 2,
-  receivePaymentVoucher: 2,
-  payment: 3,
-  payments: 3,
-  paymentVoucher: 3
+  sale: 'sale',
+  sales: 'sale',
+  saleOrder: 'sale',
+  purchase: 'purchase',
+  purchases: 'purchase',
+  purchaseOrder: 'purchase',
+  receive: 'receive',
+  receivePayment: 'receive',
+  receivePaymentVoucher: 'receive',
+  payment: 'payment',
+  payments: 'payment',
+  paymentVoucher: 'payment'
 }
+
+const ALL_TABS = [
+  { key: 'sale', label: '销售单', menuCode: 'sale_order_add' },
+  { key: 'purchase', label: '进货单', menuCode: 'purchase_order_add' },
+  { key: 'receive', label: '收款单', menuCode: 'receive_payment_add' },
+  { key: 'payment', label: '付款单', menuCode: 'payment_add' }
+]
 
 export default {
   components: {
@@ -91,6 +99,7 @@ export default {
       pageHeight: 1,
       contentHeight: 1,
       currentIndex: 0,
+      requestedTabKey: 'sale',
       routeOptions: {},
       saleRouteOptions: {},
       purchaseRouteOptions: {},
@@ -102,12 +111,9 @@ export default {
       paymentFormKey: 0,
       pageAlive: false,
       measureTimer: null,
-      tabs: [
-        { key: 'sale', label: '销售单' },
-        { key: 'purchase', label: '进货单' },
-        { key: 'receive', label: '收款单' },
-        { key: 'payment', label: '付款单' }
-      ]
+      tabs: [],
+      permissionLoading: false,
+      permissionReady: false
     }
   },
   onLoad(options) {
@@ -115,13 +121,10 @@ export default {
     this.statusBarHeight = Number(systemInfo.statusBarHeight || 0)
     this.pageHeight = Math.max(1, Math.floor(Number(systemInfo.windowHeight || 0)))
     this.routeOptions = options || {}
-    this.currentIndex = this.resolveTabIndex(options)
-    this.setRouteOptions(options, this.currentIndex)
+    this.requestedTabKey = this.resolveTabKey(options)
+    this.setRouteOptions(options, this.requestedTabKey)
     if (this.isAddRoute(options)) {
-      if (this.currentIndex === 0) this.saleFormKey += 1
-      if (this.currentIndex === 1) this.purchaseFormKey += 1
-      if (this.currentIndex === 2) this.receiveFormKey += 1
-      if (this.currentIndex === 3) this.paymentFormKey += 1
+      this.bumpFormKey(this.requestedTabKey)
     }
     uni.setNavigationBarTitle({ title: '业务' })
   },
@@ -131,70 +134,15 @@ export default {
   },
   onShow() {
     this.pageAlive = true
-    const editStorageKey = uni.getStorageSync('easy-store-sale-edit-key')
-    if (editStorageKey) {
-      this.saleRouteOptions = {
-        ...this.saleRouteOptions,
-        editStorageKey: String(editStorageKey)
-      }
-      this.saleFormKey += 1
-      uni.removeStorageSync('easy-store-sale-edit-key')
-      this.currentIndex = 0
-    }
-    const purchaseEditStorageKey = uni.getStorageSync('easy-store-purchase-edit-key')
-    if (purchaseEditStorageKey) {
-      this.purchaseRouteOptions = {
-        ...this.purchaseRouteOptions,
-        editStorageKey: String(purchaseEditStorageKey)
-      }
-      this.purchaseFormKey += 1
-      uni.removeStorageSync('easy-store-purchase-edit-key')
-      this.currentIndex = 1
-    }
-    const receiveEditStorageKey = uni.getStorageSync('easy-store-receive-edit-key')
-    if (receiveEditStorageKey) {
-      this.receiveRouteOptions = {
-        ...this.receiveRouteOptions,
-        editStorageKey: String(receiveEditStorageKey)
-      }
-      this.receiveFormKey += 1
-      uni.removeStorageSync('easy-store-receive-edit-key')
-      this.currentIndex = 2
-    }
-    const paymentEditStorageKey = uni.getStorageSync('easy-store-payment-edit-key')
-    if (paymentEditStorageKey) {
-      this.paymentRouteOptions = {
-        ...this.paymentRouteOptions,
-        editStorageKey: String(paymentEditStorageKey)
-      }
-      this.paymentFormKey += 1
-      uni.removeStorageSync('easy-store-payment-edit-key')
-      this.currentIndex = 3
-    }
-    const routeAction = uni.getStorageSync('easy-store-business-route')
-    if (routeAction) {
-      uni.removeStorageSync('easy-store-business-route')
-      const action = typeof routeAction === 'string'
-        ? this.parseRouteAction(routeAction)
-        : routeAction
-      const targetIndex = this.resolveTabIndex(action)
-      this.setRouteOptions(action, targetIndex)
-      this.currentIndex = targetIndex
-      if (targetIndex === 0) this.saleFormKey += 1
-      if (targetIndex === 1) this.purchaseFormKey += 1
-      if (targetIndex === 2) this.receiveFormKey += 1
-      if (targetIndex === 3) this.paymentFormKey += 1
-    }
-    const storedTab = uni.getStorageSync('easy-store-business-tab')
-    if (storedTab !== '' && storedTab !== undefined && storedTab !== null) {
-      this.currentIndex = this.resolveTabIndex({ tab: storedTab })
-      uni.removeStorageSync('easy-store-business-tab')
-    }
     if (!isLoggedIn()) {
       uni.reLaunch({ url: '/pages/login/index' })
       return
     }
-    this.scheduleContentHeight()
+    if (!this.permissionReady) {
+      this.loadAvailableTabs()
+      return
+    }
+    this.processPendingRoutes()
   },
   onHide() {
     this.pageAlive = false
@@ -205,16 +153,16 @@ export default {
     this.clearMeasureTimer()
   },
   methods: {
-    resolveTabIndex(options) {
-      if (!options) return 0
+    resolveTabKey(options) {
+      if (!options) return 'sale'
 
       const rawIndex = options.index !== undefined
         ? options.index
         : options.tabIndex
       if (rawIndex !== undefined && rawIndex !== '') {
         const index = Number(rawIndex)
-        if (Number.isInteger(index) && index >= 0 && index < this.tabs.length) {
-          return index
+        if (Number.isInteger(index) && index >= 0 && index < ALL_TABS.length) {
+          return ALL_TABS[index].key
         }
       }
 
@@ -223,12 +171,12 @@ export default {
         const tabText = String(rawTab).trim()
         if (/^\d+$/.test(tabText)) {
           const index = Number(tabText)
-          if (index >= 0 && index < this.tabs.length) return index
+          if (index >= 0 && index < ALL_TABS.length) return ALL_TABS[index].key
         }
         if (TAB_INDEX_MAP[tabText] !== undefined) return TAB_INDEX_MAP[tabText]
       }
 
-      return 0
+      return 'sale'
     },
     parseRouteAction(value) {
       try {
@@ -237,18 +185,94 @@ export default {
         return {}
       }
     },
-    setRouteOptions(options, tabIndex) {
+    setRouteOptions(options, tabKey) {
       const nextOptions = options || {}
       this.routeOptions = nextOptions
-      if (tabIndex === 1) {
+      if (tabKey === 'purchase') {
         this.purchaseRouteOptions = nextOptions
-      } else if (tabIndex === 2) {
+      } else if (tabKey === 'receive') {
         this.receiveRouteOptions = nextOptions
-      } else if (tabIndex === 3) {
+      } else if (tabKey === 'payment') {
         this.paymentRouteOptions = nextOptions
       } else {
         this.saleRouteOptions = nextOptions
       }
+    },
+    bumpFormKey(tabKey) {
+      if (tabKey === 'sale') this.saleFormKey += 1
+      if (tabKey === 'purchase') this.purchaseFormKey += 1
+      if (tabKey === 'receive') this.receiveFormKey += 1
+      if (tabKey === 'payment') this.paymentFormKey += 1
+    },
+    getTabIndex(tabKey) {
+      const index = this.tabs.findIndex((tab) => tab.key === tabKey)
+      return index >= 0 ? index : 0
+    },
+    async loadAvailableTabs() {
+      if (this.permissionLoading || this.permissionReady || !this.pageAlive) return
+      this.permissionLoading = true
+      try {
+        const groups = await listHomeMenus()
+        const menuCodes = new Set()
+        ;(Array.isArray(groups) ? groups : []).forEach((group) => {
+          ;(Array.isArray(group && group.menus) ? group.menus : []).forEach((menu) => {
+            if (menu && menu.code) menuCodes.add(String(menu.code))
+          })
+        })
+        this.tabs = ALL_TABS.filter((tab) => menuCodes.has(tab.menuCode))
+        this.permissionReady = true
+        this.currentIndex = this.getTabIndex(this.requestedTabKey)
+        this.scheduleContentHeight()
+        this.processPendingRoutes()
+      } catch (error) {
+        this.tabs = []
+        uni.showToast({
+          title: error && error.message ? error.message : '加载业务权限失败',
+          icon: 'none'
+        })
+      } finally {
+        this.permissionLoading = false
+      }
+    },
+    processPendingRoutes() {
+      if (!this.permissionReady) return
+      const editStorageKeys = [
+        ['easy-store-sale-edit-key', 'sale'],
+        ['easy-store-purchase-edit-key', 'purchase'],
+        ['easy-store-receive-edit-key', 'receive'],
+        ['easy-store-payment-edit-key', 'payment']
+      ]
+      editStorageKeys.forEach(([storageKey, tabKey]) => {
+        const editStorageKey = uni.getStorageSync(storageKey)
+        if (!editStorageKey) return
+        this[`${tabKey}RouteOptions`] = {
+          ...this[`${tabKey}RouteOptions`],
+          editStorageKey: String(editStorageKey)
+        }
+        this.bumpFormKey(tabKey)
+        uni.removeStorageSync(storageKey)
+        this.requestedTabKey = tabKey
+      })
+
+      const routeAction = uni.getStorageSync('easy-store-business-route')
+      if (routeAction) {
+        uni.removeStorageSync('easy-store-business-route')
+        const action = typeof routeAction === 'string'
+          ? this.parseRouteAction(routeAction)
+          : routeAction
+        const targetTabKey = this.resolveTabKey(action)
+        this.setRouteOptions(action, targetTabKey)
+        this.requestedTabKey = targetTabKey
+        this.bumpFormKey(targetTabKey)
+      }
+
+      const storedTab = uni.getStorageSync('easy-store-business-tab')
+      if (storedTab !== '' && storedTab !== undefined && storedTab !== null) {
+        this.requestedTabKey = this.resolveTabKey({ tab: storedTab })
+        uni.removeStorageSync('easy-store-business-tab')
+      }
+      this.currentIndex = this.getTabIndex(this.requestedTabKey)
+      this.scheduleContentHeight()
     },
     isAddRoute(options) {
       return Boolean(
@@ -291,13 +315,16 @@ export default {
       }
     },
     switchTab(index) {
+      if (index < 0 || index >= this.tabs.length) return
       if (this.currentIndex === index) return
       this.currentIndex = index
+      this.requestedTabKey = this.tabs[index].key
     },
     handleSwiperChange(event) {
       const index = Number(event && event.detail ? event.detail.current : 0)
       if (index >= 0 && index < this.tabs.length) {
         this.currentIndex = index
+        this.requestedTabKey = this.tabs[index].key
       }
     }
   }

@@ -6,6 +6,9 @@ import { getToken } from '@/utils/auth';
 // import { openPasswordModal } from '@/api/passwordVerification';
 // import { checkPwd } from '@/views/app/AppUser/api/api-AppUser';
 
+const DEV_TYPE = 'web';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'web';
+
 export interface HttpResponse<T = unknown> {
   status: number;
   message: string;
@@ -32,6 +35,11 @@ axios.interceptors.request.use(
       }
       config.headers.token = `${token}`;
     }
+    config.headers = {
+      ...(config.headers || {}),
+      devType: DEV_TYPE,
+      appVersion: APP_VERSION,
+    } as any;
 
     /* if (config.url?.endsWith('remove')) {
       const pwd = await openPasswordModal();

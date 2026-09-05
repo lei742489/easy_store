@@ -305,6 +305,20 @@
       title: '订单号',
       dataIndex: 'orderNo',
       align: 'center',
+      render: (record) => {
+        const data = record.record as AppPaymentVoucher;
+        return h(
+          'span',
+          {
+            style: {
+              color: 'rgb(var(--primary-6))',
+              cursor: 'pointer',
+            },
+            onClick: () => handelEdit(data),
+          },
+          data.orderNo || '-'
+        );
+      },
     },
     {
       title: '状态',

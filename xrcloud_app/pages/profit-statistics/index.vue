@@ -39,17 +39,17 @@
           <text class="summary-label">折后金额</text>
           <text class="summary-value">￥{{ formatAmount(result.discountedTotal) }}</text>
         </view>
-        <view class="summary-item">
+        <view v-if="isRoot" class="summary-item">
           <text class="summary-label">成本金额</text>
           <text class="summary-value">￥{{ formatAmount(result.costTotal) }}</text>
         </view>
-        <view class="summary-item">
+        <view v-if="isRoot" class="summary-item">
           <text class="summary-label">利润金额</text>
           <text class="summary-value profit" :class="{ negative: Number(result.profitTotal || 0) < 0 }">
             ￥{{ formatAmount(result.profitTotal) }}
           </text>
         </view>
-        <view class="summary-item">
+        <view v-if="isRoot" class="summary-item">
           <text class="summary-label">利润率</text>
           <text class="summary-value">{{ formatRate(result.profitRateTotal) }}</text>
         </view>
@@ -86,17 +86,17 @@
               <text class="amount-label">折后金额</text>
               <text class="amount-value">￥{{ formatAmount(record.discountedAmount) }}</text>
             </view>
-            <view class="amount-item">
+            <view v-if="isRoot" class="amount-item">
               <text class="amount-label">成本金额</text>
               <text class="amount-value">￥{{ formatAmount(record.costAmount) }}</text>
             </view>
-            <view class="amount-item">
+            <view v-if="isRoot" class="amount-item">
               <text class="amount-label">利润金额</text>
               <text class="amount-value profit" :class="{ negative: Number(record.profitAmount || 0) < 0 }">
                 ￥{{ formatAmount(record.profitAmount) }}
               </text>
             </view>
-            <view class="amount-item">
+            <view v-if="isRoot" class="amount-item">
               <text class="amount-label">利润率</text>
               <text class="amount-value">{{ formatRate(record.profitRate) }}</text>
             </view>
@@ -161,6 +161,9 @@ export default {
     }
   },
   computed: {
+    isRoot() {
+      return Number(this.user.isRoot) === 1
+    },
     hasMore() {
       return this.records.length < this.total
     },

@@ -25,7 +25,7 @@
                   type="text"
                   size="medium"
                   style="padding: 0"
-                  @click="initOrderNo"
+                  @click="copyOrderNo"
                   >{{ form.orderNo }}</a-button
                 >
               </a-form-item>
@@ -445,6 +445,37 @@
 
   const initOrderNo = async () => {
     if (form.id === undefined) form.orderNo = (await createOrderNo()).data;
+  };
+  const copyOrderNo = async () => {
+    const orderNo = String(form.orderNo || '').trim();
+    if (!orderNo) {
+      Message.warning('当前没有订单号');
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(orderNo);
+      } else {
+        throw new Error('clipboard unavailable');
+      }
+      Message.success('订单号已复制');
+    } catch {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = orderNo;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (!copied) throw new Error('copy failed');
+        Message.success('订单号已复制');
+      } catch {
+        Message.error('订单号复制失败');
+      }
+    }
   };
 
   const resetForm = () => {

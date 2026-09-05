@@ -118,7 +118,18 @@
         :scroll="{ x: 1120, y: getAdaptiveTableScrollY(560) }"
         :row-class="rowClass"
         @sorter-change="onSorterChange"
-      />
+      >
+        <template #operations="{ record }">
+          <a-popconfirm
+            v-if="canDeleteRecord(record)"
+            content="确认删除该条记账记录？"
+            @ok="handleDeleteRecord(record)"
+          >
+            <a-button type="text" size="small" status="danger">删除</a-button>
+          </a-popconfirm>
+          <span v-else>-</span>
+        </template>
+      </a-table>
       <div class="pagination-wrap">
         <a-pagination
           :current="pagination.current"
@@ -294,6 +305,7 @@
     IncomeExpenseRecordResult,
     listIncomeExpenseItems,
     listIncomeExpenseRecords,
+    removeIncomeExpenseRecord,
   } from './api';
   import ItemManagerModal from './components/item-manager-modal.vue';
 
@@ -419,6 +431,13 @@
       align: 'right',
       render: amountCell('balance'),
     },
+    {
+      title: '操作',
+      dataIndex: 'operations',
+      slotName: 'operations',
+      width: 90,
+      align: 'center',
+    },
   ];
 
   const tableData = computed<IncomeExpenseRecord[]>(() => {
@@ -443,6 +462,11 @@
   const rowClass = (record: IncomeExpenseRecord) =>
     record.isSummary ? 'summary-row' : '';
 
+  const canDeleteRecord = (record: IncomeExpenseRecord) =>
+    !record.isSummary &&
+    String(record.recordType || '') === 'manual' &&
+    Boolean(record.recordId);
+
   const fetchData = async () => {
     loading.value = true;
     try {
@@ -461,9 +485,9 @@
     }
   };
 
-  const search = () => {
+  const search = async () => {
     pagination.current = 1;
-    fetchData();
+    await fetchData();
   };
 
   const reset = () => {
@@ -600,12 +624,23 @@
         income: manualForm.flowType === 'income' ? manualForm.amount : 0,
         expense: manualForm.flowType === 'expense' ? manualForm.amount : 0,
       });
-      Message.success('保存成功');
       manualVisible.value = false;
       resetManualForm();
-      search();
+      Message.success({ content: '保存成功', duration: 3000 });
+      await search();
     } finally {
       manualLoading.value = false;
+    }
+  };
+
+  const handleDeleteRecord = async (record: IncomeExpenseRecord) => {
+    if (!record.recordId) return;
+    try {
+      await removeIncomeExpenseRecord(record.recordId);
+      Message.success('删除成功');
+      await search();
+    } catch (error: any) {
+      Message.error(error?.message || '删除失败');
     }
   };
   const csvValue = (value: unknown) =>

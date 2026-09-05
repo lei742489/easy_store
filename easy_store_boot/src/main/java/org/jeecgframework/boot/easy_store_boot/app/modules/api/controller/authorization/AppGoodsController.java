@@ -50,7 +50,7 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
     @PostMapping("listQuotePage")
     public Result<?> listQuotePage(@RequestBody JSONObject param) {
         IPage<AppGoods> page = queryGoodsPage(param);
-        hideUnauthorizedQuotePrices(page.getRecords(), param.getString("userId"));
+        hideUnauthorizedQuotePrices(page.getRecords(), param.getString("userId"), param.getString("quoteScene"));
         return Result.ok(page);
     }
 
@@ -88,10 +88,18 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
     private IAppRolePermissionService rolePermissionService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
-    private void hideUnauthorizedQuotePrices(List<AppGoods> goodsList, String userId) {
+    private void hideUnauthorizedQuotePrices(List<AppGoods> goodsList, String userId, String quoteScene) {
         if (goodsList == null || goodsList.isEmpty()) return;
         AppUser user = userService.getById(userId);
         if (user == null || (user.getIsRoot() != null && user.getIsRoot() == 1)) return;
+
+        if ("businessOrder".equals(quoteScene)) {
+            for (AppGoods goods : goodsList) {
+                goods.setCostPrice(null);
+                goods.setPurPrc(null);
+            }
+            return;
+        }
 
         List<String> permissionCodes = rolePermissionService.listPermissionCodesByRoleId(user.getRoleId());
         boolean showCostPrice = permissionCodes.contains(AppPermissionDefinition.DATA_VIEW_COST_PRICE);

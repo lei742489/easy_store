@@ -1,11 +1,16 @@
-import { API_BASE_URL } from './config'
+import { API_BASE_URL, getClientDevType, getClientVersionAsync } from './config'
 import { getToken } from './auth'
 
-const request = ({ url, data = {}, method = 'POST', timeout = 10000 }) => {
+const request = async ({ url, data = {}, method = 'POST', timeout = 10000 }) => {
+  const appVersion = await getClientVersionAsync()
+
   return new Promise((resolve, reject) => {
     const token = getToken()
+
     const header = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      devType: getClientDevType(),
+      appVersion
     }
     if (token) header.token = token
 

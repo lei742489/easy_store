@@ -28,6 +28,8 @@ export interface AppPurchaseOrderItem {
   /** 总价 */
   totalAmount?: number;
 
+  totalAmountEdited?: boolean;
+
   /** 单号 */
   orderId?: number;
 

@@ -1,393 +1,500 @@
 {
-  "pages": [
-    {
-      "path": "pages/index/index",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "首页"
-      }
-    },
-    {
-      "path": "pages/business/index",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "业务"
-      }
-    },
-    {
-      "path": "pages/report/index",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "报表"
-      }
-    },
-    {
-      "path": "pages/profile/index",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "我的"
-      }
-    },
-    {
-      "path": "pages/sale-order/list",
-      "style": {
-        "navigationBarTitleText": "销售单查询",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/goods/list",
-      "style": {
-        "navigationBarTitleText": "货品列表",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/stock-statistics/index",
-      "style": {
-        "navigationBarTitleText": "库存统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/stock-detail/index",
-      "style": {
-        "navigationBarTitleText": "库存明细",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/stock-warning/index",
-      "style": {
-        "navigationBarTitleText": "库存预警",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/stock-check/list",
-      "style": {
-        "navigationBarTitleText": "库存盘点",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/stock-check/form",
-      "style": {
-        "navigationBarTitleText": "库存盘点单",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/goods-quick-search/index",
-      "style": {
-        "navigationBarTitleText": "货品快速查询",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/goods-select/index",
-      "style": {
-        "navigationBarTitleText": "选择货品",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/goods/form",
-      "style": {
-        "navigationBarTitleText": "货品表单",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/purchase-order/list",
-      "style": {
-        "navigationBarTitleText": "进货单查询",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/receive-payment/list",
-      "style": {
-        "navigationBarTitleText": "收款单查询",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/payment/list",
-      "style": {
-        "navigationBarTitleText": "付款单查询",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/account-settle/list",
-      "style": {
-        "navigationBarTitleText": "结算账户",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/account-settle/form",
-      "style": {
-        "navigationBarTitleText": "结算账户表单",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/debt-statistics/index",
-      "style": {
-        "navigationBarTitleText": "欠款统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/payable-statistics/index",
-      "style": {
-        "navigationBarTitleText": "应付统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/sale-statistics/index",
-      "style": {
-        "navigationBarTitleText": "销售统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/purchase-statistics/index",
-      "style": {
-        "navigationBarTitleText": "进货统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/fund-statistics/index",
-      "style": {
-        "navigationBarTitleText": "资金统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/fund-statistics/detail",
-      "style": {
-        "navigationBarTitleText": "资金统计明细",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/profit-statistics/index",
-      "style": {
-        "navigationBarTitleText": "利润统计",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 120
-      }
-    },
-    {
-      "path": "pages/profit-statistics/detail",
-      "style": {
-        "navigationBarTitleText": "利润统计明细",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/business-statistics-detail/index",
-      "style": {
-        "navigationBarTitleText": "销售/进货明细",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/receivable-statement/index",
-      "style": {
-        "navigationBarTitleText": "应收对账单",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/payable-statement/index",
-      "style": {
-        "navigationBarTitleText": "应付对账单",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/debt-detail/index",
-      "style": {
-        "navigationBarTitleText": "欠款明细",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/payable-detail/index",
-      "style": {
-        "navigationBarTitleText": "应付明细",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/partner-list/index",
-      "style": {
-        "navigationBarTitleText": "客户/供应商管理",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/partner-form/index",
-      "style": {
-        "navigationBarTitleText": "客户/供应商表单",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/partner-select/index",
-      "style": {
-        "navigationBarTitleText": "供应商/客户查询",
-        "navigationBarTextStyle": "white",
-        "navigationBarBackgroundColor": "#722ED1",
-        "backgroundColor": "#F5F4FB"
-      }
-    },
-    {
-      "path": "pages/login/index",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "登录"
-      }
-    }
-  ],
-  "globalStyle": {
-    "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "Easy Store",
-    "navigationBarBackgroundColor": "#722ED1",
-    "backgroundColor": "#F5F4FB"
-  },
-  "tabBar": {
-    "color": "#9A97A6",
-    "selectedColor": "#722ED1",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "/static/ico/home.png",
-        "selectedIconPath": "/static/ico/home-act.png"
-      },
-      {
-        "pagePath": "pages/business/index",
-        "text": "业务",
-        "iconPath": "/static/ico/order.png",
-        "selectedIconPath": "/static/ico/order-act.png"
-      },
-      {
-        "pagePath": "pages/report/index",
-        "text": "报表",
-        "iconPath": "/static/ico/report.png",
-        "selectedIconPath": "/static/ico/report-act.png"
-      },
-      {
-        "pagePath": "pages/profile/index",
-        "text": "我的",
-        "iconPath": "/static/ico/my.png",
-        "selectedIconPath": "/static/ico/my-act.png"
-      }
-    ]
-  },
-  "uniIdRouter": {},
-  "easycom": {
-    "autoscan": true,
-    "custom": {
-      "^uni-(.*)": "@/components/uni-$1.vue",
-      "^vue-file-(.*)": "packageName/path/to/vue-file-$1.vue"
-    }
-  }
+	"pages": [{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
+			"path": "pages/business/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "业务"
+			}
+		},
+		{
+			"path": "pages/report/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "报表"
+			}
+		},
+		{
+			"path": "pages/profile/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/profile-center/index",
+			"style": {
+				"navigationBarTitleText": "个人中心",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/security-settings/index",
+			"style": {
+				"navigationBarTitleText": "安全设置",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/sale-order/list",
+			"style": {
+				"navigationBarTitleText": "销售单查询",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/goods/list",
+			"style": {
+				"navigationBarTitleText": "货品列表",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/stock-statistics/index",
+			"style": {
+				"navigationBarTitleText": "库存统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/stock-detail/index",
+			"style": {
+				"navigationBarTitleText": "库存明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/stock-warning/index",
+			"style": {
+				"navigationBarTitleText": "库存预警",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/stock-check/list",
+			"style": {
+				"navigationBarTitleText": "库存盘点",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/stock-check/form",
+			"style": {
+				"navigationBarTitleText": "库存盘点单",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/goods-quick-search/index",
+			"style": {
+				"navigationBarTitleText": "货品快速查询",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/goods-select/index",
+			"style": {
+				"navigationBarTitleText": "选择货品",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/goods/form",
+			"style": {
+				"navigationBarTitleText": "货品表单",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/purchase-order/list",
+			"style": {
+				"navigationBarTitleText": "进货单查询",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/receive-payment/list",
+			"style": {
+				"navigationBarTitleText": "收款单查询",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/payment/list",
+			"style": {
+				"navigationBarTitleText": "付款单查询",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/account-settle/list",
+			"style": {
+				"navigationBarTitleText": "结算账户",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/account-settle/form",
+			"style": {
+				"navigationBarTitleText": "结算账户表单",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/debt-statistics/index",
+			"style": {
+				"navigationBarTitleText": "欠款统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/payable-statistics/index",
+			"style": {
+				"navigationBarTitleText": "应付统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/sale-statistics/index",
+			"style": {
+				"navigationBarTitleText": "销售统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/purchase-statistics/index",
+			"style": {
+				"navigationBarTitleText": "进货统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/fund-statistics/index",
+			"style": {
+				"navigationBarTitleText": "资金统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/fund-statistics/detail",
+			"style": {
+				"navigationBarTitleText": "资金统计明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/profit-statistics/index",
+			"style": {
+				"navigationBarTitleText": "利润统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/profit-statistics/detail",
+			"style": {
+				"navigationBarTitleText": "利润统计明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/business-statistics-detail/index",
+			"style": {
+				"navigationBarTitleText": "销售/进货明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/receivable-statement/index",
+			"style": {
+				"navigationBarTitleText": "应收对账单",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/payable-statement/index",
+			"style": {
+				"navigationBarTitleText": "应付对账单",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/debt-detail/index",
+			"style": {
+				"navigationBarTitleText": "欠款明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/payable-detail/index",
+			"style": {
+				"navigationBarTitleText": "应付明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/partner-list/index",
+			"style": {
+				"navigationBarTitleText": "客户/供应商管理",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/partner-form/index",
+			"style": {
+				"navigationBarTitleText": "客户/供应商表单",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/partner-select/index",
+			"style": {
+				"navigationBarTitleText": "供应商/客户查询",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB"
+			}
+		},
+		{
+			"path": "pages/cashier-statistics/index",
+			"style": {
+				"navigationBarTitleText": "营业员统计",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/cashier-statistics/detail",
+			"style": {
+				"navigationBarTitleText": "营业员销售明细",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/app-user/index",
+			"style": {
+				"navigationBarTitleText": "员工管理",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/app-role/index",
+			"style": {
+				"navigationBarTitleText": "角色管理",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/app-unit/index",
+			"style": {
+				"navigationBarTitleText": "单位管理",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/operation-log/index",
+			"style": {
+				"navigationBarTitleText": "操作日志",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true,
+				"onReachBottomDistance": 120
+			}
+		},
+		{
+			"path": "pages/income-expense-record/index",
+			"style": {
+				"navigationBarTitleText": "收支记录",
+				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#722ED1",
+				"backgroundColor": "#F5F4FB",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/login/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "uni_modules/uni-upgrade-center-app/pages/upgrade-popup",
+			"style": {
+				"disableScroll": true,
+				"app-plus": {
+					"backgroundColorTop": "transparent",
+					"background": "transparent",
+					"titleNView": false,
+					"scrollIndicator": false,
+					"popGesture": "none",
+					"animationType": "fade-in",
+					"animationDuration": 200
+
+				}
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "Easy Store",
+		"navigationBarBackgroundColor": "#722ED1",
+		"backgroundColor": "#F5F4FB"
+	},
+	"tabBar": {
+		"color": "#9A97A6",
+		"selectedColor": "#722ED1",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "black",
+		"list": [{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "/static/ico/home.png",
+				"selectedIconPath": "/static/ico/home-act.png"
+			},
+			{
+				"pagePath": "pages/business/index",
+				"text": "业务",
+				"iconPath": "/static/ico/order.png",
+				"selectedIconPath": "/static/ico/order-act.png"
+			},
+			{
+				"pagePath": "pages/report/index",
+				"text": "报表",
+				"iconPath": "/static/ico/report.png",
+				"selectedIconPath": "/static/ico/report-act.png"
+			},
+			{
+				"pagePath": "pages/profile/index",
+				"text": "我的",
+				"iconPath": "/static/ico/my.png",
+				"selectedIconPath": "/static/ico/my-act.png"
+			}
+		]
+	},
+	"uniIdRouter": {},
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^uni-(.*)": "@/components/uni-$1.vue",
+			"^vue-file-(.*)": "packageName/path/to/vue-file-$1.vue"
+		}
+	}
 }

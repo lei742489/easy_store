@@ -153,7 +153,10 @@ export default {
         ? this.user.permissionCodes
         : [];
       return PRICE_PERMISSIONS.filter(
-        (price) => this.isRoot || permissionCodes.includes(price.permission)
+        (price) => {
+          if (price.key === 'cost' && !this.isRoot) return false
+          return this.isRoot || permissionCodes.includes(price.permission)
+        }
       );
     },
     hasMore() {

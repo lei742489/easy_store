@@ -56,6 +56,12 @@ public class AppHomeStatisticsController {
         Map<String, Object> sale = querySaleAmount(startTime, endTime, rootUser, user.getId());
         Map<String, Object> yesterdaySale = querySaleAmount(
                 yesterdayStartTime, yesterdayEndTime, rootUser, user.getId());
+        long monthStartTime = today.withDayOfMonth(1).atStartOfDay(ZONE_ID).toInstant().toEpochMilli();
+        long yearStartTime = today.withDayOfYear(1).atStartOfDay(ZONE_ID).toInstant().toEpochMilli();
+        Map<String, Object> monthSale = querySaleAmount(
+                monthStartTime, endTime, rootUser, user.getId());
+        Map<String, Object> yearSale = querySaleAmount(
+                yearStartTime, endTime, rootUser, user.getId());
 
         Map<String, Object> purchase = queryPurchaseAmount(
                 startTime, endTime, rootUser, user.getId());
@@ -68,6 +74,8 @@ public class AppHomeStatisticsController {
         JSONObject result = new JSONObject();
         result.put("salesAmount", numberValue(sale.get("salesAmount")));
         result.put("salesAmountYesterday", numberValue(yesterdaySale.get("salesAmount")));
+        result.put("salesAmountMonth", numberValue(monthSale.get("salesAmount")));
+        result.put("salesAmountYear", numberValue(yearSale.get("salesAmount")));
         result.put("purchaseAmount", numberValue(purchase.get("purchaseAmount")));
         result.put("purchaseAmountYesterday", numberValue(yesterdayPurchase.get("purchaseAmount")));
         result.put("stockTotal", stockTotal);
@@ -77,6 +85,39 @@ public class AppHomeStatisticsController {
             result.put("profitAmountYesterday", numberValue(yesterdaySale.get("profitAmount")));
         }
         result.put("date", today.format(DATE_FORMATTER));
+        return Result.ok(result);
+    }
+
+    @PostMapping("asset")
+    public Result<?> asset(@RequestBody JSONObject param) {
+        AppUser user = userService.getById(param.getString("userId"));
+        if (user == null) {
+            throw new AppRunTimeException("用户数据不存在，请重新登录");
+        }
+        if (!isRoot(user)) {
+            throw new AppRunTimeException("无权限查看资产统计");
+        }
+
+        double accountBalance = queryAssetAmount(
+                "SELECT COALESCE(SUM(COALESCE(cur_prc, 0)), 0) AS amount " +
+                        "FROM app_account_settle WHERE COALESCE(is_del, 0) = 0");
+        double inventoryAmount = queryAssetAmount(
+                "SELECT COALESCE(SUM(COALESCE(stock_cost, 0)), 0) AS amount " +
+                        "FROM app_goods WHERE COALESCE(is_del, 0) = 0");
+        double receivableAmount = queryAssetAmount(
+                "SELECT COALESCE(SUM(COALESCE(payable, 0)), 0) AS amount " +
+                        "FROM app_customer WHERE COALESCE(is_del, 0) = 0");
+        double payableAmount = queryAssetAmount(
+                "SELECT COALESCE(SUM(COALESCE(payable, 0)), 0) AS amount " +
+                        "FROM app_supplier WHERE COALESCE(is_del, 0) = 0");
+
+        JSONObject result = new JSONObject();
+        result.put("accountBalance", accountBalance);
+        result.put("inventoryAmount", inventoryAmount);
+        result.put("receivableAmount", receivableAmount);
+        result.put("payableAmount", payableAmount);
+        result.put("totalAssets",
+                accountBalance + inventoryAmount + receivableAmount - payableAmount);
         return Result.ok(result);
     }
 
@@ -107,6 +148,11 @@ public class AppHomeStatisticsController {
                         "AND " + purchaseTimeSql() + " >= ? AND " + purchaseTimeSql() + " <= ?" +
                         cashierCondition(rootUser),
                 params.toArray());
+    }
+
+    private double queryAssetAmount(String sql) {
+        Map<String, Object> row = jdbcTemplate.queryForMap(sql);
+        return numberValue(row.get("amount"));
     }
 
     private double queryCurrentStockTotal() {

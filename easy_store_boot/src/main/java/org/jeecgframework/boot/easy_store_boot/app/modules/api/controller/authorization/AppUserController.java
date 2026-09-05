@@ -46,6 +46,14 @@ public class AppUserController extends ApiBaseController<AppUser, IAppUserServic
         if (pageSize == null) pageSize = 15;
         entity.setToken(null);
         QueryWrapper<AppUser> queryWrapper = QueryGenerator.initQueryWrapper(entity, param);
+        String searchKey = StringUtils.trimToEmpty(param.getString("searchKey"));
+        if (StringUtils.isNotEmpty(searchKey)) {
+            queryWrapper.and(wrapper -> wrapper
+                    .like("real_name", searchKey)
+                    .or().like("user_name", searchKey)
+                    .or().like("mobile", searchKey)
+                    .or().like("remarks", searchKey));
+        }
         queryWrapper.orderByDesc("id");
         Page<AppUser> page = new Page<>(current, pageSize);
         IPage<AppUser> pageList = service.page(page, queryWrapper);
