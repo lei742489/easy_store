@@ -2,48 +2,6 @@
   <view class="page">
     <view id="income-expense-top" class="top-area">
       <view class="filter-panel">
-        <view class="filter-row">
-          <customer-autocomplete
-            v-model="filters.customerName"
-            placeholder="全部客户"
-            @select="handleCustomerChange"
-            @select-item="handleCustomerSelected"
-          />
-          <supplier-autocomplete
-            v-model="filters.supplierName"
-            placeholder="全部供应商"
-            @select="handleSupplierChange"
-            @select-item="handleSupplierSelected"
-          />
-        </view>
-
-        <view class="filter-row">
-          <picker
-            class="picker-wrap"
-            :range="itemOptions"
-            range-key="label"
-            :value="itemIndex"
-            @change="handleItemChange"
-          >
-            <view class="picker-field">
-              <text :class="{ placeholder: itemIndex === 0 }">{{ itemOptions[itemIndex].label }}</text>
-              <uni-icons type="down" color="#999" :size="16" />
-            </view>
-          </picker>
-          <picker
-            class="picker-wrap type-picker"
-            :range="typeOptions"
-            range-key="label"
-            :value="typeIndex"
-            @change="handleTypeChange"
-          >
-            <view class="picker-field">
-              <text :class="{ placeholder: typeIndex === 0 }">{{ typeOptions[typeIndex].label }}</text>
-              <uni-icons type="down" color="#999" :size="16" />
-            </view>
-          </picker>
-        </view>
-
         <view class="date-row">
           <text class="date-label">日期</text>
           <uni-datetime-picker
@@ -58,16 +16,89 @@
         </view>
 
         <view class="filter-actions">
-          <button class="search-button" :disabled="loading" @click="handleSearch">
-            <uni-icons type="search" color="#fff" :size="18" />
-            <text>查询</text>
+          <button class="more-filter-button" :disabled="loading" @click="openMoreFilters">
+            <text>展开更多</text>
+            <uni-icons type="down" color="#722ed1" :size="16" />
+            <text v-if="activeFilterCount" class="filter-count">{{ activeFilterCount }}</text>
           </button>
-          <button class="reset-button" :disabled="loading" @click="handleReset">
-            <uni-icons type="refresh" color="#666" :size="18" />
-            <text>重置</text>
-          </button>
+          <view class="action-group">
+            <button class="reset-button" :disabled="loading" @click="handleReset">
+              <uni-icons type="refresh" color="#666" :size="18" />
+              <text>重置</text>
+            </button>
+            <button class="search-button" :disabled="loading" @click="handleSearch">
+              <uni-icons type="search" color="#fff" :size="18" />
+              <text>查询</text>
+            </button>
+          </view>
         </view>
       </view>
+
+      <uni-popup ref="filterPopup" type="bottom" :safe-area="true" :is-mask-click="true">
+        <view class="filter-popup">
+          <view class="popup-header">
+            <text class="popup-title">更多筛选</text>
+            <uni-icons type="closeempty" color="#999" :size="22" @click="closeMoreFilters" />
+          </view>
+
+          <view class="popup-form-item">
+            <text class="popup-label">客户</text>
+            <customer-autocomplete
+              v-model="filters.customerName"
+              placeholder="全部客户"
+              @select="handleCustomerChange"
+              @select-item="handleCustomerSelected"
+            />
+          </view>
+
+          <view class="popup-form-item">
+            <text class="popup-label">供应商</text>
+            <supplier-autocomplete
+              v-model="filters.supplierName"
+              placeholder="全部供应商"
+              @select="handleSupplierChange"
+              @select-item="handleSupplierSelected"
+            />
+          </view>
+
+          <view class="popup-form-item">
+            <text class="popup-label">收支项目</text>
+            <picker
+              class="picker-wrap"
+              :range="itemOptions"
+              range-key="label"
+              :value="itemIndex"
+              @change="handleItemChange"
+            >
+              <view class="popup-picker">
+                <text :class="{ placeholder: itemIndex === 0 }">{{ itemOptions[itemIndex].label }}</text>
+                <uni-icons type="down" color="#999" :size="16" />
+              </view>
+            </picker>
+          </view>
+
+          <view class="popup-form-item">
+            <text class="popup-label">收支类型</text>
+            <picker
+              class="picker-wrap"
+              :range="typeOptions"
+              range-key="label"
+              :value="typeIndex"
+              @change="handleTypeChange"
+            >
+              <view class="popup-picker">
+                <text :class="{ placeholder: typeIndex === 0 }">{{ typeOptions[typeIndex].label }}</text>
+                <uni-icons type="down" color="#999" :size="16" />
+              </view>
+            </picker>
+          </view>
+
+          <view class="popup-actions">
+            <button class="popup-cancel-button" :disabled="loading" @click="closeMoreFilters">取消</button>
+            <button class="popup-confirm-button" :disabled="loading" @click="applyMoreFilters">应用筛选</button>
+          </view>
+        </view>
+      </uni-popup>
 
       <view class="toolbar">
         <view class="toolbar-title">
@@ -364,6 +395,14 @@ export default {
       if (this.loading) return 'loading'
       return this.hasMore ? 'more' : 'noMore'
     },
+    activeFilterCount() {
+      let count = 0
+      if (this.filters.customerId) count += 1
+      if (this.filters.supplierId) count += 1
+      if (this.filters.fundItem) count += 1
+      if (this.filters.incomeExpenseType) count += 1
+      return count
+    },
     selectedAccountName() {
       const option = this.accountOptions[this.accountIndex]
       return option && option.value ? option.label : ''
@@ -550,6 +589,7 @@ export default {
       this.loadRecords(false, this.current + 1)
     },
     handleSearch() {
+      this.closeMoreFilters()
       this.loadRecords(true)
     },
     handleReset() {
@@ -567,6 +607,17 @@ export default {
       this.startDate = range[0]
       this.endDate = range[1]
       this.dateRange = range
+      this.closeMoreFilters()
+      this.loadRecords(true)
+    },
+    openMoreFilters() {
+      this.$refs.filterPopup && this.$refs.filterPopup.open()
+    },
+    closeMoreFilters() {
+      this.$refs.filterPopup && this.$refs.filterPopup.close()
+    },
+    applyMoreFilters() {
+      this.closeMoreFilters()
       this.loadRecords(true)
     },
     handleRefresh() {
@@ -762,9 +813,9 @@ export default {
 
 .filter-panel { padding: 18rpx; }
 
-.filter-row,
 .date-row,
 .filter-actions,
+.action-group,
 .toolbar,
 .toolbar-title,
 .record-header,
@@ -772,19 +823,17 @@ export default {
 .popup-header,
 .form-row,
 .form-picker,
+.popup-picker,
 .popup-actions {
   display: flex;
   align-items: center;
 }
 
-.filter-row { gap: 12rpx; margin-bottom: 12rpx; }
-.filter-row :deep(.customer-select),
-.filter-row :deep(.supplier-select),
 .picker-wrap { flex: 1; min-width: 0; }
-.filter-row :deep(.input-wrap) { height: 62rpx; }
 
 .picker-field,
 .form-picker,
+.popup-picker,
 .form-input {
   display: flex;
   align-items: center;
@@ -801,13 +850,13 @@ export default {
 }
 
 .picker-field text,
-.form-picker text {
+.form-picker text,
+.popup-picker text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.type-picker { flex: 0 0 220rpx; }
 .placeholder { color: #aaa5b5; }
 .date-row { gap: 12rpx; }
 .date-label { flex: 0 0 auto; color: #6f6979; font-size: 22rpx; }
@@ -815,12 +864,25 @@ export default {
 .date-row :deep(.uni-date-editor--x) { height: 62rpx; }
 .date-row :deep(.uni-date-x--border) { border-color: #ded9e8; border-radius: 10rpx; }
 
-.filter-actions { justify-content: flex-end; gap: 12rpx; margin-top: 14rpx; }
+.filter-actions {
+  justify-content: space-between;
+  gap: 14rpx;
+  margin-top: 14rpx;
+}
+
+.action-group {
+  flex: 0 0 auto;
+  gap: 12rpx;
+}
+
 .search-button,
 .reset-button,
+.more-filter-button,
 .add-button,
 .cancel-button,
-.confirm-button {
+.confirm-button,
+.popup-cancel-button,
+.popup-confirm-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -836,16 +898,62 @@ export default {
 
 .search-button,
 .add-button,
-.confirm-button { color: #fff; background: #722ed1; }
+.confirm-button,
+.popup-confirm-button { color: #fff; background: #722ed1; }
 .reset-button,
-.cancel-button { color: #666; background: #f2f3f5; }
+.cancel-button,
+.popup-cancel-button { color: #666; background: #f2f3f5; }
 .search-button { flex: 0 0 124rpx; }
 .reset-button { flex: 0 0 124rpx; }
+.more-filter-button {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  color: #722ed1;
+  background: #f4efff;
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 5rpx;
+  color: #fff;
+  font-size: 17rpx;
+  line-height: 28rpx;
+  background: #722ed1;
+  border-radius: 18rpx;
+}
+
 .search-button::after,
 .reset-button::after,
+.more-filter-button::after,
 .add-button::after,
 .cancel-button::after,
-.confirm-button::after { border: 0; }
+.confirm-button::after,
+.popup-cancel-button::after,
+.popup-confirm-button::after { border: 0; }
+
+.filter-popup {
+  padding: 28rpx 28rpx calc(22rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 28rpx 28rpx 0 0;
+}
+
+.filter-popup .popup-header { margin-bottom: 26rpx; }
+.popup-form-item { margin-bottom: 22rpx; }
+.popup-label {
+  display: block;
+  margin-bottom: 10rpx;
+  color: #6b6676;
+  font-size: 22rpx;
+}
+.filter-popup :deep(.input-wrap),
+.popup-picker { height: 72rpx; }
+.popup-actions button { flex: 1; }
 
 .toolbar {
   justify-content: space-between;
@@ -989,7 +1097,6 @@ export default {
 .popup-actions button { flex: 1; height: 76rpx; font-size: 25rpx; line-height: 76rpx; }
 
 @media (max-width: 420px) {
-  .type-picker { flex-basis: 190rpx; }
   .record-no { max-width: 220rpx; }
 }
 </style>

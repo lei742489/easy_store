@@ -281,6 +281,7 @@ import {
   addSaleOrder,
   createSaleOrderNo,
   editSaleOrder,
+  getDefaultCustomer,
   getUserInfo,
   listAccountSettles,
   listAppUsers,
@@ -341,6 +342,7 @@ export default {
       form: createEmptyForm(),
       cashierOptions: [{ label: '当前营业员', value: '' }],
       settleOptions: [],
+      defaultCustomer: null,
       cashierIndex: 0,
       settleIndex: 0,
       orderTypeIndex: 0,
@@ -451,8 +453,10 @@ export default {
         this.applyOrder(editItem)
         return
       }
-      this.resetForm(false)
+      await this.resetForm(false, false)
+      if (options.id || options.customerId) this.form.customerId = String(options.customerId || options.id)
       if (options.name) this.form.customerName = String(options.name)
+      await this.applyDefaultCustomer()
       await this.generateOrderNo()
     },
     parseEditItem(value) {
@@ -520,6 +524,23 @@ export default {
       if (!value) {
         this.form.customerId = ''
         this.form.customerName = ''
+      }
+    },
+    async loadDefaultCustomer() {
+      if (this.defaultCustomer) return this.defaultCustomer
+      const data = await getDefaultCustomer()
+      this.defaultCustomer = data && data.id !== undefined && data.id !== null ? data : null
+      return this.defaultCustomer
+    },
+    async applyDefaultCustomer() {
+      if (this.isEditMode || this.form.customerId || this.form.customerName) return
+      const customer = await this.loadDefaultCustomer()
+      if (!customer) return
+      this.form.customerId = String(customer.id)
+      this.form.customerName = customer.name || `客户${customer.id}`
+      if (customer.discount !== undefined && customer.discount !== null && customer.discount !== '') {
+        this.form.discountRate = toNumber(customer.discount, 100)
+        this.recalculate()
       }
     },
     onDateChange(event) {
@@ -777,7 +798,7 @@ export default {
         this.saving = false
       }
     },
-    async resetForm(showConfirm = true) {
+    async resetForm(showConfirm = true, applyDefaultPartner = true) {
       if (showConfirm) {
         const result = await new Promise((resolve) => {
           uni.showModal({
@@ -793,6 +814,7 @@ export default {
       defaultForm.cashierName = this.form.cashierName || this.user.realName || this.user.userName || ''
       defaultForm.settleId = this.form.settleId || (this.settleOptions[0] && this.settleOptions[0].value) || ''
       this.form = defaultForm
+      if (applyDefaultPartner) await this.applyDefaultCustomer()
       this.orderTypeIndex = 0
       this.statusIndex = 1
       this.syncCashierIndex()

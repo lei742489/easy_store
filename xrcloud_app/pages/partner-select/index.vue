@@ -42,9 +42,14 @@
           欠款 ¥{{ formatAmount(getDebtAmount(item)) }}
         </text>
       </view>
+      <uni-load-more
+        v-if="items.length"
+        :status="loadStatus"
+        :content-text="loadMoreText"
+      />
     </view>
 
-    <view v-if="!loading && !visibleItems.length" class="empty-state">
+    <view v-if="!loading && !items.length" class="empty-state">
       <uni-icons type="info" color="#b6b0c2" :size="40" />
       <text>暂无数据</text>
     </view>
@@ -53,7 +58,7 @@
 
 <script>
 import { getUser } from '../../common/auth'
-import { listCustomers, listGoodsSuppliers } from '../../common/api'
+import { listCustomerPage, listSupplierPage } from '../../common/api'
 
 const normalizeText = (value) => String(value || '').trim()
 
@@ -66,6 +71,10 @@ export default {
       keyword: '',
       loading: false,
       items: [],
+      current: 1,
+      pageSize: 20,
+      total: 0,
+      searchTimer: null,
       channel: null
     }
   },
@@ -78,8 +87,7 @@ export default {
     },
     visibleItems() {
       const keyword = normalizeText(this.keyword)
-      const items = keyword ? this.items.filter((item) => this.matchItem(item, keyword)) : this.items
-      return items.map((item) => {
+      return this.items.map((item) => {
         const name = this.getItemName(item)
         return {
           ...item,
@@ -88,41 +96,82 @@ export default {
           parts: this.splitKeyword(name, keyword)
         }
       })
+    },
+    hasMore() {
+      return this.items.length < Number(this.total || 0)
+    },
+    loadStatus() {
+      if (this.loading) return 'loading'
+      return this.hasMore ? 'more' : 'noMore'
+    },
+    loadMoreText() {
+      return {
+        contentdown: '上拉加载更多',
+        contentrefresh: '加载中...',
+        contentnomore: '没有更多了'
+      }
     }
   },
   onLoad(options) {
     this.mode = options && options.mode === 'customer' ? 'customer' : 'supplier'
-    this.title = options && options.title
-      ? String(options.title)
-      : this.mode === 'customer'
+    this.title = this.mode === 'customer'
         ? '客户查询'
         : '供应商查询'
-    this.keyword = normalizeText(options && (options.keyword || options.selectedName))
+    this.keyword = ''
     uni.setNavigationBarTitle({ title: this.title })
     this.channel = this.getOpenerEventChannel ? this.getOpenerEventChannel() : null
-    this.loadItems()
+    this.loadItems(true)
+  },
+  onReachBottom() {
+    this.loadMore()
+  },
+  onUnload() {
+    this.clearSearchTimer()
   },
   methods: {
-    async loadItems() {
+    clearSearchTimer() {
+      if (!this.searchTimer) return
+      clearTimeout(this.searchTimer)
+      this.searchTimer = null
+    },
+    getListApi() {
+      return this.mode === 'customer' ? listCustomerPage : listSupplierPage
+    },
+    buildQuery(current) {
+      const params = {
+        current,
+        pageSize: this.pageSize,
+        status: 1,
+        column: 'id',
+        order: 'asc'
+      }
+      const key = normalizeText(this.keyword)
+      if (key) params.key = key
+      return params
+    },
+    normalizeItem(item) {
+      return {
+        ...item,
+        name: this.getItemName(item),
+        subtitle: this.getItemSubtitle(item)
+      }
+    },
+    async loadItems(reset = false, pageNumber) {
       if (this.loading) return
+      const targetPage = reset ? 1 : (pageNumber || this.current)
       this.loading = true
-      uni.showLoading({ title: '加载中...', mask: true })
+      if (reset && !this.items.length) {
+        uni.showLoading({ title: '加载中...', mask: true })
+      }
       try {
-        const data = this.mode === 'customer' ? await listCustomers() : await listGoodsSuppliers()
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data && data.records)
-            ? data.records
-            : Array.isArray(data && data.data)
-              ? data.data
-              : []
-        this.items = list
+        const page = await this.getListApi()(this.buildQuery(targetPage))
+        const list = page && Array.isArray(page.records) ? page.records : []
+        const records = list
           .filter((item) => item && item.id !== undefined && item.id !== null)
-          .map((item) => ({
-            ...item,
-            name: this.getItemName(item),
-            subtitle: this.getItemSubtitle(item)
-          }))
+          .map((item) => this.normalizeItem(item))
+        this.items = reset ? records : this.items.concat(records)
+        this.current = Number(page && page.current ? page.current : targetPage)
+        this.total = Number(page && page.total ? page.total : this.items.length)
       } catch (error) {
         uni.showToast({
           title: error && error.message ? error.message : '加载失败',
@@ -133,19 +182,26 @@ export default {
         uni.hideLoading()
       }
     },
+    loadMore() {
+      if (this.loading || !this.hasMore) return
+      this.loadItems(false, this.current + 1)
+    },
     handleInput(event) {
       this.keyword = normalizeText(event && event.detail ? event.detail.value : '')
+      this.clearSearchTimer()
+      this.searchTimer = setTimeout(() => {
+        this.searchTimer = null
+        this.loadItems(true)
+      }, 350)
     },
     handleConfirm() {
-      const first = this.visibleItems[0]
-      if (first) {
-        this.selectItem(first)
-        return
-      }
-      this.handleAdd()
+      this.clearSearchTimer()
+      this.loadItems(true)
     },
     clearKeyword() {
+      this.clearSearchTimer()
       this.keyword = ''
+      this.loadItems(true)
     },
     getItemName(item) {
       return normalizeText(item && (item.name || item.title || item.realName || item.userName))
@@ -218,7 +274,7 @@ export default {
           const channel = res && res.eventChannel
           if (!channel) return
           channel.on('saved', () => {
-            this.loadItems()
+            this.loadItems(true)
           })
         }
       })

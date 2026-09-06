@@ -1,6 +1,6 @@
 // App frontend configuration
 export const API_BASE_URL = 'http://8.152.0.49:8036'
-export const APP_NAME = '新锐盈'
+export const APP_NAME = '新锐云'
 
 let clientVersionCache = ''
 let clientVersionPromise = null

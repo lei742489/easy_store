@@ -3,9 +3,13 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 import com.alibaba.fastjson.JSONObject;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.CommonConstant;
 import org.jeecgframework.boot.easy_store_boot.app.common.PinyinUtil;
+import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSupplier;
@@ -25,6 +29,29 @@ import java.util.*;
 @RequestMapping("api/user/appSupplier")
 public class AppSupplierController extends ApiBaseController<AppSupplier, IAppSupplierService> {
 
+
+    @PostMapping("listPage")
+    public Result<?> listPage(@RequestBody JSONObject param) {
+        AppSupplier entity = JSONObject.toJavaObject(param, AppSupplier.class);
+        Integer current = param.getInteger("current");
+        Integer pageSize = param.getInteger("pageSize");
+        if (current == null) current = 1;
+        if (pageSize == null) pageSize = 15;
+        String key = param.getString("key");
+
+        QueryWrapper<AppSupplier> queryWrapper = QueryGenerator.initQueryWrapper(entity, param);
+        if (StringUtils.isNotEmpty(key)) {
+            queryWrapper.and(wrapper -> wrapper.like("name", key)
+                    .or().like("contact_name", key)
+                    .or().like("mobile", key)
+                    .or().like("phone", key)
+                    .or().like("py_code", key));
+        }
+
+        Page<AppSupplier> page = new Page<>(current, pageSize);
+        IPage<AppSupplier> pageList = service.page(page, queryWrapper);
+        return Result.ok(pageList);
+    }
 
     @PostMapping("searchKey")
     public Result<?> searchKey(@RequestBody JSONObject param) {
@@ -73,6 +100,15 @@ public class AppSupplierController extends ApiBaseController<AppSupplier, IAppSu
 
         }
         return Result.ok(service.list(wrapper));
+    }
+
+    @PostMapping("defaultOne")
+    public Result<?> defaultOne() {
+        AppSupplier supplier = service.getOne(new LambdaQueryWrapper<AppSupplier>()
+                .eq(AppSupplier::getStatus, 1)
+                .orderByAsc(AppSupplier::getId)
+                .last("limit 1"));
+        return Result.ok(supplier);
     }
 
     @PostMapping("refreshPayable")

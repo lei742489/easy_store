@@ -1,12 +1,12 @@
-﻿<template>
+<template>
   <view class="page">
     <view id="top" class="hero">
       <uni-status-bar />
-	  <view style="height: 50rpx;"></view>
+      <view style="height: 50rpx;"></view>
       <view class="hero-top">
         <view class="brand">
           <image class="brand-logo" src="/static/logo-big.png" mode="aspectFit" />
-          <text class="brand-name">鏂伴攼浜?/text>
+          <text class="brand-name">新锐云</text>
         </view>
         <uni-icons
           type="search"
@@ -16,20 +16,20 @@
         />
       </view>
       <view class="welcome-row">
-        <text class="welcome">娆㈣繋鍥炴潵锛亄{ displayName }}</text>
-        <text class="root-label">{{roleLabel}}</text>
+        <text class="welcome">欢迎回来！{{ displayName }}</text>
+        <text class="root-label">{{ roleLabel }}</text>
       </view>
     </view>
 
     <scroll-view class="content" scroll-y :show-scrollbar="false" :style="{ height: `${contentHeight}px` }">
       <view class="section announcement">
-        <view class="section-title-row"><text class="section-title">閫氱煡鍏憡</text></view>
-        <view class="announcement-row"><view class="announcement-dot" /><text>娆㈣繋浣跨敤 鏂伴攼浜?杩涢攢瀛樼鐞嗙郴缁?/text></view>
+        <view class="section-title-row"><text class="section-title">通知公告</text></view>
+        <view class="announcement-row"><view class="announcement-dot" /><text>欢迎使用 新锐云 进销存管理系统</text></view>
       </view>
 
-      <view v-if="loading" class="loading-state">
+      <view v-if="showLoading" class="loading-state">
         <uni-icons type="spinner-cycle" color="#722ed1" :size="30" />
-        <text>姝ｅ湪鍔犺浇鑿滃崟...</text>
+        <text>正在加载菜单...</text>
       </view>
       <view v-else-if="menuGroups.length" class="menu-sections">
         <view v-for="group in menuGroups" :key="group.code" class="section">
@@ -60,7 +60,7 @@
       </view>
       <view v-else class="empty-state">
         <uni-icons type="info" color="#aaa5b5" :size="52" />
-        <text>鏆傛棤鍙敤鍔熻兘</text>
+        <text>暂无可用功能</text>
       </view>
       <view class="bottom-space" />
     </scroll-view>
@@ -73,12 +73,34 @@ import { getUserInfo, listHomeMenus, pendingApproveCounts } from '../../common/a
 import checkUpdate from '@/uni_modules/uni-upgrade-center-app/utils/check-update'
 
 const iconMap = {
-  sale_order_add: 'sm1', receive_payment_add: 'sm2', purchase_order_add: 'sm3', payment_add: 'sm4',
-  goods: 'sm5', customer: 'sm6', supplier: 'sm7', customer_quote: 'sm8', account_settle: 'sm9',
-  sale_order_list: 'dm1', receive_payment_list: 'sfc2', sale_stats: 'sfc3', customer_statement: 'sfc4',
-  debt_stats: 'dm3', debt_detail: 'dm5', purchase_order_list: 'jm1', payment_list: 'jm2', purchase_stats: 'jm3',
-  payable_order: 'jm4', payable_stats: 'jm5', payable_detail: 'dm5', stock_stats: 'cc1', stock_warning: 'cc2',
-  stock_check: 'cc3', fund_stats: 'tj1', profit_stats: 'tj2', cashier_stats: 'tj3'
+  sale_order_add: 'sm1',
+  receive_payment_add: 'sm2',
+  purchase_order_add: 'sm3',
+  payment_add: 'sm4',
+  goods: 'sm5',
+  customer: 'sm6',
+  supplier: 'sm7',
+  customer_quote: 'sm8',
+  account_settle: 'sm9',
+  sale_order_list: 'dm1',
+  receive_payment_list: 'sfc2',
+  sale_stats: 'sfc3',
+  customer_statement: 'sfc4',
+  debt_stats: 'dm3',
+  debt_detail: 'dm5',
+  purchase_order_list: 'jm1',
+  payment_list: 'jm2',
+  purchase_stats: 'jm3',
+  payable_order: 'jm4',
+  payable_stats: 'jm5',
+  payable_detail: 'dm5',
+  stock_stats: 'cc1',
+  stock_warning: 'cc2',
+  stock_check: 'cc3',
+  fund_stats: 'tj1',
+  profit_stats: 'tj2',
+  cashier_stats: 'tj3',
+  income_expense_record: 'tj1'
 }
 
 const uniIconMap = {
@@ -116,17 +138,17 @@ const appPageMap = {
   payable_order: '/pages/payable-statement/index',
   stock_stats: '/pages/stock-statistics/index',
   stock_warning: '/pages/stock-warning/index',
-  stock_check: '/pages/stock-check/list',
-  app_user: '/pages/app-user/index',
-  app_unit: '/pages/app-unit/index',
-  operation_log: '/pages/operation-log/index'
+  stock_check: '/pages/stock-check/list'
 }
+
+const hiddenHomeMenuCodes = ['app_role', 'app_user', 'app_unit', 'operation_log']
 
 export default {
   data() {
     return {
       contentHeight: 1,
       loading: false,
+      homeLoaded: false,
       redirecting: false,
       pageAlive: false,
       measureTimer: null,
@@ -137,25 +159,28 @@ export default {
     }
   },
   computed: {
-    displayName() { return this.user.realName || this.user.userName || '鐢ㄦ埛' },
-    isRoot() { return Number(this.user.isRoot) === 1 },
+    displayName() {
+      return this.user.realName || this.user.userName || '用户'
+    },
+    isRoot() {
+      return Number(this.user.isRoot) === 1
+    },
     roleLabel() {
-      let d =
-       this.isRoot
-        ? '绠＄悊鍛?
-        : this.user.roleId_dictText || this.user.roleName || '鏅€氬憳宸?
-
-        console.log(d)
-        return d
+      return this.isRoot
+        ? '管理员'
+        : this.user.roleId_dictText || this.user.roleName || '普通员工'
+    },
+    showLoading() {
+      return this.loading && !this.homeLoaded
     }
   },
   onReady() {
     this.pageAlive = true
     this.scheduleContentHeight()
-	// #ifdef APP-PLUS
-		checkUpdate();
-	// #endif
-  this.loadHome()
+    // #ifdef APP-PLUS
+    checkUpdate()
+    // #endif
+    this.loadHome()
   },
   onShow() {
     this.pageAlive = true
@@ -163,7 +188,7 @@ export default {
       this.redirectToLogin()
       return
     }
-
+    this.loadHome()
   },
   onHide() {
     this.pageAlive = false
@@ -189,7 +214,6 @@ export default {
       }, 0)
     },
     updateContentHeight() {
-      // 鍙湪棣栨娓叉煋瀹屾垚鍚庢祴閲忥紝閬垮厤 onShow 鏃舵煡璇㈠凡閿€姣佺殑椤甸潰鑺傜偣銆?
       if (this.redirecting || !this.pageAlive) return
       const systemInfo = uni.getSystemInfoSync()
       try {
@@ -204,7 +228,7 @@ export default {
           })
           .exec()
       } catch (error) {
-        // 椤甸潰鍒囨崲鏈熼棿鑺傜偣鍙兘宸茬粡閿€姣侊紝淇濈暀榛樿楂樺害鍗冲彲銆?
+        // 页面切换期间节点可能已经销毁，保留默认高度即可。
       }
     },
     redirectToLogin() {
@@ -217,7 +241,10 @@ export default {
     },
     async loadHome() {
       if (this.loading || this.redirecting) return
-      if (!isLoggedIn()) { this.redirectToLogin(); return }
+      if (!isLoggedIn()) {
+        this.redirectToLogin()
+        return
+      }
       const requestId = ++this.loadRequestId
       this.loading = true
       try {
@@ -226,35 +253,30 @@ export default {
         this.user = { ...this.user, ...currentUser }
         updateUser(this.user)
         const requests = [listHomeMenus()]
-        if (Number(this.user.isRoot) === 1) requests.push(pendingApproveCounts())
+        if (this.isRoot) requests.push(pendingApproveCounts())
         const results = await Promise.all(requests)
         if (!this.pageAlive || requestId !== this.loadRequestId) return
-        this.menuGroups = Array.isArray(results[0])
-          ? results[0]
-            .map((group) => ({
-              ...group,
-              menus: Array.isArray(group.menus)
-                ? group.menus.filter(
-                    (item) =>
-                      item &&
-                      !['app_role', 'app_user', 'app_unit', 'operation_log'].includes(
-                        item.code
-                      )
-                  )
-                : []
-            }))
-            .filter((group) => group.menus.length)
-          : []
+        this.menuGroups = this.normalizeMenuGroups(results[0])
         this.pendingCounts = results[1] || {}
+        this.homeLoaded = true
       } catch (error) {
         if (this.redirecting || !this.pageAlive || requestId !== this.loadRequestId) return
         clearSession()
         this.redirecting = true
-        uni.showToast({ title: '鐧诲綍宸插け鏁堬紝璇烽噸鏂扮櫥褰?, icon: 'none' })
+        uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
         uni.reLaunch({ url: '/pages/login/index' })
       } finally {
         this.loading = false
       }
+    },
+    normalizeMenuGroups(groups) {
+      return (Array.isArray(groups) ? groups : [])
+        .map((group) => ({
+          ...group,
+          menus: (Array.isArray(group.menus) ? group.menus : [])
+            .filter((item) => item && !hiddenHomeMenuCodes.includes(item.code))
+        }))
+        .filter((group) => group.menus.length)
     },
     isImageIcon(item) {
       return Boolean(item && item.icon && /\.png$/i.test(item.icon))
@@ -266,7 +288,9 @@ export default {
     getUniIcon(item) {
       return uniIconMap[item && item.icon] || 'list'
     },
-    getPendingCount(item) { return this.isRoot && item ? Number(this.pendingCounts[item.code] || 0) : 0 },
+    getPendingCount(item) {
+      return this.isRoot && item ? Number(this.pendingCounts[item.code] || 0) : 0
+    },
     handleMenu(item) {
       if (!item) return
       const appPage = appPageMap[item.code]
@@ -294,7 +318,7 @@ export default {
         uni.navigateTo({ url: appPage })
         return
       }
-      if (item.url) uni.showToast({ title: `${item.name}灏嗗湪鍚庣画鐗堟湰鎺ュ叆`, icon: 'none' })
+      if (item.url) uni.showToast({ title: `${item.name}将在后续版本接入`, icon: 'none' })
     },
     openGoodsSearch() {
       uni.navigateTo({ url: '/pages/goods-quick-search/index' })
@@ -305,7 +329,7 @@ export default {
 
 <style lang="scss" scoped>
 .page { min-height: 100%; color: #303044; background: #f5f4fb; }
-.hero { padding: 30rpx  28rpx; box-sizing: border-box; color: #fff; background: linear-gradient(135deg, #4a238d 0%, #722ed1 65%, #8e5de8 100%); border-radius: 0 0 34rpx 34rpx; }
+.hero { padding: 30rpx 30rpx 28rpx; box-sizing: border-box; color: #fff; background: linear-gradient(135deg, #4a238d 0%, #722ed1 65%, #8e5de8 100%); border-radius: 0 0 34rpx 34rpx; }
 .hero-top, .welcome-row, .section-title-row, .announcement-row { display: flex; align-items: center; justify-content: space-between; }
 .brand, .hero-top { display: flex; align-items: center; }
 .brand-logo { width: 72rpx; height: 72rpx; margin-right: 14rpx; padding: 7rpx; box-sizing: border-box; background: #fff; border-radius: 15rpx; }
@@ -327,6 +351,4 @@ export default {
 .announcement-dot { width: 10rpx; height: 10rpx; margin-right: 12rpx; background: #722ed1; border-radius: 50%; }
 .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420rpx; color: #9895a3; font-size: 24rpx; gap: 18rpx; }
 .bottom-space { height: 20rpx; }
-
-.welcome-row > .role-label { order: 3; }
 </style>

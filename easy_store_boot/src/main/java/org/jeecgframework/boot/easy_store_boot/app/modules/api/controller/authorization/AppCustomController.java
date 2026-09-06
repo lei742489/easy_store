@@ -60,6 +60,7 @@ public class AppCustomController extends ApiBaseController<AppCustomer,IAppCusto
         Integer pageSize = param.getInteger("pageSize");
         if (current == null) current = 1;
         if (pageSize == null) pageSize = 15;
+        String key = param.getString("key");
         String categoryId = entity.getCategoryId();
         entity.setCategoryId(null);
         QueryWrapper<AppCustomer> queryWrapper = QueryGenerator.initQueryWrapper(entity, param);
@@ -67,6 +68,13 @@ public class AppCustomController extends ApiBaseController<AppCustomer,IAppCusto
         if (categoryId!=null && !categoryId.equals("0")) {
             queryWrapper.eq("category_id", categoryId);
 
+        }
+        if (StringUtils.isNotEmpty(key)) {
+            queryWrapper.and(wrapper -> wrapper.like("name", key)
+                    .or().like("contact_name", key)
+                    .or().like("mobile", key)
+                    .or().like("phone", key)
+                    .or().like("py_code", key));
         }
 
         Page<AppCustomer> page = new Page<>(current, pageSize);
@@ -93,6 +101,15 @@ public class AppCustomController extends ApiBaseController<AppCustomer,IAppCusto
 
         }
         return Result.ok(service.list(wrapper));
+    }
+
+    @PostMapping("defaultOne")
+    public Result<?> defaultOne() {
+        AppCustomer customer = service.getOne(new LambdaQueryWrapper<AppCustomer>()
+                .eq(AppCustomer::getStatus, 1)
+                .orderByAsc(AppCustomer::getId)
+                .last("limit 1"));
+        return Result.ok(customer);
     }
 
     @PostMapping("refreshPayable")

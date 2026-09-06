@@ -128,13 +128,15 @@ public class AppCashierStatisticsController {
         if (groupByGoods) {
             selectSql = "SELECT i.goods_id AS groupId, " +
                     "COALESCE(NULLIF(g.title, ''), NULLIF(i.goods_id, ''), '未设置货品') AS groupName, " +
-                    "COALESCE(i.unit, g.unit, '') AS unit, ";
+                    "COALESCE(i.unit, g.unit, '') AS unit, " +
+                    "DATE_FORMAT(MIN(o.create_time), '%Y-%m-%d') AS businessDate, ";
             joinSql = "LEFT JOIN app_goods g ON g.id = i.goods_id ";
             groupBySql = " GROUP BY i.goods_id, COALESCE(NULLIF(g.title, ''), NULLIF(i.goods_id, ''), '未设置货品'), " +
                     "COALESCE(i.unit, g.unit, '')";
         } else {
             selectSql = "SELECT o.customer_id AS groupId, " +
-                    "c.name AS groupName, '' AS unit, ";
+                    "c.name AS groupName, '' AS unit, " +
+                    "DATE_FORMAT(MIN(o.create_time), '%Y-%m-%d') AS businessDate, ";
             joinSql = "";
             groupBySql = " GROUP BY o.customer_id, c.name";
         }
@@ -154,12 +156,65 @@ public class AppCashierStatisticsController {
             record.put("groupId", row.get("groupId"));
             record.put("groupName", stringValue(row.get("groupName")));
             record.put("unit", stringValue(row.get("unit")));
+            record.put("businessDate", stringValue(row.get("businessDate")));
             record.put("quantity", numberValue(row.get("quantity")));
             record.put("salesAmount", salesAmount);
             record.put("costAmount", salesAmount - profitAmount);
             record.put("profitAmount", profitAmount);
             record.put("commissionAmount", profitAmount * commissionRate / 100D);
             record.put("profitRate", calculateRate(profitAmount, salesAmount));
+            records.add(record);
+        }
+        return Result.ok(records);
+    }
+
+    @PostMapping("profitDetail")
+    public Result<?> profitDetail(@RequestBody JSONObject param) {
+        AppUser currentUser = currentUser(param);
+        String cashierId = param.getString("cashierId");
+        if (StringUtils.isEmpty(cashierId)) {
+            throw new AppRunTimeException("请选择营业员");
+        }
+        if (!isRoot(currentUser) && !cashierId.equals(String.valueOf(currentUser.getId()))) {
+            throw new AppRunTimeException("无权查看其他营业员统计");
+        }
+        AppUser cashier = userService.getById(cashierId);
+        if (cashier == null) {
+            throw new AppRunTimeException("营业员不存在或已删除");
+        }
+
+        Long startTime = parseStartTime(param.getString("startDate"));
+        Long endTime = parseEndTime(param.getString("endDate"));
+        validateRange(startTime, endTime);
+        QueryCondition condition = buildCondition(param, currentUser, startTime, endTime);
+
+        String sql = "SELECT " + saleBusinessTimeSql() + " AS businessTime, " +
+                "COALESCE(NULLIF(g.title, ''), NULLIF(i.goods_id, ''), '未设置货品') AS goodsName, " +
+                "COALESCE(i.unit, g.unit, '') AS unit, COALESCE(i.quantity, 0) AS quantity, " +
+                "COALESCE(i.total_amount, 0) * " +
+                "(CASE WHEN COALESCE(o.discount_rate, 100) <= 0 THEN 100 " +
+                "ELSE COALESCE(o.discount_rate, 100) END) / 100.0 AS discountedAmount, " +
+                "COALESCE(i.gross_profit, 0) AS profitAmount " +
+                baseSql() + "LEFT JOIN app_goods g ON g.id = i.goods_id " +
+                condition.whereSql + " ORDER BY businessTime ASC, i.id ASC";
+
+        JSONArray records = new JSONArray();
+        int rowNo = 1;
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql, condition.params.toArray())) {
+            double quantity = numberValue(row.get("quantity"));
+            double discountedAmount = numberValue(row.get("discountedAmount"));
+            double profitAmount = numberValue(row.get("profitAmount"));
+            JSONObject record = new JSONObject();
+            record.put("rowNo", rowNo++);
+            record.put("businessDate", formatDate(numberValue(row.get("businessTime"))));
+            record.put("goodsName", stringValue(row.get("goodsName")));
+            record.put("unit", stringValue(row.get("unit")));
+            record.put("quantity", quantity);
+            record.put("discountedUnitPrice", Math.abs(quantity) < 0.000001D ? 0D : discountedAmount / quantity);
+            record.put("discountedAmount", discountedAmount);
+            record.put("costAmount", discountedAmount - profitAmount);
+            record.put("profitAmount", profitAmount);
+            record.put("profitRate", calculateRate(profitAmount, discountedAmount));
             records.add(record);
         }
         return Result.ok(records);
@@ -362,6 +417,15 @@ public class AppCashierStatisticsController {
 
     private String stringValue(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String formatDate(double value) {
+        if (value <= 0D) {
+            return "";
+        }
+        return java.time.Instant.ofEpochMilli((long) value)
+                .atZone(ZONE_ID)
+                .format(DATE_FORMATTER);
     }
 
     private String saleBusinessTimeSql() {

@@ -61,6 +61,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 				.excludePathPatterns(
 						"/api/upload/static/**",
 						"/api/upload/pdf/**",
+						"/api/health",
 						"/api/**/exportXls"
 				);
 	}

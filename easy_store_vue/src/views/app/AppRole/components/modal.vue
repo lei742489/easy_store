@@ -131,7 +131,6 @@
         dataViewPermissionCodeSet.has(code)
       );
       checkedKeys.value = [
-        ...form.menuIds.map((id) => `menu:${id}`),
         ...form.permissionCodes.filter(
           (code) => !dataViewPermissionCodeSet.has(code)
         ),

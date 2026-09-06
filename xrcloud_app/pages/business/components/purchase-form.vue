@@ -213,6 +213,7 @@ import {
   addPurchaseOrder,
   createPurchaseOrderNo,
   editPurchaseOrder,
+  getDefaultSupplier,
   getUserInfo,
   listAccountSettles,
   listAppUsers,
@@ -269,6 +270,7 @@ export default {
       form: createEmptyForm(),
       cashierOptions: [{ label: '当前营业员', value: '' }],
       settleOptions: [],
+      defaultSupplier: null,
       cashierIndex: 0,
       settleIndex: 0,
       orderTypeIndex: 0,
@@ -360,7 +362,10 @@ export default {
         this.applyOrder(editItem)
         return
       }
-      this.resetForm(false)
+      await this.resetForm(false, false)
+      if (options.id || options.supplierId) this.form.supplierId = String(options.supplierId || options.id)
+      if (options.name) this.form.supplierName = String(options.name)
+      await this.applyDefaultSupplier()
       await this.generateOrderNo()
     },
     parseEditItem(value) {
@@ -416,6 +421,19 @@ export default {
         this.form.supplierId = ''
         this.form.supplierName = ''
       }
+    },
+    async loadDefaultSupplier() {
+      if (this.defaultSupplier) return this.defaultSupplier
+      const data = await getDefaultSupplier()
+      this.defaultSupplier = data && data.id !== undefined && data.id !== null ? data : null
+      return this.defaultSupplier
+    },
+    async applyDefaultSupplier() {
+      if (this.isEditMode || this.form.supplierId || this.form.supplierName) return
+      const supplier = await this.loadDefaultSupplier()
+      if (!supplier) return
+      this.form.supplierId = String(supplier.id)
+      this.form.supplierName = supplier.name || `供应商${supplier.id}`
     },
     onDateChange(event) {
       const value = event && event.detail ? String(event.detail.value || '') : ''
@@ -636,7 +654,7 @@ export default {
         this.saving = false
       }
     },
-    async resetForm(showConfirm = true) {
+    async resetForm(showConfirm = true, applyDefaultPartner = true) {
       if (showConfirm) {
         const result = await new Promise((resolve) => {
           uni.showModal({
@@ -652,6 +670,7 @@ export default {
       defaultForm.cashierName = this.form.cashierName || this.user.realName || this.user.userName || ''
       defaultForm.settleId = this.form.settleId || (this.settleOptions[0] && this.settleOptions[0].value) || ''
       this.form = defaultForm
+      if (applyDefaultPartner) await this.applyDefaultSupplier()
       this.orderTypeIndex = 0
       this.statusIndex = 1
       this.syncCashierIndex()

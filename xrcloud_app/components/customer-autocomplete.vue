@@ -38,7 +38,7 @@ export default {
     openSelectPage() {
       if (this.disabled) return
       uni.navigateTo({
-        url: `/pages/partner-select/index?mode=customer&title=${encodeURIComponent('客户查询')}&keyword=${encodeURIComponent(this.modelValue || '')}`,
+        url: `/pages/partner-select/index?mode=customer&title=${encodeURIComponent('客户查询')}`,
         success: (res) => {
           const channel = res && res.eventChannel
           if (!channel) return

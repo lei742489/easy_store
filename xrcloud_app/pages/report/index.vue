@@ -1,27 +1,32 @@
-﻿<template>
+<template>
   <view class="page">
-    <view class="page-header">
+    <view id="report-top" class="page-header">
       <uni-status-bar />
-	  <view style="height: 50rpx;"></view>
+      <view style="height: 50rpx;"></view>
       <view class="header-content">
-        <text class="page-title">鎶ヨ〃</text>
-        <text class="page-caption">閿€鍞粡钀ユ暟鎹?/text>
+        <text class="page-title">报表</text>
+        <text class="page-caption">销售经营数据</text>
       </view>
     </view>
 
-    <scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
+    <scroll-view
+      class="page-scroll"
+      scroll-y
+      :show-scrollbar="false"
+      :style="{ height: `${scrollHeight}px` }"
+    >
       <view class="report-card">
         <view class="card-header">
           <view class="card-title-wrap">
             <view class="title-mark" />
-            <text class="card-title">鏈€杩?7 澶╅攢鍞粺璁?/text>
+            <text class="card-title">最近 7 天销售统计</text>
           </view>
           <text class="card-caption">{{ salesDateRange }}</text>
         </view>
 
         <view v-if="salesLoading" class="chart-loading">
           <uni-icons type="spinner-cycle" color="#722ed1" :size="28" />
-          <text>姝ｅ湪鍔犺浇...</text>
+          <text>正在加载...</text>
         </view>
         <view v-else-if="salesRecords.length" class="line-chart">
           <qiun-data-charts
@@ -36,17 +41,17 @@
         </view>
         <view v-else class="chart-empty">
           <uni-icons type="info" color="#b6b0c2" :size="38" />
-          <text>鏆傛棤閿€鍞暟鎹?/text>
+          <text>暂无销售数据</text>
         </view>
 
         <view class="summary-row">
           <view class="summary-item">
-            <text class="summary-label">閿€鍞噾棰?/text>
-            <text class="summary-value sales-value">锟{ formatAmount(totalSalesAmount) }}</text>
+            <text class="summary-label">销售金额</text>
+            <text class="summary-value sales-value">￥{{ formatAmount(totalSalesAmount) }}</text>
           </view>
           <view v-if="isRoot" class="summary-item">
-            <text class="summary-label">姣涘埄</text>
-            <text class="summary-value profit-value">锟{ formatAmount(totalProfitAmount) }}</text>
+            <text class="summary-label">毛利</text>
+            <text class="summary-value profit-value">￥{{ formatAmount(totalProfitAmount) }}</text>
           </view>
         </view>
       </view>
@@ -55,18 +60,18 @@
         <view class="card-header">
           <view class="card-title-wrap">
             <view class="title-mark" />
-            <text class="card-title">璧勪骇缁熻</text>
+            <text class="card-title">资产统计</text>
           </view>
         </view>
 
         <view v-if="assetLoading" class="asset-loading">
           <uni-icons type="spinner-cycle" color="#722ed1" :size="28" />
-          <text>姝ｅ湪鍔犺浇...</text>
+          <text>正在加载...</text>
         </view>
         <template v-else>
           <view class="asset-total">
-            <text class="asset-total-label">鎬昏祫浜?/text>
-            <text class="asset-total-value">锟{ formatAmount(totalAssets) }}</text>
+            <text class="asset-total-label">总资产</text>
+            <text class="asset-total-value">￥{{ formatAmount(totalAssets) }}</text>
           </view>
 
           <view v-if="assetChartHasData" class="ring-chart">
@@ -81,25 +86,25 @@
           </view>
           <view v-else class="asset-chart-empty">
             <uni-icons type="info" color="#b6b0c2" :size="32" />
-            <text>鏆傛棤璧勪骇鏁版嵁</text>
+            <text>暂无资产数据</text>
           </view>
 
           <view class="asset-grid">
             <view class="asset-item account-item">
-              <text class="asset-label">璐︽埛浣欓</text>
-              <text class="asset-value">锟{ formatAmount(assetData.accountBalance) }}</text>
+              <text class="asset-label">账户余额</text>
+              <text class="asset-value">￥{{ formatAmount(assetData.accountBalance) }}</text>
             </view>
             <view class="asset-item inventory-item">
-              <text class="asset-label">搴撳瓨鎬婚</text>
-              <text class="asset-value">锟{ formatAmount(assetData.inventoryAmount) }}</text>
+              <text class="asset-label">库存总额</text>
+              <text class="asset-value">￥{{ formatAmount(assetData.inventoryAmount) }}</text>
             </view>
             <view class="asset-item receivable-item">
-              <text class="asset-label">搴旀敹娆犳</text>
-              <text class="asset-value">锟{ formatAmount(assetData.receivableAmount) }}</text>
+              <text class="asset-label">应收欠款</text>
+              <text class="asset-value">￥{{ formatAmount(assetData.receivableAmount) }}</text>
             </view>
             <view class="asset-item payable-item">
-              <text class="asset-label">搴斾粯娆犳</text>
-              <text class="asset-value">锟{ formatSignedAmount(assetData.payableAmount) }}</text>
+              <text class="asset-label">应付欠款</text>
+              <text class="asset-value">￥{{ formatSignedAmount(assetData.payableAmount) }}</text>
             </view>
           </view>
         </template>
@@ -109,14 +114,14 @@
         <view class="card-header">
           <view class="card-title-wrap">
             <view class="title-mark" />
-            <text class="card-title">鏈湀鍛樺伐閿€鍞 TOP5</text>
+            <text class="card-title">本月员工销售额 TOP5</text>
           </view>
           <text class="card-caption">{{ currentMonth }}</text>
         </view>
 
         <view v-if="topLoading" class="chart-loading">
           <uni-icons type="spinner-cycle" color="#722ed1" :size="28" />
-          <text>姝ｅ湪鍔犺浇...</text>
+          <text>正在加载...</text>
         </view>
         <view v-else-if="topRecords.length" class="pie-chart">
           <qiun-data-charts
@@ -130,7 +135,7 @@
         </view>
         <view v-else class="chart-empty">
           <uni-icons type="info" color="#b6b0c2" :size="38" />
-          <text>鏆傛棤鍛樺伐閿€鍞暟鎹?/text>
+          <text>暂无员工销售数据</text>
         </view>
       </view>
 
@@ -146,7 +151,7 @@ import {
   getUserInfo,
   listCashierStatistics
 } from '../../common/api'
-import { getUser, isLoggedIn, updateUser } from '../../common/auth'
+import { clearSession, getUser, isLoggedIn, updateUser } from '../../common/auth'
 
 const pad = (value) => String(value).padStart(2, '0')
 
@@ -194,7 +199,10 @@ export default {
       assetLoading: false,
       topLoading: false,
       loading: false,
-      redirecting: false
+      redirecting: false,
+      pageAlive: false,
+      scrollHeight: 1,
+      measureTimer: null
     }
   },
   computed: {
@@ -205,7 +213,7 @@ export default {
       return getRecentSevenDayRange()
     },
     salesDateRange() {
-      return `${this.recentDateRange.startDate} 鑷?${this.recentDateRange.endDate}`
+      return `${this.recentDateRange.startDate} 至 ${this.recentDateRange.endDate}`
     },
     currentMonth() {
       return formatMonth(new Date())
@@ -214,13 +222,13 @@ export default {
       const records = Array.isArray(this.salesRecords) ? this.salesRecords : []
       const series = [
         {
-          name: '閿€鍞噾棰?,
+          name: '销售金额',
           data: records.map((item) => Number(item.salesAmount || 0))
         }
       ]
       if (this.isRoot) {
         series.push({
-          name: '姣涘埄',
+          name: '毛利',
           data: records.map((item) => Number(item.profitAmount || 0))
         })
       }
@@ -233,22 +241,22 @@ export default {
       return {
         series: [
           {
-            name: '璧勪骇鏋勬垚',
+            name: '资产构成',
             data: [
               {
-                name: '璐︽埛浣欓',
+                name: '账户余额',
                 value: Math.abs(Number(this.assetData.accountBalance || 0))
               },
               {
-                name: '搴撳瓨鎬婚',
+                name: '库存总额',
                 value: Math.abs(Number(this.assetData.inventoryAmount || 0))
               },
               {
-                name: '搴旀敹娆犳',
+                name: '应收欠款',
                 value: Math.abs(Number(this.assetData.receivableAmount || 0))
               },
               {
-                name: '搴斾粯娆犳',
+                name: '应付欠款',
                 value: Math.abs(Number(this.assetData.payableAmount || 0))
               }
             ]
@@ -272,9 +280,9 @@ export default {
       return {
         series: [
           {
-            name: '閿€鍞噾棰?,
+            name: '销售金额',
             data: records.map((item) => ({
-              name: item.cashierName || '鏈懡鍚嶅憳宸?,
+              name: item.cashierName || '未命名员工',
               value: Number(item.salesAmount || 0)
             }))
           }
@@ -321,7 +329,7 @@ export default {
           data: [
             {
               min: 0,
-              unit: '鍏?,
+              unit: '元',
               tofix: 0
             }
           ]
@@ -350,7 +358,6 @@ export default {
           lineHeight: 22,
           fontSize: 11
         },
-
         extra: {
           ring: {
             ringWidth: 28,
@@ -399,13 +406,63 @@ export default {
     }
   },
   onShow() {
+    this.pageAlive = true
     if (!isLoggedIn()) {
       this.redirectToLogin()
       return
     }
+    this.scheduleMeasure()
     this.loadPage()
   },
+  onReady() {
+    this.pageAlive = true
+    this.scheduleMeasure()
+  },
+  onHide() {
+    this.pageAlive = false
+    this.clearMeasureTimer()
+  },
+  onUnload() {
+    this.pageAlive = false
+    this.redirecting = true
+    this.clearMeasureTimer()
+  },
   methods: {
+    clearMeasureTimer() {
+      if (this.measureTimer) {
+        clearTimeout(this.measureTimer)
+        this.measureTimer = null
+      }
+    },
+    scheduleMeasure() {
+      this.clearMeasureTimer()
+      this.measureTimer = setTimeout(() => {
+        this.measureTimer = null
+        this.measureScroll()
+      }, 0)
+    },
+    measureScroll() {
+      if (this.redirecting || !this.pageAlive) return
+      const systemInfo = uni.getSystemInfoSync()
+      try {
+        uni.createSelectorQuery()
+          .select('#report-top')
+          .boundingClientRect((rect) => {
+            if (this.redirecting || !this.pageAlive || !rect || !rect.height) return
+            const bottom = Number(rect.bottom || rect.top + rect.height)
+            this.scrollHeight = Math.max(
+              240,
+              Math.floor(Number(systemInfo.windowHeight || 0) - bottom)
+            )
+          })
+          .exec()
+      } catch (error) {
+        this.scrollHeight = Math.max(
+          240,
+          Math.floor(Number(systemInfo.windowHeight || 0) * 0.7)
+        )
+      }
+    },
     async loadPage() {
       if (this.loading || this.redirecting) return
       this.loading = true
@@ -413,19 +470,17 @@ export default {
         const currentUser = await getUserInfo()
         this.user = { ...this.user, ...(currentUser || {}) }
         updateUser(this.user)
+        await Promise.all([
+          this.loadRecentSalesStatistics(),
+          this.isRoot ? this.loadAssetStatistics() : Promise.resolve(),
+          this.isRoot ? this.loadTopStatistics() : Promise.resolve()
+        ])
       } catch (error) {
-        if (this.isAuthError(error)) {
-          this.redirectToLogin()
-          return
-        }
+        this.handleError(error)
+      } finally {
+        this.loading = false
+        this.scheduleMeasure()
       }
-
-      await Promise.all([
-        this.loadRecentSalesStatistics(),
-        this.isRoot ? this.loadAssetStatistics() : Promise.resolve(),
-        this.isRoot ? this.loadTopStatistics() : Promise.resolve()
-      ])
-      this.loading = false
     },
     async loadRecentSalesStatistics() {
       this.salesLoading = true
@@ -482,10 +537,7 @@ export default {
     },
     formatAmount(value) {
       const number = Number(value || 0)
-
-      return Number.isFinite(number)
-        ? number.toFixed(2)
-        : '0.00'
+      return Number.isFinite(number) ? number.toFixed(2) : '0.00'
     },
     formatSignedAmount(value) {
       const number = Number(value || 0)
@@ -494,19 +546,22 @@ export default {
     },
     isAuthError(error) {
       const message = error && error.message ? error.message : ''
-      return /鐧诲綍|token|杩囨湡/i.test(message)
+      return /登录|token|过期/i.test(message)
     },
     handleError(error) {
       if (this.isAuthError(error)) {
         this.redirectToLogin()
         return
       }
-      const message = error && error.message ? error.message : '鎶ヨ〃鍔犺浇澶辫触'
+      const message = error && error.message ? error.message : '报表加载失败'
       uni.showToast({ title: message, icon: 'none' })
     },
     redirectToLogin() {
       if (this.redirecting) return
       this.redirecting = true
+      this.pageAlive = false
+      this.clearMeasureTimer()
+      clearSession()
       uni.reLaunch({ url: '/pages/login/index' })
     }
   }
@@ -543,7 +598,7 @@ export default {
 }
 
 .page-scroll {
-  height: calc(100vh - 148rpx);
+  min-height: 240px;
   box-sizing: border-box;
 }
 

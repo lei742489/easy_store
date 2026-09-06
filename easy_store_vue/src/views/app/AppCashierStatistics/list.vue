@@ -78,7 +78,7 @@
             size="small"
             @click="showPeriodStatistics(record)"
           >
-            统计
+            按日统计
           </a-button>
           <a-button
             v-if="!record.isSummary"
@@ -86,7 +86,15 @@
             size="small"
             @click="showDetail(record)"
           >
-            明细
+            销售明细
+          </a-button>
+          <a-button
+            v-if="!record.isSummary"
+            type="text"
+            size="small"
+            @click="showProfitDetail(record)"
+          >
+            利润明细
           </a-button>
         </template>
       </a-table>
@@ -199,6 +207,69 @@
     </a-modal>
 
     <a-modal
+      v-model:visible="profitDetailVisible"
+      width="90vw"
+      :footer="false"
+      :body-style="{ minHeight: '560px' }"
+      :mask-closable="false"
+    >
+      <template #title>营业员：{{ profitDetailCashierName || profitDetailCashierId || '-' }} 利润明细</template>
+      <a-row class="detail-filter">
+        <a-col :flex="1">
+          <a-form
+            :model="profitDetailForm"
+            :label-col-props="{ span: 4 }"
+            :wrapper-col-props="{ span: 18 }"
+            :label-width="10"
+            label-align="right"
+            auto-label-width
+          >
+            <a-row>
+              <a-col :span="18">
+                <a-form-item field="businessDate" label="日期">
+                  <time-select
+                    ref="profitDetailTimeSelectRef"
+                    :default-time-idx="2"
+                    hide-today
+                    @change="profitDetailTimeSelectChange"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-form>
+        </a-col>
+        <a-divider style="height: 84px" direction="vertical" />
+        <a-col :flex="'86px'" style="text-align: right">
+          <a-space direction="vertical" :size="12">
+            <a-button
+              type="primary"
+              :loading="profitDetailLoading"
+              @click="fetchProfitDetail"
+            >
+              <template #icon><icon-search /></template>
+              统计
+            </a-button>
+            <a-button @click="resetProfitDetail">
+              <template #icon><icon-refresh /></template>
+              重置
+            </a-button>
+          </a-space>
+        </a-col>
+      </a-row>
+      <a-divider style="margin-top: 4px" />
+      <a-table
+        row-key="rowNo"
+        :loading="profitDetailLoading"
+        :pagination="false"
+        :columns="profitDetailColumns"
+        :data="profitDetailTableData"
+        :bordered="{ cell: true }"
+        :scroll="{ x: 1320, y: getAdaptiveTableScrollY(520) }"
+        :row-class="profitDetailRowClass"
+      />
+    </a-modal>
+
+    <a-modal
       v-model:visible="periodVisible"
       width="88vw"
       :footer="false"
@@ -300,10 +371,12 @@
     CashierStatisticsDetail,
     CashierStatisticsPeriodRecord,
     CashierStatisticsPeriodType,
+    CashierStatisticsProfitDetail,
     CashierStatisticsRecord,
     CashierStatisticsResult,
     listCashierStatistics,
     listCashierStatisticsDetail,
+    listCashierStatisticsProfitDetail,
     listCashierStatisticsPeriod,
   } from './api';
 
@@ -316,6 +389,14 @@
   const detailLoading = ref(false);
   const detailCashierId = ref<number | string>();
   const detailRecords = ref<CashierStatisticsDetail[]>([]);
+  const profitDetailVisible = ref(false);
+  const profitDetailLoading = ref(false);
+  const profitDetailCashierId = ref<number | string>();
+  const profitDetailCashierName = ref('');
+  const profitDetailRecords = ref<CashierStatisticsProfitDetail[]>([]);
+  const profitDetailTimeSelectRef = ref<InstanceType<typeof TimeSelect> | null>(
+    null
+  );
   const periodVisible = ref(false);
   const periodLoading = ref(false);
   const periodCashierId = ref<number | string>();
@@ -330,6 +411,10 @@
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
     endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
     groupBy: 'customer' as 'customer' | 'goods',
+  });
+  const profitDetailForm = reactive({
+    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
   });
   const periodForm = reactive({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
@@ -356,12 +441,26 @@
     if (isSummary) return 'summary-amount';
     return value < 0 ? 'danger-amount' : undefined;
   };
+  const amountStyle = (value: number, isSummary?: boolean) =>
+    !isSummary && value < 0 ? { color: 'rgb(var(--red-6))' } : undefined;
+  const detailValueCell = (value: number, text: string, isSummary?: boolean) =>
+    h(
+      'span',
+      {
+        class: amountClass(value, isSummary),
+        style: amountStyle(value, isSummary),
+      },
+      text
+    );
   const moneyCell = (field: keyof CashierStatisticsRecord) => (record: any) => {
     const row = record.record as CashierStatisticsRecord;
     const value = Number(row[field] || 0);
     return h(
       'span',
-      { class: amountClass(value, row.isSummary) },
+      {
+        class: amountClass(value, row.isSummary),
+        style: amountStyle(value, row.isSummary),
+      },
       `¥${formatPrice(value)}`
     );
   };
@@ -423,7 +522,7 @@
       title: '操作',
       dataIndex: 'operations',
       slotName: 'operations',
-      width: 180,
+      width: 320,
       align: 'center',
     },
   ];
@@ -456,63 +555,75 @@
       const value = Number(row[field] || 0);
       return h(
         'span',
-        { class: amountClass(value, row.isSummary) },
+        {
+          class: amountClass(value, row.isSummary),
+          style: amountStyle(value, row.isSummary),
+        },
         `¥${formatPrice(value)}`
       );
     };
-  const detailColumns = computed<TableColumnData[]>(() => [
-    { title: '行号', dataIndex: 'rowNo', width: 72, align: 'center' },
-    {
-      title: detailGroupTitle.value,
-      dataIndex: 'groupName',
-      minWidth: 240,
-      align: 'left',
-      ellipsis: true,
-      tooltip: true,
-    },
-    { title: '单位', dataIndex: 'unit', width: 90, align: 'center' },
-    {
-      title: '销售数量',
-      dataIndex: 'quantity',
-      width: 120,
-      align: 'right',
-      sortable: numericSorter('quantity'),
-      render: (record: any) => Number(record.record.quantity || 0).toFixed(2),
-    },
-    {
-      title: '销售金额',
-      dataIndex: 'salesAmount',
-      width: 150,
-      align: 'right',
-      sortable: numericSorter('salesAmount'),
-      render: detailMoneyCell('salesAmount'),
-    },
-    {
-      title: '利润金额',
-      dataIndex: 'profitAmount',
-      width: 150,
-      align: 'right',
-      sortable: numericSorter('profitAmount'),
-      render: detailMoneyCell('profitAmount'),
-    },
-    {
-      title: '提成金额',
-      dataIndex: 'commissionAmount',
-      width: 150,
-      align: 'right',
-      sortable: numericSorter('commissionAmount'),
-      render: detailMoneyCell('commissionAmount'),
-    },
-    {
-      title: '利润率',
-      dataIndex: 'profitRate',
-      width: 120,
-      align: 'right',
-      sortable: numericSorter('profitRate'),
-      render: (record: any) =>
-        `${Number(record.record.profitRate || 0).toFixed(2)}%`,
-    },
-  ]);
+  const detailColumns = computed<TableColumnData[]>(() => {
+    return [
+      { title: '行号', dataIndex: 'rowNo', width: 72, align: 'center' },
+      {
+        title: detailGroupTitle.value,
+        dataIndex: 'groupName',
+        minWidth: 240,
+        align: 'left',
+        ellipsis: true,
+        tooltip: true,
+      },
+      { title: '单位', dataIndex: 'unit', width: 90, align: 'center' },
+      {
+        title: '销售数量',
+        dataIndex: 'quantity',
+        width: 120,
+        align: 'right',
+        sortable: numericSorter('quantity'),
+        render: (record: any) => {
+          const row = record.record as CashierStatisticsDetail;
+          const value = Number(row.quantity || 0);
+          return detailValueCell(value, value.toFixed(2), row.isSummary);
+        },
+      },
+      {
+        title: '销售金额',
+        dataIndex: 'salesAmount',
+        width: 150,
+        align: 'right',
+        sortable: numericSorter('salesAmount'),
+        render: detailMoneyCell('salesAmount'),
+      },
+      {
+        title: '利润金额',
+        dataIndex: 'profitAmount',
+        width: 150,
+        align: 'right',
+        sortable: numericSorter('profitAmount'),
+        render: detailMoneyCell('profitAmount'),
+      },
+      {
+        title: '提成金额',
+        dataIndex: 'commissionAmount',
+        width: 150,
+        align: 'right',
+        sortable: numericSorter('commissionAmount'),
+        render: detailMoneyCell('commissionAmount'),
+      },
+      {
+        title: '利润率',
+        dataIndex: 'profitRate',
+        width: 120,
+        align: 'right',
+        sortable: numericSorter('profitRate'),
+        render: (record: any) => {
+          const row = record.record as CashierStatisticsDetail;
+          const value = Number(row.profitRate || 0);
+          return detailValueCell(value, `${value.toFixed(2)}%`, row.isSummary);
+        },
+      },
+    ];
+  });
   const detailTableData = computed<CashierStatisticsDetail[]>(() => {
     if (!detailRecords.value.length) return [];
     const totals = detailRecords.value.reduce(
@@ -534,6 +645,7 @@
       {
         rowNo: '合计',
         groupName: '',
+        businessDate: '',
         unit: '',
         quantity: totals.quantity,
         salesAmount: totals.salesAmount,
@@ -551,13 +663,166 @@
   const detailRowClass = (record: CashierStatisticsDetail) =>
     record.isSummary ? 'summary-row' : '';
 
+  const profitDetailAmountCell =
+    (field: keyof CashierStatisticsProfitDetail) => (record: any) => {
+      const row = record.record as CashierStatisticsProfitDetail;
+      const value = Number(row[field] || 0);
+      return h(
+        'span',
+        {
+          class: row.isSummary ? 'summary-amount' : undefined,
+          style:
+            !row.isSummary && value < 0
+              ? { color: 'rgb(var(--red-6))' }
+              : undefined,
+        },
+        `¥${formatPrice(value)}`
+      );
+    };
+  const profitDetailNumberCell =
+    (field: keyof CashierStatisticsProfitDetail, suffix = '') =>
+    (record: any) => {
+      const row = record.record as CashierStatisticsProfitDetail;
+      const value = Number(row[field] || 0);
+      return h(
+        'span',
+        {
+          class: row.isSummary ? 'summary-amount' : undefined,
+          style:
+            !row.isSummary && value < 0
+              ? { color: 'rgb(var(--red-6))' }
+              : undefined,
+        },
+        suffix ? `${value.toFixed(2)}${suffix}` : value.toFixed(2)
+      );
+    };
+  const profitDetailColumns: TableColumnData[] = [
+    { title: '行号', dataIndex: 'rowNo', width: 72, align: 'center' },
+    {
+      title: '日期',
+      dataIndex: 'businessDate',
+      width: 120,
+      align: 'center',
+    },
+    {
+      title: '货品名称',
+      dataIndex: 'goodsName',
+      minWidth: 220,
+      align: 'left',
+      ellipsis: true,
+      tooltip: true,
+    },
+    { title: '单位', dataIndex: 'unit', width: 90, align: 'center' },
+    {
+      title: '数量',
+      dataIndex: 'quantity',
+      width: 120,
+      align: 'right',
+      render: profitDetailNumberCell('quantity'),
+    },
+    {
+      title: '折后单价',
+      dataIndex: 'discountedUnitPrice',
+      width: 145,
+      align: 'right',
+      render: profitDetailAmountCell('discountedUnitPrice'),
+    },
+    {
+      title: '折后金额',
+      dataIndex: 'discountedAmount',
+      width: 160,
+      align: 'right',
+      render: profitDetailAmountCell('discountedAmount'),
+    },
+    {
+      title: '成本金额',
+      dataIndex: 'costAmount',
+      width: 160,
+      align: 'right',
+      render: profitDetailAmountCell('costAmount'),
+    },
+    {
+      title: '利润金额',
+      dataIndex: 'profitAmount',
+      width: 160,
+      align: 'right',
+      render: profitDetailAmountCell('profitAmount'),
+    },
+    {
+      title: '利润率',
+      dataIndex: 'profitRate',
+      width: 120,
+      align: 'right',
+      render: (record: any) => {
+        const row = record.record as CashierStatisticsProfitDetail;
+        const value = Number(row.profitRate || 0);
+        return h(
+          'span',
+          {
+            class: row.isSummary ? 'summary-amount' : undefined,
+            style:
+              !row.isSummary && value < 0
+                ? { color: 'rgb(var(--red-6))' }
+                : undefined,
+          },
+          `${value.toFixed(2)}%`
+        );
+      },
+    },
+  ];
+  const profitDetailTableData = computed<CashierStatisticsProfitDetail[]>(() => {
+    if (!profitDetailRecords.value.length) return [];
+    const totals = profitDetailRecords.value.reduce(
+      (summary, record) => ({
+        quantity: summary.quantity + Number(record.quantity || 0),
+        discountedAmount:
+          summary.discountedAmount + Number(record.discountedAmount || 0),
+        costAmount: summary.costAmount + Number(record.costAmount || 0),
+        profitAmount: summary.profitAmount + Number(record.profitAmount || 0),
+      }),
+      {
+        quantity: 0,
+        discountedAmount: 0,
+        costAmount: 0,
+        profitAmount: 0,
+      }
+    );
+    return [
+      {
+        rowNo: '合计',
+        businessDate: '',
+        goodsName: '',
+        unit: '',
+        quantity: totals.quantity,
+        discountedUnitPrice: totals.quantity === 0 ? 0 : totals.discountedAmount / totals.quantity,
+        discountedAmount: totals.discountedAmount,
+        costAmount: totals.costAmount,
+        profitAmount: totals.profitAmount,
+        profitRate:
+          totals.discountedAmount === 0
+            ? 0
+            : (totals.profitAmount * 100) / totals.discountedAmount,
+        isSummary: true,
+      },
+      ...profitDetailRecords.value,
+    ];
+  });
+  const profitDetailRowClass = (record: CashierStatisticsProfitDetail) =>
+    record.isSummary ? 'summary-row' : '';
+
   const periodMoneyCell =
     (field: keyof CashierStatisticsPeriodRecord) => (record: any) => {
       const row = record.record as CashierStatisticsPeriodRecord;
       const value = Number(row[field] || 0);
       return h(
         'span',
-        { class: row.isSummary ? 'summary-amount' : undefined },
+        {
+          class: row.isSummary ? 'summary-amount' : undefined,
+          style:
+            !row.isSummary && value < 0
+              ? { color: 'rgb(var(--red-6))' }
+              : undefined,
+        },
         `¥${formatPrice(value)}`
       );
     };
@@ -698,35 +963,78 @@
       detailLoading.value = false;
     }
   };
+  const fetchProfitDetail = async () => {
+    if (
+      profitDetailCashierId.value === undefined ||
+      profitDetailCashierId.value === null
+    ) {
+      return;
+    }
+    profitDetailLoading.value = true;
+    try {
+      const { data } = await listCashierStatisticsProfitDetail({
+        cashierId: profitDetailCashierId.value,
+        ...profitDetailForm,
+      });
+      profitDetailRecords.value = data || [];
+    } finally {
+      profitDetailLoading.value = false;
+    }
+  };
+  const syncDetailRangeFromMain = () => {
+    detailForm.startDate = form.startDate;
+    detailForm.endDate = form.endDate;
+    detailTimeSelectRef.value?.setRange([form.startDate, form.endDate]);
+  };
+  const syncProfitDetailRangeFromMain = () => {
+    profitDetailForm.startDate = form.startDate;
+    profitDetailForm.endDate = form.endDate;
+    profitDetailTimeSelectRef.value?.setRange([form.startDate, form.endDate]);
+  };
+  const syncPeriodRangeFromMain = () => {
+    periodForm.startDate = form.startDate;
+    periodForm.endDate = form.endDate;
+    periodTimeSelectRef.value?.setRange([form.startDate, form.endDate]);
+  };
   const showDetail = (record: CashierStatisticsRecord) => {
     if (record.cashierId === undefined || record.cashierId === null) return;
     detailCashierId.value = record.cashierId;
-    detailForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
-    detailForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    syncDetailRangeFromMain();
     detailForm.groupBy = 'customer';
-    detailTimeSelectRef.value?.setPreset(2);
     detailRecords.value = [];
     detailVisible.value = true;
     fetchDetail();
+  };
+  const showProfitDetail = (record: CashierStatisticsRecord) => {
+    if (record.cashierId === undefined || record.cashierId === null) return;
+    profitDetailCashierId.value = record.cashierId;
+    profitDetailCashierName.value = record.cashierName || '';
+    syncProfitDetailRangeFromMain();
+    profitDetailRecords.value = [];
+    profitDetailVisible.value = true;
+    fetchProfitDetail();
   };
   const showPeriodStatistics = (record: CashierStatisticsRecord) => {
     if (record.cashierId === undefined || record.cashierId === null) return;
     periodCashierId.value = record.cashierId;
     periodCashierName.value = record.cashierName || '';
-    periodForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
-    periodForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    syncPeriodRangeFromMain();
     periodForm.statisticsType = 'day';
     periodRecords.value = [];
     periodVisible.value = true;
-    periodTimeSelectRef.value?.setPreset(2);
     fetchPeriod();
   };
   const resetDetail = () => {
-    detailForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
-    detailForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    syncDetailRangeFromMain();
     detailForm.groupBy = 'customer';
-    detailTimeSelectRef.value?.setPreset(2);
     fetchDetail();
+  };
+  const profitDetailTimeSelectChange = (dates: string[]) => {
+    [profitDetailForm.startDate, profitDetailForm.endDate] = dates;
+  };
+  const resetProfitDetail = () => {
+    syncProfitDetailRangeFromMain();
+    fetchProfitDetail();
   };
   const detailTimeSelectChange = (dates: string[]) => {
     [detailForm.startDate, detailForm.endDate] = dates;
@@ -757,10 +1065,8 @@
     }
   };
   const resetPeriod = () => {
-    periodForm.startDate = dayjs().startOf('month').format('YYYY-MM-DD');
-    periodForm.endDate = dayjs().endOf('month').format('YYYY-MM-DD');
+    syncPeriodRangeFromMain();
     periodForm.statisticsType = 'day';
-    periodTimeSelectRef.value?.setPreset(2);
     fetchPeriod();
   };
   watch(
@@ -1121,6 +1427,6 @@
   }
 
   .danger-amount {
-    color: rgb(var(--red-6));
+    color: rgb(var(--red-6)) !important;
   }
 </style>

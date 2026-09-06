@@ -39,12 +39,27 @@ export interface CashierStatisticsDetail {
   rowNo?: number | string;
   groupId?: number | string;
   groupName?: string;
+  businessDate?: string;
   unit?: string;
   quantity?: number;
   salesAmount?: number;
   costAmount?: number;
   profitAmount?: number;
   commissionAmount?: number;
+  profitRate?: number;
+  isSummary?: boolean;
+}
+
+export interface CashierStatisticsProfitDetail {
+  rowNo?: number | string;
+  businessDate?: string;
+  goodsName?: string;
+  unit?: string;
+  quantity?: number;
+  discountedUnitPrice?: number;
+  discountedAmount?: number;
+  costAmount?: number;
+  profitAmount?: number;
   profitRate?: number;
   isSummary?: boolean;
 }
@@ -79,6 +94,15 @@ export function listCashierStatisticsDetail(
 ) {
   return axios.post<CashierStatisticsDetail[]>(
     'api/user/appCashierStatistics/detail',
+    data
+  );
+}
+
+export function listCashierStatisticsProfitDetail(
+  data: CashierStatisticsQuery
+) {
+  return axios.post<CashierStatisticsProfitDetail[]>(
+    'api/user/appCashierStatistics/profitDetail',
     data
   );
 }

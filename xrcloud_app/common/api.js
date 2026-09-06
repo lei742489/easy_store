@@ -117,6 +117,9 @@ export const listGoodsUnits = () =>
 export const listGoodsSuppliers = () =>
   request({ url: '/api/user/appSupplier/list', data: {} })
 
+export const getDefaultSupplier = () =>
+  request({ url: '/api/user/appSupplier/defaultOne', data: {} })
+
 export const listCustomerPage = (data) =>
   request({ url: '/api/user/customer/listPage', data })
 
@@ -134,6 +137,9 @@ export const removeCustomer = (id) =>
 
 export const listCustomers = () =>
   request({ url: '/api/user/customer/list', data: {} })
+
+export const getDefaultCustomer = () =>
+  request({ url: '/api/user/customer/defaultOne', data: {} })
 
 export const listCustomerCategories = () =>
   request({ url: '/api/user/customer/category/list', data: {} })
