@@ -113,6 +113,7 @@
   import { useRoute } from 'vue-router';
   import { useUserStore } from '@/store';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     FundStatisticsDetail,
@@ -326,42 +327,33 @@
     fetchData();
   };
 
-  const csvValue = (value: unknown) =>
-    `"${String(value ?? '').replace(/"/g, '""')}"`;
-
   const exportCsv = () => {
-    const headers = [
-      '行号',
-      '业务日期',
-      '业务编号',
-      '摘要',
-      '往来单位',
-      '收支项目',
-      '金额',
-    ];
-    const rows = tableData.value.map((item) => [
-      item.rowNo,
-      item.businessDate,
-      item.orderNo,
-      item.summary,
-      item.counterparty,
-      item.itemName,
-      item.amount,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: '资金统计明细',
+      title: '资金统计明细',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '业务日期', width: 120 },
+        { title: '业务编号', width: 180 },
+        { title: '摘要', width: 180, align: 'left' },
+        { title: '往来单位', width: 170, align: 'left' },
+        { title: '收支项目', width: 160, align: 'left' },
+        { title: '金额', width: 120, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '资金统计明细.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.businessDate,
+        item.orderNo,
+        item.summary,
+        item.counterparty,
+        item.itemName,
+        formatAmount(item.amount),
+      ]),
+      amountColumnIndexes: [6],
+      summaryRowIndexes: tableData.value
+        .map((item, index) => (item.isSummary ? index : -1))
+        .filter((index) => index >= 0),
+    });
   };
 
   const escapeHtml = (value: unknown) =>

@@ -189,6 +189,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import { useUserStore } from '@/store';
   import UserSelect from '@/views/app/AppUser/components/UserSelectModel.vue';
@@ -480,69 +481,64 @@
     }
   };
 
-  const csvValue = (value: unknown) =>
-    `"${String(value ?? '').replace(/"/g, '""')}"`;
-  const downloadCsv = (name: string, headers: string[], rows: unknown[][]) => {
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
-      ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = name;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
   const exportCsv = () => {
-    downloadCsv(
-      '进货统计报告.csv',
-      ['行号', '品名规格', '单位', '数量', '金额'],
-      tableData.value.map((item) => [
+    exportStyledXls({
+      fileName: '进货统计报告',
+      title: '进货统计报告',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '品名规格', width: 320, align: 'left' },
+        { title: '单位', width: 90 },
+        { title: '数量', width: 200, align: 'right' },
+        { title: '金额', width: 220, align: 'right' },
+      ],
+      rows: tableData.value.map((item) => [
         item.rowNo,
         item.goodsName,
         item.unit,
-        item.quantity,
-        item.amount,
-      ])
-    );
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.amount || 0))}`,
+      ]),
+      amountColumnIndexes: [3, 4],
+      summaryRowIndexes: [0],
+    });
   };
   const exportDetailCsv = () => {
-    downloadCsv(
-      `${detailGoodsName.value || '进货'}明细.csv`,
-      [
-        '行号',
-        '进货日期',
-        '单据编号',
-        '供应商',
-        '品名规格',
-        '单位',
-        '数量',
-        '单价',
-        '金额',
-        '折扣额',
-        '应付金额',
-        '备注',
+    if (!detailTableData.value.length) return;
+    exportStyledXls({
+      fileName: `${detailGoodsName.value || '进货'}明细`,
+      title: `${detailGoodsName.value || '进货'}明细`,
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '进货日期', width: 110 },
+        { title: '单据编号', width: 150 },
+        { title: '供应商', width: 150, align: 'left' },
+        { title: '品名规格', width: 200, align: 'left' },
+        { title: '单位', width: 70 },
+        { title: '数量', width: 90, align: 'right' },
+        { title: '单价', width: 120, align: 'right' },
+        { title: '金额', width: 120, align: 'right' },
+        { title: '折扣额', width: 120, align: 'right' },
+        { title: '应付金额', width: 135, align: 'right' },
+        { title: '备注', width: 140, align: 'left' },
       ],
-      detailTableData.value.map((item) => [
+      rows: detailTableData.value.map((item) => [
         item.rowNo,
         item.businessDate,
         item.orderNo,
         item.supplierName,
         item.goodsName,
         item.unit,
-        item.quantity,
-        item.unitPrice,
-        item.amount,
-        item.discountAmount,
-        item.payableAmount,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.unitPrice || 0))}`,
+        `¥${formatPrice(Number(item.amount || 0))}`,
+        `¥${formatPrice(Number(item.discountAmount || 0))}`,
+        `¥${formatPrice(Number(item.payableAmount || 0))}`,
         item.note,
-      ])
-    );
+      ]),
+      amountColumnIndexes: [6, 7, 8, 9, 10],
+      summaryRowIndexes: [detailTableData.value.length - 1],
+    });
   };
 
   const escapeHtml = (value: unknown) =>

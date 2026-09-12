@@ -13,6 +13,7 @@ import org.jeecgframework.boot.easy_store_boot.app.common.excel.ExcelExportStyle
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.*;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.*;
@@ -78,7 +79,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
 
         Integer orderId = param.getInteger("orderId");
         if(orderId!=null){
-            return queryByVoucherOrder(orderId);
+            return queryByVoucherOrder(orderId, param);
         }
 
         if (current == null) current = 1;
@@ -100,24 +101,22 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         if(StringUtils.isNotEmpty(searchKey)){
             queryWrapper.and(w -> w.like("order_no",searchKey)
                     .or().like("note",searchKey)
-                    .or().apply("exists (select 1 from app_sale_order_item soi " +
+                    .or().apply("id IN (select soi.order_id from app_sale_order_item soi " +
                             "left join app_goods g on g.id = soi.goods_id " +
                             "left join app_sale_pending_goods pg on pg.order_item_id = soi.id and COALESCE(pg.is_del, 0) = 0 " +
-                            "where soi.order_id = app_sale_order.id and (g.title like {0} or CAST(soi.goods_id AS CHAR) like {0} or pg.goods_name like {0}))", "%" + searchKey + "%"));
+                            "where g.title like {0} or CAST(soi.goods_id AS CHAR) like {1} or pg.goods_name like {2})",
+                            "%" + searchKey + "%", "%" + searchKey + "%", "%" + searchKey + "%"));
         }
         applyDefaultAuditSort(queryWrapper, param);
         Page<AppSaleOrder> page = new Page<>(current, pageSize);
         IPage<AppSaleOrder> pageList = service.page(page, queryWrapper);
-        boolean rootUser = isRootUser(param);
         for(AppSaleOrder appPurchaseOrder : pageList.getRecords()){
             appPurchaseOrder.setItems(appPurchaseOrderItemService.listByOrderId(appPurchaseOrder.getId()));
             fillSaleOrderItemGoodsCode(appPurchaseOrder.getItems());
             service.fillPendingGoodsNames(appPurchaseOrder.getId(), appPurchaseOrder.getItems());
             fillSaleOrderItemGoodsText(appPurchaseOrder.getItems());
             fillSaleOrderItemCostPrice(appPurchaseOrder.getItems());
-            if(!rootUser){
-                hideGrossProfit(appPurchaseOrder);
-            }
+            maskSaleOrder(appPurchaseOrder, param);
         }
         return Result.ok(pageList);
     }
@@ -165,6 +164,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         String selections = request.getParameter("selections");
         List<String> ids = Arrays.asList(selections.split(","));
         boolean rootUser = isRootRequest(request);
+        JSONObject permissionParam = getUserParam(request);
         LambdaQueryWrapper<AppSaleOrder> wrapper = new LambdaQueryWrapper<AppSaleOrder>()
                 .in(AppSaleOrder::getId, ids)
                 .orderByDesc(AppSaleOrder::getCreateTime);
@@ -177,9 +177,9 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
             translateSaleOrderForExport(order);
             order.setItems(appPurchaseOrderItemService.listByOrderId(order.getId()));
             service.fillPendingGoodsNames(order.getId(), order.getItems());
-            if(!rootUser){
-                hideGrossProfit(order);
-            }
+            fillSaleOrderItemGoodsCode(order.getItems());
+            fillSaleOrderItemCostPrice(order.getItems());
+            maskSaleOrder(order, permissionParam);
         }
         ModelAndView mv = new ModelAndView(new JeecgEntityExcelView());
        try {
@@ -354,7 +354,7 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
     }
 
 
-    private Result<?> queryByVoucherOrder(Integer voucherOrderId){
+    private Result<?> queryByVoucherOrder(Integer voucherOrderId, JSONObject param){
         if(voucherOrderId == null)
             return Result.ok(new Page<>());
 
@@ -364,8 +364,12 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
         paymentAmountItems.forEach(item->{
             AppSaleOrder saleOrder = service.getByOrderNo(item.getOrderNo());
             if(saleOrder!=null){
+                Integer saleOrderId = saleOrder.getId();
                 saleOrder.setAmount(item.getAmount());
                 saleOrder.setNote(item.getNote());
+                saleOrder.setItems(appPurchaseOrderItemService.listByOrderId(saleOrderId));
+                fillSaleOrderItemCostPrice(saleOrder.getItems());
+                maskSaleOrder(saleOrder, param);
                 saleOrder.setId(item.getId());
                 pageList.getRecords().add(saleOrder);
             }
@@ -407,12 +411,34 @@ public class AppSaleOrderController extends ApiBaseController<AppSaleOrder, IApp
                 && StringUtils.isNumeric(sourceValue);
     }
 
-    private void hideGrossProfit(AppSaleOrder order) {
+    private void maskSaleOrder(AppSaleOrder order, JSONObject param) {
         if(order == null) return;
-        order.setGrossProfit(null);
+        boolean showSalePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_SALE_PRICE);
+        boolean showCostPrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_COST_PRICE);
+        if (!showSalePrice) {
+            order.setTotalAmount(0D);
+            order.setPayableAmount(0D);
+            order.setPaidAmount(0D);
+            order.setUnpaidAmount(0D);
+            order.setDiscountedAmount(0D);
+            order.setFreightAmount(0D);
+            order.setAmount(0D);
+        }
+        if (!showCostPrice) {
+            order.setGrossProfit(0D);
+        }
         if(order.getItems() == null) return;
         for(AppSaleOrderItem item : order.getItems()){
-            item.setGrossProfit(null);
+            if (!showSalePrice) {
+                item.setUnitPrice(0D);
+                item.setTotalAmount(0D);
+            }
+            if (!showCostPrice) {
+                item.setCostPrice(0D);
+                item.setCostAmount(0D);
+                item.setCostAdjustAmount(0D);
+                item.setGrossProfit(0D);
+            }
         }
     }
 

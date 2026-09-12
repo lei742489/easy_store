@@ -90,14 +90,15 @@
               <uni-icons type="trash" color="#e5484d" :size="20" @click="removeItem(index)" />
             </view>
             <view class="goods-item-controls">
-              <view class="number-control">
-                <text class="control-label">单价</text>
-                <input v-model="item.unitPrice" class="number-input" type="digit" @blur="handleItemChange(item)" />
-              </view>
+              
               <view class="number-control">
                 <text class="control-label">数量</text>
                 <input v-model="item.displayQuantity" class="number-input" type="digit" @blur="handleItemChange(item)" />
               </view>
+			  <view class="number-control">
+			    <text class="control-label">单价</text>
+			    <input v-model="item.unitPrice" class="number-input" type="digit" @blur="handleItemChange(item)" />
+			  </view>
               <view class="number-control">
                 <text class="control-label">金额</text>
                 <input

@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppCustomerQuote;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppCustomerQuoteService;
@@ -62,6 +63,7 @@ public class AppCustomerQuoteController extends ApiBaseController<AppCustomerQuo
 
         Page<AppCustomerQuote> page = new Page<>(current, pageSize);
         IPage<AppCustomerQuote> pageList = service.page(page, queryWrapper);
+        maskQuotes(pageList.getRecords(), param);
         return Result.ok(pageList);
     }
 
@@ -110,6 +112,9 @@ public class AppCustomerQuoteController extends ApiBaseController<AppCustomerQuo
                 .eq("goods_id", goodsId)
                 .orderByDesc("id")
                 .last("limit 1"));
+        if (quote != null) {
+            maskQuotes(java.util.Collections.singletonList(quote), param);
+        }
         return Result.ok(quote);
     }
 
@@ -145,5 +150,19 @@ public class AppCustomerQuoteController extends ApiBaseController<AppCustomerQuo
             }
         }
         return sb.toString();
+    }
+
+    private void maskQuotes(List<AppCustomerQuote> quotes, JSONObject param) {
+        if (quotes == null || quotes.isEmpty()) return;
+        boolean showSalePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_SALE_PRICE);
+        boolean showTradePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_TRADE_PRICE);
+        for (AppCustomerQuote quote : quotes) {
+            if (quote == null) continue;
+            if (!showSalePrice) quote.setSalePrc(0D);
+            if (!showTradePrice) {
+                quote.setTradePrc(0D);
+                quote.setQuotePrice(0D);
+            }
+        }
     }
 }

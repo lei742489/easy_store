@@ -8,6 +8,7 @@ import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.GoodsSearchRes
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppGoods;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -33,6 +34,8 @@ public interface IAppGoodsService extends IService<AppGoods> {
     void setDefCategoryId(String categoryId);
 
     void updateStock(String goodsId);
+
+    void lockGoodsForUpdate(Collection<String> goodsIds);
 
     JSONObject getStockDetail(String goodsId, Long startTime, Long endTime);
 

@@ -13,6 +13,7 @@ import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.ApiQuery;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.GoodsSearchResult;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppGoods;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppUser;
@@ -44,13 +45,15 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
 
     @PostMapping("listPage")
     public Result<?> listPage(@RequestBody JSONObject param) {
-        return Result.ok(queryGoodsPage(param));
+        IPage<AppGoods> page = queryGoodsPage(param);
+        maskGoodsPrices(page.getRecords(), param, param.getString("quoteScene"));
+        return Result.ok(page);
     }
 
     @PostMapping("listQuotePage")
     public Result<?> listQuotePage(@RequestBody JSONObject param) {
         IPage<AppGoods> page = queryGoodsPage(param);
-        hideUnauthorizedQuotePrices(page.getRecords(), param.getString("userId"), param.getString("quoteScene"));
+        maskGoodsPrices(page.getRecords(), param, param.getString("quoteScene"));
         return Result.ok(page);
     }
 
@@ -88,37 +91,49 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
     private IAppRolePermissionService rolePermissionService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
-    private void hideUnauthorizedQuotePrices(List<AppGoods> goodsList, String userId, String quoteScene) {
+    private void maskGoodsPrices(List<AppGoods> goodsList, JSONObject param, String quoteScene) {
         if (goodsList == null || goodsList.isEmpty()) return;
-        AppUser user = userService.getById(userId);
-        if (user == null || (user.getIsRoot() != null && user.getIsRoot() == 1)) return;
-
-        if ("businessOrder".equals(quoteScene)) {
-            for (AppGoods goods : goodsList) {
-                goods.setCostPrice(null);
-                goods.setPurPrc(null);
-            }
-            return;
+        boolean rootUser = isRootUser(param);
+        boolean showCostPrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_COST_PRICE);
+        boolean showPurchasePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_PURCHASE_PRICE);
+        boolean showTradePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_TRADE_PRICE);
+        boolean showSalePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_SALE_PRICE);
+        if ("businessOrder".equals(quoteScene) && !rootUser) {
+            showCostPrice = false;
+            showPurchasePrice = false;
         }
-
-        List<String> permissionCodes = rolePermissionService.listPermissionCodesByRoleId(user.getRoleId());
-        boolean showCostPrice = permissionCodes.contains(AppPermissionDefinition.DATA_VIEW_COST_PRICE);
-        boolean showPurchasePrice = permissionCodes.contains(AppPermissionDefinition.DATA_VIEW_PURCHASE_PRICE);
-        boolean showTradePrice = permissionCodes.contains(AppPermissionDefinition.DATA_VIEW_TRADE_PRICE);
-        boolean showSalePrice = permissionCodes.contains(AppPermissionDefinition.DATA_VIEW_SALE_PRICE);
         for (AppGoods goods : goodsList) {
-            if (!showCostPrice) goods.setCostPrice(null);
-            if (!showPurchasePrice) goods.setPurPrc(null);
-            if (!showTradePrice) goods.setTradePrc(null);
-            if (!showSalePrice) goods.setSalePrc(null);
+            if (!showCostPrice) {
+                goods.setInitCost(0);
+                goods.setStockCost(0D);
+                goods.setCostPrice(0D);
+            }
+            if (!showPurchasePrice) goods.setPurPrc(0D);
+            if (!showTradePrice) goods.setTradePrc(0D);
+            if (!showSalePrice) goods.setSalePrc(0D);
         }
     }
 
     @PostMapping("searchKey")
     public Result<?> searchKey(@RequestBody JSONObject param) {
-        return Result.ok(service.searchByKey(param.getInteger("pageNo"),
+        List<GoodsSearchResult> results = service.searchByKey(param.getInteger("pageNo"),
                 param.getString("key"), param.getBoolean("hideZeroStock"),
-                param.getString("searchType")));
+                param.getString("searchType"));
+        boolean showCostPrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_COST_PRICE);
+        boolean showPurchasePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_PURCHASE_PRICE);
+        boolean showTradePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_TRADE_PRICE);
+        boolean showSalePrice = hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_SALE_PRICE);
+        if ("businessOrder".equals(param.getString("quoteScene")) && !isRootUser(param)) {
+            showCostPrice = false;
+            showPurchasePrice = false;
+        }
+        for (GoodsSearchResult item : results) {
+            if (!showCostPrice) item.setCostPrice(0D);
+            if (!showPurchasePrice) item.setPurPrc(0D);
+            if (!showTradePrice) item.setTradePrc(0D);
+            if (!showSalePrice) item.setSalePrc(0D);
+        }
+        return Result.ok(results);
     }
 
     @PostMapping("stockDetail")
@@ -135,6 +150,9 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
         JSONObject result = service.getStockDetail(goodsId, startTime, endTime);
         if (result == null) {
             throw new AppRunTimeException("货品不存在或已删除");
+        }
+        if (!hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_COST_PRICE)) {
+            maskStockDetail(result);
         }
         return Result.ok(result);
     }
@@ -195,7 +213,34 @@ public class AppGoodsController extends ApiBaseController<AppGoods,IAppGoodsServ
                 .or()
                 .apply("COALESCE(max_stock, 0) > 0 AND COALESCE(stock, 0) > COALESCE(max_stock, 0)"));
         wrapper.orderByAsc("title").orderByAsc("id");
-        return Result.ok(service.page(new Page<AppGoods>(current, pageSize), wrapper));
+        IPage<AppGoods> page = service.page(new Page<AppGoods>(current, pageSize), wrapper);
+        maskGoodsPrices(page.getRecords(), param, null);
+        return Result.ok(page);
+    }
+
+    private void maskStockDetail(JSONObject result) {
+        String[] amountKeys = {
+                "openingCostPrice", "openingAmount", "inTotal", "outTotal",
+                "endingCostPrice", "endingAmount"
+        };
+        for (String key : amountKeys) {
+            result.put(key, 0D);
+        }
+        Object records = result.get("records");
+        if (!(records instanceof List)) {
+            return;
+        }
+        for (Object row : (List<?>) records) {
+            if (row instanceof JSONObject) {
+                JSONObject item = (JSONObject) row;
+                item.put("inUnitPrice", 0D);
+                item.put("inAmount", 0D);
+                item.put("outCostPrice", 0D);
+                item.put("outAmount", 0D);
+                item.put("endingCostPrice", 0D);
+                item.put("endingAmount", 0D);
+            }
+        }
     }
 
     private Long parseStartTime(String value) {

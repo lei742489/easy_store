@@ -44,7 +44,54 @@ public class AppOrderUpdateMetadataInitializer {
         createStockLedgerTable();
         createSaleCostAdjustmentTable();
         createSalePendingGoodsTable();
+        createBusinessDailySummaryTable();
+        createOrderItemIndexes();
         migrateQuantityColumns();
+    }
+
+    private void createOrderItemIndexes() {
+        createIndexIfAbsent("CREATE INDEX idx_sale_order_item_order_del " +
+                "ON app_sale_order_item(order_id, is_del)");
+        createIndexIfAbsent("CREATE INDEX idx_purchase_order_item_order_del " +
+                "ON app_purchase_order_item(order_id, is_del)");
+    }
+
+    private void createBusinessDailySummaryTable() {
+        if (databaseDialect.isMySql()) {
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_business_daily_summary (" +
+                    "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                    "business_date VARCHAR(10) NOT NULL," +
+                    "cashier_id VARCHAR(100) NOT NULL DEFAULT '-1'," +
+                    "sales_quantity DECIMAL(18,4) DEFAULT 0," +
+                    "sales_amount DECIMAL(18,4) DEFAULT 0," +
+                    "sales_profit DECIMAL(18,4) DEFAULT 0," +
+                    "purchase_quantity DECIMAL(18,4) DEFAULT 0," +
+                    "purchase_amount DECIMAL(18,4) DEFAULT 0," +
+                    "sales_order_count INT DEFAULT 0," +
+                    "purchase_order_count INT DEFAULT 0," +
+                    "create_time DATETIME," +
+                    "update_time DATETIME" +
+                    ")");
+        } else {
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS app_business_daily_summary (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "business_date TEXT NOT NULL," +
+                    "cashier_id TEXT NOT NULL DEFAULT '-1'," +
+                    "sales_quantity REAL DEFAULT 0," +
+                    "sales_amount REAL DEFAULT 0," +
+                    "sales_profit REAL DEFAULT 0," +
+                    "purchase_quantity REAL DEFAULT 0," +
+                    "purchase_amount REAL DEFAULT 0," +
+                    "sales_order_count INTEGER DEFAULT 0," +
+                    "purchase_order_count INTEGER DEFAULT 0," +
+                    "create_time DATETIME," +
+                    "update_time DATETIME" +
+                    ")");
+        }
+        createIndexIfAbsent("CREATE UNIQUE INDEX uk_business_daily_summary_date_cashier " +
+                "ON app_business_daily_summary(business_date, cashier_id)");
+        createIndexIfAbsent("CREATE INDEX idx_business_daily_summary_date " +
+                "ON app_business_daily_summary(business_date)");
     }
 
     private void repairOrderDateTimeColumns() {

@@ -3,6 +3,7 @@ package org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.autho
 
 import com.alibaba.fastjson.JSONObject;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPaymentSettleItem;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppReceivePaymentSettleItem;
@@ -22,6 +23,13 @@ public class AppReceivePaymentSettleItemController extends ApiBaseController<App
 
     @PostMapping("listByOrderId")
     public Result<?> listByOrderId(@RequestBody JSONObject param) {
-        return Result.ok(service.listByPaymentId(param.getString("paymentId")));
+        java.util.List<AppReceivePaymentSettleItem> items =
+                service.listByPaymentId(param.getString("paymentId"));
+        if (!hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_SALE_PRICE)) {
+            for (AppReceivePaymentSettleItem item : items) {
+                if (item != null) item.setAmount(0D);
+            }
+        }
+        return Result.ok(items);
     }
 }

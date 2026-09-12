@@ -11,6 +11,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.ibatis.annotations.Param;
 import org.jeecgframework.boot.easy_store_boot.app.common.DateUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.CustomerSupplierKeywordResolver;
+import org.jeecgframework.boot.easy_store_boot.app.common.excel.ExcelExportStylerBorder;
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
@@ -132,6 +133,7 @@ public class ApiBaseController<T, S extends IService<T>> {
         // Step 4：AutoPoi 导出
         ModelAndView mv = new ModelAndView(new JeecgEntityExcelView());
         ExportParams exportParams = new ExportParams(title, "", title);
+        exportParams.setStyle(ExcelExportStylerBorder.class);
         exportParams.setType(ExcelType.XSSF); // .xlsx 类型
 
         ApiModel apiModel = getEntityClass().getAnnotation(ApiModel.class);
@@ -240,6 +242,20 @@ public class ApiBaseController<T, S extends IService<T>> {
 
     protected boolean isRootUser(JSONObject param) {
         return isRoot(getCurrentUser(param));
+    }
+
+    /**
+     * Check a sensitive data-view permission. Root users bypass data masking.
+     */
+    protected boolean hasDataViewPermission(JSONObject param, String permissionCode) {
+        AppUser user = getCurrentUser(param);
+        return isRoot(user) || appRolePermissionService.hasPermission(user.getRoleId(), permissionCode);
+    }
+
+    protected JSONObject getUserParam(HttpServletRequest request) {
+        JSONObject param = new JSONObject();
+        param.put("userId", request == null ? null : request.getParameter("userId"));
+        return param;
     }
 
     protected void applyCustomerKeywordFilter(QueryWrapper<?> queryWrapper, String customerId) {

@@ -92,6 +92,7 @@
   import { computed, h, onMounted, reactive, ref } from 'vue';
   import { Message } from '@arco-design/web-vue';
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import SupplierSelect from '@/views/app/AppSupplier/components/SupplierSelectModal.vue';
   import PurchaseOrderModal from '@/views/app/AppPurchaseOrder/components/modal.vue';
   import type { AppPurchaseOrder } from '@/views/app/AppPurchaseOrder/types/AppPurchaseOrder';
@@ -276,17 +277,19 @@
   };
 
   const exportCsv = () => {
-    const headers = [
-      '行号',
-      '品名规格',
-      '单位',
-      '最高存量',
-      '最低存量',
-      '当前存量',
-      '超出/短缺存货数量',
-    ];
-    const rows = renderData.value.map((item, index) =>
-      [
+    exportStyledXls({
+      fileName: '库存预警报告',
+      title: '库存预警报告',
+      columns: [
+        { title: '行号', width: 72 },
+        { title: '品名规格', width: 320, align: 'left' },
+        { title: '单位', width: 80 },
+        { title: '最高存量', width: 130, align: 'right' },
+        { title: '最低存量', width: 130, align: 'right' },
+        { title: '当前存量', width: 130, align: 'right' },
+        { title: '超出/短缺存货数量', width: 170, align: 'right' },
+      ],
+      rows: renderData.value.map((item, index) => [
         index + 1 + (pagination.current - 1) * pagination.pageSize,
         item.title,
         item.unit,
@@ -294,21 +297,9 @@
         numberValue(item.minStock),
         numberValue(item.stock),
         warningQuantity(item),
-      ]
-        .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const blob = new Blob(
-      [`\uFEFF${[headers.join(','), ...rows].join('\n')}`],
-      {
-        type: 'text/csv;charset=utf-8;',
-      }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '库存预警报告.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      ]),
+      amountColumnIndexes: [3, 4, 5, 6],
+    });
   };
 
   const preview = () => {

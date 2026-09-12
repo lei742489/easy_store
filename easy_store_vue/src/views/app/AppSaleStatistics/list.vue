@@ -189,6 +189,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import { useUserStore } from '@/store';
   import UserSelect from '@/views/app/AppUser/components/UserSelectModel.vue';
@@ -481,76 +482,64 @@
   };
 
   const exportDetailCsv = () => {
-    const headers = [
-      '行号',
-      '销售日期',
-      '单据编号',
-      '客户',
-      '品名规格',
-      '单位',
-      '数量',
-      '单价',
-      '金额',
-      '折扣额',
-      '应收金额',
-      '备注',
-    ];
-    const rows = detailTableData.value.map((item) =>
-      [
+    if (!detailTableData.value.length) return;
+    exportStyledXls({
+      fileName: `${detailGoodsName.value || '销售'}明细`,
+      title: `${detailGoodsName.value || '销售'}明细`,
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '销售日期', width: 110 },
+        { title: '单据编号', width: 150 },
+        { title: '客户', width: 150, align: 'left' },
+        { title: '品名规格', width: 200, align: 'left' },
+        { title: '单位', width: 70 },
+        { title: '数量', width: 90, align: 'right' },
+        { title: '单价', width: 120, align: 'right' },
+        { title: '金额', width: 120, align: 'right' },
+        { title: '折扣额', width: 120, align: 'right' },
+        { title: '应收金额', width: 135, align: 'right' },
+        { title: '备注', width: 140, align: 'left' },
+      ],
+      rows: detailTableData.value.map((item) => [
         item.rowNo,
         item.businessDate,
         item.orderNo,
         item.customerName,
         item.goodsName,
         item.unit,
-        item.quantity,
-        item.unitPrice,
-        item.amount,
-        item.discountAmount,
-        item.receivableAmount,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.unitPrice || 0))}`,
+        `¥${formatPrice(Number(item.amount || 0))}`,
+        `¥${formatPrice(Number(item.discountAmount || 0))}`,
+        `¥${formatPrice(Number(item.receivableAmount || 0))}`,
         item.note,
-      ]
-        .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const blob = new Blob(
-      [`\uFEFF${[headers.join(','), ...rows].join('\n')}`],
-      {
-        type: 'text/csv;charset=utf-8;',
-      }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${detailGoodsName.value || '销售'}明细.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+      ]),
+      amountColumnIndexes: [6, 7, 8, 9, 10],
+      summaryRowIndexes: [detailTableData.value.length - 1],
+    });
   };
 
   const exportCsv = () => {
-    const fields: Array<keyof SaleStatisticsRecord> = [
-      'rowNo',
-      'goodsName',
-      'unit',
-      'quantity',
-      'amount',
-    ];
-    const headers = ['行号', '品名规格', '单位', '数量', '金额'];
-    const rows = tableData.value.map((item) =>
-      fields
-        .map((field) => `"${String(item[field] ?? '').replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const blob = new Blob(
-      [`\uFEFF${[headers.join(','), ...rows].join('\n')}`],
-      {
-        type: 'text/csv;charset=utf-8;',
-      }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '销售统计报告.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+    exportStyledXls({
+      fileName: '销售统计报告',
+      title: '销售统计报告',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '品名规格', width: 320, align: 'left' },
+        { title: '单位', width: 90 },
+        { title: '数量', width: 200, align: 'right' },
+        { title: '金额', width: 220, align: 'right' },
+      ],
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.goodsName,
+        item.unit,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.amount || 0))}`,
+      ]),
+      amountColumnIndexes: [3, 4],
+      summaryRowIndexes: [0],
+    });
   };
 
   const escapeHtml = (value: unknown) =>

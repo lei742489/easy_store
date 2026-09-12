@@ -115,6 +115,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import SupplierSelect from '@/views/app/AppSupplier/components/SupplierSelectModal.vue';
   import { list as getSupplierList } from '@/views/app/AppSupplier/api/api-AppSupplier';
   import TimeSelect from '@/components/menu/time-select.vue';
@@ -569,6 +570,69 @@
 
   const exportCsv = () => {
     if (!tableData.value.length) return;
+    if (isStatement.value) {
+      const rows = tableData.value.map((record) => {
+        const item = record as PayableStatementRecord;
+        const isGoodsItem = item.rowType === 'item';
+        const amount = (value: unknown) =>
+          value === null || value === undefined || value === ''
+            ? ''
+            : `￥${formatPrice(Number(value))}`;
+        return [
+          item.rowNo,
+          item.goodsName || '',
+          item.unit || '',
+          item.quantity ?? '',
+          item.unitPrice == null ? '' : formatPlainAmount(Number(item.unitPrice)),
+          isGoodsItem ? '' : amount(item.freightAmount),
+          item.totalAmount == null ? '' : amount(item.totalAmount),
+          isGoodsItem ? '' : amount(item.discountAmount),
+          item.note || '',
+          isGoodsItem ? '' : amount(item.payableAmount),
+          isGoodsItem ? '' : amount(item.paidAmount),
+          isGoodsItem ? '' : amount(item.roundingAmount),
+          isGoodsItem ? '' : amount(item.endingBalance),
+        ];
+      });
+      exportStyledXls({
+        fileName: `应付对账单_${result.supplierName || ''}`,
+        title: `应付对账单 > 供应商 “${result.supplierName || ''}” 的对账单`,
+        columns: [
+          { title: '行号', width: 58 },
+          { title: '品名规格', width: 250, align: 'left' },
+          { title: '单位', width: 70 },
+          { title: '数量', width: 78, align: 'right' },
+          { title: '单价', width: 92, align: 'right' },
+          { title: '运费', width: 92, align: 'right' },
+          { title: '金额', width: 105, align: 'right' },
+          { title: '折扣优惠', width: 105, align: 'right' },
+          { title: '备注', width: 150, align: 'left' },
+          { title: '增加应付款', width: 120, align: 'right' },
+          { title: '付出应付款', width: 120, align: 'right' },
+          { title: '抹零', width: 88, align: 'right' },
+          { title: '期末应付款', width: 125, align: 'right' },
+        ],
+        rows,
+        amountColumnIndexes: [3, 4, 5, 6, 7, 9, 10, 11, 12],
+        summaryRowIndexes: [0],
+        rowStyles: Object.fromEntries(
+          tableData.value.map((record, index) => {
+            const item = record as PayableStatementRecord;
+            if (item.isSummary) {
+              return [index, 'background:#f2f3f5;font-weight:600;'];
+            }
+            if (item.rowType === 'purchase') {
+              return [index, 'background:#e8f7ff;'];
+            }
+            if (item.rowType === 'opening' || item.rowType === 'payment') {
+              return [index, 'background:#ffffdd;'];
+            }
+            return [index, ''];
+          })
+        ),
+      });
+      return;
+    }
     const headers = columns.value
       .filter((item) => item.dataIndex !== 'operation')
       .map((item) => item.title)

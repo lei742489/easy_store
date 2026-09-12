@@ -153,8 +153,8 @@ export default {
     formatAmount(value) {
       const number = Number(value || 0)
       return Number.isFinite(number)
-        ? number.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        : '0.00'
+        ? number.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+        : '0'
     },
     openPage(url) {
       uni.navigateTo({ url })

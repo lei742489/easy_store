@@ -12,6 +12,7 @@ import org.jeecgframework.boot.easy_store_boot.app.common.excel.ExcelExportStyle
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.*;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.*;
@@ -83,6 +84,9 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
         applyDefaultAuditSort(queryWrapper, param);
         IPage<AppReceivePaymentVoucher> pageList =
                 service.page(new Page<>(current, pageSize), queryWrapper);
+        for (AppReceivePaymentVoucher voucher : pageList.getRecords()) {
+            maskReceivePaymentVoucher(voucher, param);
+        }
         return Result.ok(pageList);
     }
 
@@ -121,6 +125,7 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
         // 过滤选中数据
         String selections = request.getParameter("selections");
         List<String> ids = Arrays.asList(selections.split(","));
+        JSONObject permissionParam = getUserParam(request);
         List<AppReceivePaymentVoucher> list = service.list(new LambdaQueryWrapper<AppReceivePaymentVoucher>().in(AppReceivePaymentVoucher::getId, ids).orderByDesc(AppReceivePaymentVoucher::getCreateTime));
 
         for(AppReceivePaymentVoucher item : list){
@@ -137,6 +142,7 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
                 }
             }
             item.setAmountItems(amountItems);
+            maskReceivePaymentVoucher(item, permissionParam);
         }
 
 
@@ -288,5 +294,27 @@ public class AppReceivePaymentVoucherController extends ApiBaseController<AppRec
             ids.add(id);
         }
         return ids;
+    }
+
+    private void maskReceivePaymentVoucher(AppReceivePaymentVoucher voucher, JSONObject param) {
+        if (voucher == null) return;
+        if (!hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_SALE_PRICE)) {
+            voucher.setAmount(0D);
+            if (voucher.getSettleItems() != null) {
+                for (AppReceivePaymentSettleItem item : voucher.getSettleItems()) {
+                    if (item != null) item.setAmount(0D);
+                }
+            }
+            if (voucher.getAmountItems() != null) {
+                for (AppReceivePaymentAmountItem item : voucher.getAmountItems()) {
+                    if (item != null) {
+                        item.setAmount(0D);
+                        item.setPayableAmount(0D);
+                        item.setPaidAmount(0D);
+                        item.setUnpaidAmount(0D);
+                    }
+                }
+            }
+        }
     }
 }

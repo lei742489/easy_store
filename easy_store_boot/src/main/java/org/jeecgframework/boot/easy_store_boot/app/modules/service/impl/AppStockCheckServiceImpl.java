@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 @Service
 public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, AppStockCheck>
@@ -38,6 +39,7 @@ public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, A
     @Transactional(rollbackFor = Exception.class)
     public boolean save(AppStockCheck entity) {
         normalizeItems(entity, new HashMap<>());
+        goodsService.lockGoodsForUpdate(collectGoodsIds(entity.getItems(), null));
         boolean saved = super.save(entity);
         for (AppStockCheckItem item : entity.getItems()) {
             item.setCheckId(entity.getId());
@@ -64,6 +66,7 @@ public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, A
         }
         entity.setOrderNo(null);
         normalizeItems(entity, oldItemMap);
+        goodsService.lockGoodsForUpdate(collectGoodsIds(oldItems, entity.getItems()));
         boolean updated = super.updateById(entity);
         stockCheckItemService.removeByUpdate(entity.getItems(), entity.getId());
         stockCheckItemService.saveOrUpdateBatch(entity.getItems());
@@ -82,6 +85,7 @@ public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, A
             return false;
         }
         List<AppStockCheckItem> oldItems = stockCheckItemService.listByCheckId(stockCheck.getId());
+        goodsService.lockGoodsForUpdate(collectGoodsIds(oldItems, null));
         boolean removed = super.removeById(id);
         if (removed) {
             stockCheckItemService.removeByCheckId(stockCheck.getId());
@@ -150,6 +154,23 @@ public class AppStockCheckServiceImpl extends ServiceImpl<AppStockCheckMapper, A
         }
         for (String goodsId : goodsIds) {
             goodsService.updateStock(goodsId);
+        }
+    }
+
+    private Set<String> collectGoodsIds(List<AppStockCheckItem> first, List<AppStockCheckItem> second) {
+        Set<String> goodsIds = new TreeSet<>((left, right) -> Integer.compare(
+                Integer.parseInt(left), Integer.parseInt(right)));
+        addGoodsIds(goodsIds, first);
+        addGoodsIds(goodsIds, second);
+        return goodsIds;
+    }
+
+    private void addGoodsIds(Set<String> goodsIds, List<AppStockCheckItem> items) {
+        if (items == null) return;
+        for (AppStockCheckItem item : items) {
+            if (item != null && StringUtils.isNotBlank(item.getGoodsId())) {
+                goodsIds.add(item.getGoodsId().trim());
+            }
         }
     }
 

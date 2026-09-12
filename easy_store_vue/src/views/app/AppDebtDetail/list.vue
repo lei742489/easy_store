@@ -109,6 +109,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import CustomerSelect from '@/views/app/customer/components/customer-select-modal.vue';
   import { list as getCustomerList } from '@/views/app/customer/api/api-customer';
   import TimeSelect from '@/components/menu/time-select.vue';
@@ -270,28 +271,32 @@
 
   const exportCsv = () => {
     if (!tableData.value.length) return;
-    const headers = columns.map((item) => item.title).join(',');
-    const rows = tableData.value.map((item) =>
-      [
+    exportStyledXls({
+      fileName: `应收欠款明细_${result.customerName || ''}`,
+      title: `应收欠款明细 > 客户 “${result.customerName || ''}”`,
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '业务日期', width: 120 },
+        { title: '业务编号', width: 180 },
+        { title: '摘要', width: 220, align: 'left' },
+        { title: '增加应收款', width: 130, align: 'right' },
+        { title: '收回应收款', width: 130, align: 'right' },
+        { title: '期末应收款', width: 130, align: 'right' },
+      ],
+      rows: tableData.value.map((item) => [
         item.rowNo,
         item.businessDate,
         item.orderNo,
         item.summary,
-        item.receivableAmount || 0,
-        item.receivedAmount || 0,
-        item.endingBalance || 0,
-      ]
-        .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
-        .join(',')
-    );
-    const blob = new Blob([`\uFEFF${[headers, ...rows].join('\n')}`], {
-      type: 'text/csv;charset=utf-8;',
+        `￥${formatPrice(Number(item.receivableAmount || 0))}`,
+        `￥${formatPrice(Number(item.receivedAmount || 0))}`,
+        `￥${formatPrice(Number(item.endingBalance || 0))}`,
+      ]),
+      amountColumnIndexes: [4, 5, 6],
+      summaryRowIndexes: tableData.value
+        .map((item, index) => (item.isSummary ? index : -1))
+        .filter((index) => index >= 0),
     });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `应收欠款明细_${result.customerName || ''}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
   };
 
   const escapeHtml = (value: unknown) =>

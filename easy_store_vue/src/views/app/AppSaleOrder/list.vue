@@ -321,7 +321,7 @@
 
   const basePagination: Pagination = {
     current: 1,
-    pageSize: 50,
+    pageSize: 30,
     order: 'desc',
     column: 'createTime',
     showTotal: true,
@@ -351,6 +351,7 @@
       title: '单号',
       dataIndex: 'orderNo',
       align: 'center',
+      width:195,
       render: (record) => {
         const data = record.record as AppSaleOrder;
         return h(
@@ -522,7 +523,7 @@
   const fetchData = async (
     params: PolicyParams = {
       current: 1,
-      pageSize: 50,
+      pageSize: 30,
       order: 'desc',
       column: 'createTime',
     }

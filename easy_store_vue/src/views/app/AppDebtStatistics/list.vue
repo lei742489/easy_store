@@ -112,6 +112,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import CustomerSelect from '@/views/app/customer/components/customer-select-modal.vue';
   import { list as getCustomerList } from '@/views/app/customer/api/api-customer';
   import TimeSelect from '@/components/menu/time-select.vue';
@@ -281,41 +282,34 @@
     search();
   };
 
-  const csvValue = (
-    item: DebtStatisticsRecord,
-    field: keyof DebtStatisticsRecord
-  ) => item[field] ?? '';
-
   const exportCsv = () => {
     if (!tableData.value.length) return;
-    const fields: Array<keyof DebtStatisticsRecord> = [
-      'rowNo',
-      'customerName',
-      'openingBalance',
-      'receivableAmount',
-      'receivedAmount',
-      'roundingAmount',
-      'endingBalance',
-    ];
-    const headers = columns
-      .filter((item) => item.dataIndex !== 'operation')
-      .map((item) => item.title)
-      .join(',');
-    const rows = tableData.value.map((item) =>
-      fields
-        .map(
-          (field) => `"${String(csvValue(item, field)).replace(/"/g, '""')}"`
-        )
-        .join(',')
-    );
-    const blob = new Blob([`\uFEFF${[headers, ...rows].join('\n')}`], {
-      type: 'text/csv;charset=utf-8;',
+    exportStyledXls({
+      fileName: '应收欠款报告',
+      title: '应收欠款报告',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '客户名称', width: 240, align: 'left' },
+        { title: '期初应收款', width: 130, align: 'right' },
+        { title: '增加应收款', width: 130, align: 'right' },
+        { title: '收回应收款', width: 130, align: 'right' },
+        { title: '抹零', width: 100, align: 'right' },
+        { title: '期末应收款', width: 130, align: 'right' },
+      ],
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.customerName,
+        `￥${formatPrice(Number(item.openingBalance || 0))}`,
+        `￥${formatPrice(Number(item.receivableAmount || 0))}`,
+        `￥${formatPrice(Number(item.receivedAmount || 0))}`,
+        item.roundingAmount || '',
+        `￥${formatPrice(Number(item.endingBalance || 0))}`,
+      ]),
+      amountColumnIndexes: [2, 3, 4, 5, 6],
+      summaryRowIndexes: tableData.value
+        .map((item, index) => (item.isSummary ? index : -1))
+        .filter((index) => index >= 0),
     });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '应收欠款报告.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
   };
 
   const escapeHtml = (value: unknown) =>

@@ -287,6 +287,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import { useUserStore } from '@/store';
   import { list as listAccountSettles } from '@/views/app/AppAccountSettle/api/api-AppAccountSettle';
@@ -643,45 +644,35 @@
       Message.error(error?.message || '删除失败');
     }
   };
-  const csvValue = (value: unknown) =>
-    `"${String(value ?? '').replace(/"/g, '""')}"`;
   const exportCsv = () => {
-    const headers = [
-      '行号',
-      '业务日期',
-      '业务编号',
-      '说明',
-      '往来单位',
-      '收支项目',
-      '收入',
-      '支出',
-      '结余',
-    ];
-    const rows = tableData.value.map((item) => [
-      item.rowNo,
-      item.businessDate,
-      item.orderNo,
-      item.summary,
-      item.counterparty,
-      item.fundItem,
-      item.income,
-      item.expense,
-      item.balance,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: `收支记录_第${pagination.current}页`,
+      title: '收支记录',
+      columns: [
+        { title: '行号', width: 78 },
+        { title: '业务日期', width: 125 },
+        { title: '业务编号', width: 180 },
+        { title: '说明', width: 220, align: 'left' },
+        { title: '往来单位', width: 170, align: 'left' },
+        { title: '收支项目', width: 135 },
+        { title: '收入', width: 135, align: 'right' },
+        { title: '支出', width: 135, align: 'right' },
+        { title: '结余', width: 145, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `收支记录_第${pagination.current}页.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.businessDate,
+        item.orderNo,
+        item.summary,
+        item.counterparty,
+        item.fundItem,
+        `¥${formatPrice(Number(item.income || 0))}`,
+        `¥${formatPrice(Number(item.expense || 0))}`,
+        `¥${formatPrice(Number(item.balance || 0))}`,
+      ]),
+      amountColumnIndexes: [6, 7, 8],
+      summaryRowIndexes: [0],
+    });
   };
   const escapeHtml = (value: unknown) =>
     String(value ?? '')

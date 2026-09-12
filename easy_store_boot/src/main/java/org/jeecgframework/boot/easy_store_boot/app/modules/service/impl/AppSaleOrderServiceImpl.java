@@ -58,12 +58,15 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     public IAppCustomerService appCustomerService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private AppBusinessDailySummaryService dailySummaryService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean save(AppSaleOrder entity){
         setUnpaidAmount(entity);
         List<PendingGoodsDraft> pendingGoodsDrafts = setItemsByEntity(entity);
+        appGoodsService.lockGoodsForUpdate(collectGoodsIds(entity.getItems(), null));
         boolean flag = super.save(entity);
         entity.getItems().forEach(item -> item.setOrderId(entity.getId()));
         if(!entity.getItems().isEmpty()) {
@@ -76,6 +79,8 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             updateAccountSettle(entity, 1);
             appCustomerService.updatePayable(entity.getCustomerId());
         }
+        AppSaleOrder savedOrder = entity.getCreateTime() == null ? getById(entity.getId()) : entity;
+        dailySummaryService.refreshSaleDate(savedOrder == null ? null : savedOrder.getCreateTime());
         return flag;
     }
 
@@ -84,11 +89,12 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     public boolean updateById(AppSaleOrder entity) {
         entity.setOrderNo(null);
 
+        List<AppSaleOrderItem> oldItems = appSaleOrderItemService.listByOrderId(entity.getId());
+        AppSaleOrder oldOrder = getById(entity.getId());
         fillPendingGoodsNames(entity.getId(), entity.getItems());
         List<PendingGoodsDraft> pendingGoodsDrafts = setItemsByEntity(entity);
         setUnpaidAmount(entity);
-        List<AppSaleOrderItem> oldItems = appSaleOrderItemService.listByOrderId(entity.getId());
-        AppSaleOrder oldOrder = getById(entity.getId());
+        appGoodsService.lockGoodsForUpdate(collectGoodsIds(oldItems, entity.getItems()));
         boolean flag = super.updateById(entity);
         entity.getItems().forEach(item->{
             if(entity.getOrderType()==2){
@@ -102,8 +108,9 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             appSaleOrderItemService.saveOrUpdateBatch(entity.getItems());
         }
         refreshPendingGoods(entity.getId(), entity.getItems(), pendingGoodsDrafts, isActive(entity));
-        appSaleOrderItemService.batchUpdateGoodsStore(oldItems);
-        appSaleOrderItemService.batchUpdateGoodsStore(entity.getItems());
+        List<AppSaleOrderItem> affectedItems = new ArrayList<>(oldItems);
+        affectedItems.addAll(entity.getItems());
+        appSaleOrderItemService.batchUpdateGoodsStore(affectedItems);
 
         if (isActive(oldOrder)) {
             updateAccountSettle(oldOrder, -1);
@@ -116,6 +123,10 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             appCustomerService.updatePayable(oldOrder.getCustomerId());
         }
 
+        AppSaleOrder currentOrder = getById(entity.getId());
+        dailySummaryService.refreshDates(
+                oldOrder == null ? null : oldOrder.getCreateTime(),
+                currentOrder == null ? entity.getCreateTime() : currentOrder.getCreateTime());
         return flag;
     }
 
@@ -123,6 +134,8 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     @Transactional(rollbackFor = Exception.class)
     public  boolean removeById(Serializable id){
         AppSaleOrder db = getById(id);
+        List<AppSaleOrderItem> oldItems = db == null ? new ArrayList<>() : appSaleOrderItemService.listByOrderId(db.getId());
+        appGoodsService.lockGoodsForUpdate(collectGoodsIds(oldItems, null));
         boolean flag = super.removeById(id);
         if(flag && db!=null){
             appSaleOrderItemService.removeByOrderId(db.getId());
@@ -131,8 +144,25 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
                 updateAccountSettle(db, -1);
             }
             appCustomerService.updatePayable(db.getCustomerId());
+            dailySummaryService.refreshSaleDate(db.getCreateTime());
         }
         return flag;
+    }
+
+    private Set<String> collectGoodsIds(List<AppSaleOrderItem> first, List<AppSaleOrderItem> second) {
+        Set<String> goodsIds = new HashSet<>();
+        addGoodsIds(goodsIds, first);
+        addGoodsIds(goodsIds, second);
+        return goodsIds;
+    }
+
+    private void addGoodsIds(Set<String> goodsIds, List<AppSaleOrderItem> items) {
+        if (items == null) return;
+        for (AppSaleOrderItem item : items) {
+            if (item != null && StringUtils.isNotBlank(item.getGoodsId())) {
+                goodsIds.add(item.getGoodsId().trim());
+            }
+        }
     }
 
     @Override
@@ -195,6 +225,11 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
     public void recalculateGrossProfit(List<Integer> ids) {
         if(ids == null || ids.isEmpty()) return;
         Set<String> goodsIds = new HashSet<>();
+        for (Integer id : ids) {
+            if (id == null) continue;
+            addGoodsIds(goodsIds, appSaleOrderItemService.listByOrderId(id));
+        }
+        appGoodsService.lockGoodsForUpdate(goodsIds);
         for(Integer id : ids) {
             AppSaleOrder order = getById(id);
             if(order == null) continue;
@@ -204,11 +239,6 @@ public class AppSaleOrderServiceImpl extends ServiceImpl<AppSaleOrderMapper, App
             setItemsByEntity(order);
             if(!items.isEmpty()) {
                 appSaleOrderItemService.updateBatchById(items);
-                for(AppSaleOrderItem item : items) {
-                    if(item != null && StringUtils.isNotBlank(item.getGoodsId()) && StringUtils.isNumeric(item.getGoodsId().trim())) {
-                        goodsIds.add(item.getGoodsId().trim());
-                    }
-                }
             }
             refreshPendingGoods(order.getId(), items, new ArrayList<>(), isActive(order));
             super.updateById(order);

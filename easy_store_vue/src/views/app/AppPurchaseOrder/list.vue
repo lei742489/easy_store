@@ -306,7 +306,7 @@
 
   const basePagination: Pagination = {
     current: 1,
-    pageSize: 50,
+    pageSize: 30,
     order: 'desc',
     column: 'createTime',
     showTotal: true,
@@ -318,13 +318,14 @@
 
   const statusText = (status?: number) => (status === 0 ? '待审核' : '正常');
   const statusColor = (status?: number) =>
-    status === 0 ? '#eb4d4b' : '#00a870';
+    status === 0 ? '#eb4d4b' : '#00a870'; 
 
   const columns = computed<TableColumnData[]>(() => [
     {
       title: '单号',
       dataIndex: 'orderNo',
       align: 'center',
+      width:195,
       render: (record) => {
         const data = record.record as AppPurchaseOrder;
         return h(
@@ -471,7 +472,7 @@
   const fetchData = async (
     params: PolicyParams = {
       current: 1,
-      pageSize: 50,
+      pageSize: 30,
       order: 'desc',
       column: 'createTime',
     }

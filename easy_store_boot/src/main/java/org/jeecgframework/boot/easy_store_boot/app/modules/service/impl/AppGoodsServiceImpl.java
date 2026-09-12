@@ -13,6 +13,7 @@ import org.jeecgframework.boot.easy_store_boot.app.common.CommonConstant;
 import org.jeecgframework.boot.easy_store_boot.app.common.CommonUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.DatabaseDialect;
 import org.jeecgframework.boot.easy_store_boot.app.common.DoubleUtil;
+import org.jeecgframework.boot.easy_store_boot.app.common.AppGoodsLockService;
 import org.jeecgframework.boot.easy_store_boot.app.common.PinyinUtil;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.ApiQuery;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.GoodsSearchResult;
@@ -36,6 +37,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,6 +45,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -80,6 +83,8 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private DatabaseDialect databaseDialect;
+    @Autowired
+    private AppGoodsLockService goodsLockService;
     private final Map<String, StockStatisticsCache> stockStatisticsCache = new ConcurrentHashMap<>();
     private final Object stockStatisticsCacheLock = new Object();
 
@@ -161,6 +166,11 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
         goodsId = goodsId.trim();
         clearStockStatisticsCache();
         stockLedgerService.rebuildGoodsLedger(goodsId);
+    }
+
+    @Override
+    public void lockGoodsForUpdate(Collection<String> goodsIds) {
+        goodsLockService.lockForUpdate(goodsIds);
     }
 
     @Override
@@ -1425,7 +1435,7 @@ public class AppGoodsServiceImpl extends ServiceImpl<AppGoodsMapper, AppGoods>
         if (orderIds == null || orderIds.isEmpty()) {
             return;
         }
-        for (Integer orderId : orderIds) {
+        for (Integer orderId : new TreeSet<>(orderIds)) {
             jdbcTemplate.update("UPDATE app_sale_order SET gross_profit = (" +
                     "SELECT COALESCE(SUM(gross_profit), 0) FROM app_sale_order_item " +
                     "WHERE order_id = ? AND is_del = 0) WHERE id = ?", orderId, orderId);

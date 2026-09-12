@@ -1,10 +1,11 @@
 package org.jeecgframework.boot.easy_store_boot.app.modules.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.jeecgframework.boot.easy_store_boot.app.common.DoubleUtil;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppAccountSettle;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppAccountSettleService;
 import org.jeecgframework.boot.easy_store_boot.app.modules.mapper.AppAccountSettleMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class AppAccountSettleServiceImpl extends ServiceImpl<AppAccountSettleMapper, AppAccountSettle>
     implements IAppAccountSettleService {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public boolean save(AppAccountSettle entity){
@@ -27,15 +31,17 @@ public class AppAccountSettleServiceImpl extends ServiceImpl<AppAccountSettleMap
 
         if (settleId == null || price == null)
             return 0.0;
-        AppAccountSettle settle = getById(settleId);
-        if(settle == null) return 0.0;
-
-        Double d = settle.getCurPrc();
-        Double last = DoubleUtil.add(d,price);
-        settle.setCurPrc(last);
-        updateById(settle);
-
-        return last;
+        int updated = jdbcTemplate.update(
+                "UPDATE app_account_settle " +
+                        "SET cur_prc = COALESCE(cur_prc, 0) + ? " +
+                        "WHERE id = ? AND COALESCE(is_del, 0) = 0",
+                price, settleId);
+        if(updated == 0) return 0.0;
+        Number current = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(cur_prc, 0) FROM app_account_settle " +
+                        "WHERE id = ? AND COALESCE(is_del, 0) = 0",
+                Number.class, settleId);
+        return current == null ? 0.0 : current.doubleValue();
     }
 
     @Override

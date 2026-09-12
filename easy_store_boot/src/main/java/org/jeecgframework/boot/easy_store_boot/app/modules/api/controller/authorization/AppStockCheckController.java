@@ -8,6 +8,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.DateUtils;
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppStockCheck;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppStockCheckItemService;
@@ -44,6 +45,17 @@ public class AppStockCheckController extends ApiBaseController<AppStockCheck, IA
         IPage<AppStockCheck> page = service.page(new Page<>(current, pageSize), queryWrapper);
         for (AppStockCheck stockCheck : page.getRecords()) {
             stockCheck.setItems(stockCheckItemService.listByCheckId(stockCheck.getId()));
+            if (!hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_COST_PRICE)) {
+                stockCheck.setProfitLossAmount(0D);
+                if (stockCheck.getItems() != null) {
+                    for (org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppStockCheckItem item : stockCheck.getItems()) {
+                        if (item != null) {
+                            item.setUnitPrice(0D);
+                            item.setProfitLossAmount(0D);
+                        }
+                    }
+                }
+            }
         }
         return Result.ok(page);
     }

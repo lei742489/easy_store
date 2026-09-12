@@ -5,6 +5,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppStockLedger;
 import org.jeecgframework.boot.easy_store_boot.app.modules.mapper.AppStockLedgerMapper;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.IAppStockLedgerService;
+import org.jeecgframework.boot.easy_store_boot.app.common.AppGoodsLockService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 @Service
 public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper, AppStockLedger>
@@ -44,6 +46,10 @@ public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper,
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private AppBusinessDailySummaryService dailySummaryService;
+    @Autowired
+    private AppGoodsLockService goodsLockService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -52,6 +58,7 @@ public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper,
             return;
         }
         goodsId = goodsId.trim();
+        goodsLockService.lockForUpdate(java.util.Collections.singleton(goodsId));
         Map<String, Object> goods = queryGoods(goodsId);
         if (goods == null) {
             return;
@@ -87,6 +94,7 @@ public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper,
         refreshGoodsPrices(goodsId);
         flushSaleCostUpdates(saleUpdates);
         refreshSaleOrderGrossProfits(saleOrderIds);
+        dailySummaryService.refreshSaleOrderIds(saleOrderIds);
     }
 
     @Override
@@ -95,7 +103,8 @@ public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper,
         if (goodsIds == null || goodsIds.isEmpty()) {
             return;
         }
-        Set<String> normalized = new HashSet<>();
+        Set<String> normalized = new TreeSet<>((left, right) -> Integer.compare(
+                Integer.parseInt(left), Integer.parseInt(right)));
         for (String goodsId : goodsIds) {
             if (StringUtils.isNotBlank(goodsId) && StringUtils.isNumeric(goodsId.trim())) {
                 normalized.add(goodsId.trim());
@@ -373,7 +382,7 @@ public class AppStockLedgerServiceImpl extends ServiceImpl<AppStockLedgerMapper,
         if (orderIds == null || orderIds.isEmpty()) {
             return;
         }
-        for (Integer orderId : orderIds) {
+        for (Integer orderId : new TreeSet<>(orderIds)) {
             jdbcTemplate.update("UPDATE app_sale_order SET gross_profit = (" +
                     "SELECT COALESCE(SUM(gross_profit), 0) FROM app_sale_order_item " +
                     "WHERE order_id = ? AND is_del = 0) WHERE id = ?", orderId, orderId);

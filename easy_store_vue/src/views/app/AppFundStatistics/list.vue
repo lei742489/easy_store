@@ -116,6 +116,7 @@
   import { useRouter } from 'vue-router';
   import { useUserStore } from '@/store';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     FundStatisticsItem,
@@ -269,30 +270,27 @@
     });
   };
 
-  const csvValue = (value: unknown) =>
-    `"${String(value ?? '').replace(/"/g, '""')}"`;
   const exportCsv = () => {
-    const headers = ['行号', '收支项目', '收入', '支出'];
-    const rows = tableData.value.map((item) => [
-      item.rowNo,
-      item.itemName,
-      item.income,
-      item.expense,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: '资金统计',
+      title: '资金统计报告',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '收支项目', width: 260, align: 'left' },
+        { title: '收入', width: 130, align: 'right' },
+        { title: '支出', width: 130, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '资金统计.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.itemName,
+        formatAmount(item.income),
+        formatAmount(item.expense),
+      ]),
+      amountColumnIndexes: [2, 3],
+      summaryRowIndexes: tableData.value
+        .map((item, index) => (item.isSummary ? index : -1))
+        .filter((index) => index >= 0),
+    });
   };
   const escapeHtml = (value: unknown) =>
     String(value ?? '')

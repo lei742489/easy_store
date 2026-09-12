@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
 * @author Administrator
@@ -72,12 +73,24 @@ public class AppSaleOrderItemServiceImpl extends ServiceImpl<AppSaleOrderItemMap
 
     @Override
     public   void batchUpdateGoodsStore(List<AppSaleOrderItem> updateList){
-        if(!updateList.isEmpty()){
-            for(AppSaleOrderItem item:updateList){
-                if(StringUtils.isNotBlank(item.getGoodsId()) && StringUtils.isNumeric(item.getGoodsId().trim())){
-                    appGoodsService.updateStock(item.getGoodsId());
-                }
+        if(updateList == null || updateList.isEmpty()){
+            return;
+        }
+        // Rebuilding a duplicated goods row repeatedly keeps the order
+        // transaction open longer and increases lock contention.
+        Set<Integer> goodsIds = new TreeSet<>();
+        for(AppSaleOrderItem item:updateList){
+            if(item == null || StringUtils.isBlank(item.getGoodsId())){
+                continue;
             }
+            String goodsId = item.getGoodsId().trim();
+            if(StringUtils.isNumeric(goodsId)){
+                goodsIds.add(Integer.valueOf(goodsId));
+            }
+        }
+        // All order saves acquire goods locks in the same ascending order.
+        for(Integer goodsId : goodsIds){
+            appGoodsService.updateStock(String.valueOf(goodsId));
         }
     }
 

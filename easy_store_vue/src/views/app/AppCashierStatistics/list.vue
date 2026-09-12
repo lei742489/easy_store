@@ -257,6 +257,18 @@
         </a-col>
       </a-row>
       <a-divider style="margin-top: 4px" />
+      <div class="detail-toolbar">
+        <a-space>
+          <a-button
+            type="primary"
+            :disabled="!profitDetailTableData.length"
+            @click="exportProfitDetailCsv"
+          >
+            <template #icon><icon-download /></template>
+            导出
+          </a-button>
+        </a-space>
+      </div>
       <a-table
         row-key="rowNo"
         :loading="profitDetailLoading"
@@ -366,6 +378,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import {
     CashierStatisticsDetail,
@@ -1078,117 +1091,147 @@
     }
   );
 
-  const csvValue = (value: unknown) =>
-    `"${String(value ?? '').replace(/"/g, '""')}"`;
   const exportCsv = () => {
-    const headers = [
-      '行号',
-      '营业员',
-      '销售数量',
-      '销售金额',
-      '利润金额',
-      '提成比例',
-      '提成金额',
-      '利润率',
-    ];
-    const rows = tableData.value.map((item) => [
-      item.rowNo,
-      item.cashierName,
-      item.quantity,
-      item.salesAmount,
-      item.profitAmount,
-      item.commissionRate == null
-        ? ''
-        : `${Number(item.commissionRate).toFixed(2)}%`,
-      item.commissionAmount,
-      `${Number(item.profitRate || 0).toFixed(2)}%`,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: '营业员统计',
+      title: '营业员统计',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '营业员', width: 180, align: 'left' },
+        { title: '销售数量', width: 120, align: 'right' },
+        { title: '销售金额', width: 150, align: 'right' },
+        { title: '利润金额', width: 150, align: 'right' },
+        { title: '提成比例', width: 120, align: 'right' },
+        { title: '提成金额', width: 150, align: 'right' },
+        { title: '利润率', width: 120, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '营业员统计.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.cashierName,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.salesAmount || 0))}`,
+        `¥${formatPrice(Number(item.profitAmount || 0))}`,
+        item.commissionRate == null
+          ? ''
+          : `${Number(item.commissionRate).toFixed(2)}%`,
+        `¥${formatPrice(Number(item.commissionAmount || 0))}`,
+        `${Number(item.profitRate || 0).toFixed(2)}%`,
+      ]),
+      amountColumnIndexes: [2, 3, 4, 6],
+      summaryRowIndexes: [0],
+    });
   };
 
   const exportDetailCsv = () => {
-    const headers = [
-      '行号',
-      detailGroupTitle.value,
-      '单位',
-      '销售数量',
-      '销售金额',
-      '利润金额',
-      '提成金额',
-      '利润率',
-    ];
-    const rows = detailTableData.value.map((item) => [
-      item.rowNo,
-      item.groupName,
-      item.unit,
-      item.quantity,
-      item.salesAmount,
-      item.profitAmount,
-      item.commissionAmount,
-      `${Number(item.profitRate || 0).toFixed(2)}%`,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: '营业员销售明细',
+      title: '营业员销售明细',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: detailGroupTitle.value, width: 240, align: 'left' },
+        { title: '单位', width: 90 },
+        { title: '销售数量', width: 120, align: 'right' },
+        { title: '销售金额', width: 150, align: 'right' },
+        { title: '利润金额', width: 150, align: 'right' },
+        { title: '提成金额', width: 150, align: 'right' },
+        { title: '利润率', width: 120, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '营业员销售明细.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: detailTableData.value.map((item) => [
+        item.rowNo,
+        item.groupName,
+        item.unit,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.salesAmount || 0))}`,
+        `¥${formatPrice(Number(item.profitAmount || 0))}`,
+        `¥${formatPrice(Number(item.commissionAmount || 0))}`,
+        `${Number(item.profitRate || 0).toFixed(2)}%`,
+      ]),
+      amountColumnIndexes: [3, 4, 5, 6],
+      summaryRowIndexes: [0],
+    });
+  };
+
+  const exportProfitDetailCsv = () => {
+    const cashierLabel =
+      profitDetailCashierName.value || profitDetailCashierId.value || '';
+    exportStyledXls({
+      fileName: `营业员利润明细_${cashierLabel}`,
+      title: `营业员利润明细 > ${cashierLabel}`,
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '日期', width: 120, align: 'center' },
+        { title: '货品名称', width: 220, align: 'left' },
+        { title: '单位', width: 90, align: 'center' },
+        { title: '数量', width: 120, align: 'right' },
+        { title: '折后单价', width: 145, align: 'right' },
+        { title: '折后金额', width: 160, align: 'right' },
+        { title: '成本金额', width: 160, align: 'right' },
+        { title: '利润金额', width: 160, align: 'right' },
+        { title: '利润率', width: 120, align: 'right' },
+      ],
+      rows: profitDetailTableData.value.map((item) => [
+        item.rowNo,
+        item.businessDate,
+        item.goodsName,
+        item.unit,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.discountedUnitPrice || 0))}`,
+        `¥${formatPrice(Number(item.discountedAmount || 0))}`,
+        `¥${formatPrice(Number(item.costAmount || 0))}`,
+        `¥${formatPrice(Number(item.profitAmount || 0))}`,
+        `${Number(item.profitRate || 0).toFixed(2)}%`,
+      ]),
+      amountColumnIndexes: [4, 5, 6, 7, 8],
+      summaryRowIndexes: [0],
+      cellStyles: Object.fromEntries(
+        profitDetailTableData.value.map((item, rowIndex) => {
+          const record = item as CashierStatisticsProfitDetail;
+          const styles: Record<number, string> = {};
+          if (!record.isSummary) {
+            [
+              { index: 4, value: record.quantity },
+              { index: 5, value: record.discountedUnitPrice },
+              { index: 6, value: record.discountedAmount },
+              { index: 7, value: record.costAmount },
+              { index: 8, value: record.profitAmount },
+              { index: 9, value: record.profitRate },
+            ].forEach(({ index, value }) => {
+              if (Number(value || 0) < 0) {
+                styles[index] = 'color:#f53f3f;';
+              }
+            });
+          }
+          return [rowIndex, styles];
+        })
+      ),
+    });
   };
 
   const exportPeriodCsv = () => {
-    const headers = [
-      '行号',
-      '日期',
-      '销售数量',
-      '销售金额',
-      '利润金额',
-      '提成金额',
-      '利润率',
-    ];
-    const rows = periodTableData.value.map((item) => [
-      item.rowNo,
-      item.date,
-      item.quantity,
-      item.salesAmount,
-      item.profitAmount,
-      item.commissionAmount,
-      `${Number(item.profitRate || 0).toFixed(2)}%`,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: '营业员按日统计',
+      title: '营业员按日统计',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '日期', width: 180, align: 'left' },
+        { title: '销售数量', width: 140, align: 'right' },
+        { title: '销售金额', width: 160, align: 'right' },
+        { title: '利润金额', width: 160, align: 'right' },
+        { title: '提成金额', width: 160, align: 'right' },
+        { title: '利润率', width: 120, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '营业员销售明细.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: periodTableData.value.map((item) => [
+        item.rowNo,
+        item.date,
+        Number(item.quantity || 0).toFixed(2),
+        `¥${formatPrice(Number(item.salesAmount || 0))}`,
+        `¥${formatPrice(Number(item.profitAmount || 0))}`,
+        `¥${formatPrice(Number(item.commissionAmount || 0))}`,
+        `${Number(item.profitRate || 0).toFixed(2)}%`,
+      ]),
+      amountColumnIndexes: [2, 3, 4, 5],
+      summaryRowIndexes: [0],
+    });
   };
 
   const escapeHtml = (value: unknown) =>

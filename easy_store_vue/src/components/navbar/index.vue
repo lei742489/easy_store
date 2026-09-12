@@ -1,5 +1,6 @@
 <template>
-  <div class="navbar">
+  <div ref="navbarRef" class="navbar">
+    
     <div class="left-side">
       <a-space @click="toHome()">
         <img alt="logo" class="logo" src="@/assets/icon.png" />
@@ -108,7 +109,7 @@
           </a-button>
         </a-tooltip>
       </li>-->
-      
+
       <!--      <li>
         <a-tooltip
           :content="
@@ -191,7 +192,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref, inject } from 'vue';
+  import { computed, ref, inject, onBeforeUnmount, onMounted } from 'vue';
   import { useAppStore, useUserStore } from '@/store';
   import useUser from '@/hooks/user';
   import Menu from '@/components/menu/index.vue';
@@ -213,6 +214,114 @@
     null
   );
   const topMenu = computed(() => appStore.topMenu && appStore.menu);
+  const navbarRef = ref<HTMLElement | null>(null);
+  const waveCanvasRef = ref<HTMLCanvasElement | null>(null);
+  let animationFrame = 0;
+  let resizeObserver: ResizeObserver | null = null;
+  let reduceMotionQuery: MediaQueryList | null = null;
+
+  const drawWaves = (time = 0) => {
+    const canvas = waveCanvasRef.value;
+    const container = navbarRef.value;
+    if (!canvas || !container) return;
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (!width || !height) return;
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const pixelWidth = Math.round(width * devicePixelRatio);
+    const pixelHeight = Math.round(height * devicePixelRatio);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
+
+    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    context.clearRect(0, 0, width, height);
+
+    const waves = [
+      {
+        amplitude: Math.max(8, height * 0.13),
+        baseline: height * 0.5,
+        length: Math.max(240, width * 0.3),
+        speed: 0.000035,
+        offset: 0,
+        color: 'rgba(255, 255, 255, 0.16)',
+        lineWidth: 1.5,
+      },
+      {
+        amplitude: Math.max(7, height * 0.1),
+        baseline: height * 0.72,
+        length: Math.max(300, width * 0.38),
+        speed: -0.000025,
+        offset: 1.8,
+        color: 'rgba(255, 255, 255, 0.1)',
+        lineWidth: 1,
+      },
+      {
+        amplitude: Math.max(9, height * 0.15),
+        baseline: height * 0.32,
+        length: Math.max(360, width * 0.45),
+        speed: 0.00002,
+        offset: 3.2,
+        color: 'rgba(255, 255, 255, 0.08)',
+        lineWidth: 1,
+      },
+    ];
+
+    waves.forEach((wave) => {
+      context.beginPath();
+      context.moveTo(0, wave.baseline);
+      for (let x = 0; x <= width; x += 8) {
+        const phase =
+          (x / wave.length) * Math.PI * 2 + time * wave.speed + wave.offset;
+        const y = wave.baseline + Math.sin(phase) * wave.amplitude;
+        context.lineTo(x, y);
+      }
+      context.strokeStyle = wave.color;
+      context.lineWidth = wave.lineWidth;
+      context.stroke();
+    });
+  };
+
+  const animateWaves = (time: number) => {
+    drawWaves(time);
+    if (!reduceMotionQuery?.matches) {
+      animationFrame = window.requestAnimationFrame(animateWaves);
+    }
+  };
+
+  const handleReducedMotionChange = () => {
+    window.cancelAnimationFrame(animationFrame);
+    drawWaves();
+    if (!reduceMotionQuery?.matches) {
+      animationFrame = window.requestAnimationFrame(animateWaves);
+    }
+  };
+
+  onMounted(() => {
+    reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    reduceMotionQuery.addEventListener?.('change', handleReducedMotionChange);
+    resizeObserver = new ResizeObserver(() => drawWaves());
+    if (navbarRef.value) resizeObserver.observe(navbarRef.value);
+    handleReducedMotionChange();
+  });
+
+  onBeforeUnmount(() => {
+    window.cancelAnimationFrame(animationFrame);
+    resizeObserver?.disconnect();
+    reduceMotionQuery?.removeEventListener?.(
+      'change',
+      handleReducedMotionChange
+    );
+  });
+
   const setVisible = () => {
     appStore.updateSettings({ globalSettings: true });
   };
@@ -251,6 +360,8 @@
 
 <style scoped lang="less">
   .navbar {
+    position: relative;
+    overflow: hidden;
     display: flex;
     justify-content: space-between;
     height: 100%;
@@ -263,7 +374,18 @@
     border-bottom: 1px solid rgb(var(--primary-7));
   }
 
+  .wave-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
   .left-side {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     padding-left: 20px;
@@ -279,7 +401,7 @@
 
     .brand-title {
       margin: 0;
-      color: rgb(255,255,255);
+      color: rgb(255, 255, 255);
       font-size: 17px;
       font-weight: 600;
       line-height: 1;
@@ -290,10 +412,14 @@
   }
 
   .center-side {
+    position: relative;
+    z-index: 1;
     flex: 1;
   }
 
   .right-side {
+    position: relative;
+    z-index: 1;
     display: flex;
     padding-right: 4px;
     list-style: none;

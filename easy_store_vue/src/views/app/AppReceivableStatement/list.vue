@@ -109,6 +109,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice, getPriceStrByH } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import CustomerSelect from '@/views/app/customer/components/customer-select-modal.vue';
   import { list as getCustomerList } from '@/views/app/customer/api/api-customer';
   import TimeSelect from '@/components/menu/time-select.vue';
@@ -325,37 +326,66 @@
 
   const exportCsv = () => {
     if (!tableData.value.length) return;
-    const headers = columns.map((item) => item.title).join(',');
-    const fields: Array<keyof ReceivableStatementRecord> = [
-      'rowNo',
-      'goodsName',
-      'unit',
-      'quantity',
-      'unitPrice',
-      'freightAmount',
-      'totalAmount',
-      'discountAmount',
-      'note',
-      'receivableAmount',
-      'receivedAmount',
-      'roundingAmount',
-      'endingBalance',
-    ];
-    const rows = tableData.value.map((item) =>
-      fields
-        .map(
-          (field) => `"${String(getCsvValue(item, field)).replace(/"/g, '""')}"`
-        )
-        .join(',')
-    );
-    const blob = new Blob([`\uFEFF${[headers, ...rows].join('\n')}`], {
-      type: 'text/csv;charset=utf-8;',
+    const rows = tableData.value.map((record) => {
+      const item = record as ReceivableStatementRecord;
+      const isGoodsItem = item.rowType === 'item';
+      const amount = (value: unknown) =>
+        value === null || value === undefined || value === ''
+          ? ''
+          : `￥${formatPrice(Number(value))}`;
+      return [
+        item.rowNo,
+        item.goodsName || '',
+        item.unit || '',
+        item.quantity ?? '',
+        item.unitPrice == null ? '' : formatPlainAmount(Number(item.unitPrice)),
+        isGoodsItem ? '' : amount(item.freightAmount),
+        item.totalAmount == null ? '' : amount(item.totalAmount),
+        isGoodsItem ? '' : amount(item.discountAmount),
+        item.note || '',
+        isGoodsItem ? '' : amount(item.receivableAmount),
+        isGoodsItem ? '' : amount(item.receivedAmount),
+        isGoodsItem ? '' : amount(item.roundingAmount),
+        isGoodsItem ? '' : amount(item.endingBalance),
+      ];
     });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `应收对账单_${result.customerName || ''}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    exportStyledXls({
+      fileName: `应收对账单_${result.customerName || ''}`,
+      title: `应收对账单 > 客户 “${result.customerName || ''}” 的对账单`,
+      columns: [
+        { title: '行号', width: 58 },
+        { title: '品名规格', width: 250, align: 'left' },
+        { title: '单位', width: 70 },
+        { title: '数量', width: 78, align: 'right' },
+        { title: '单价', width: 92, align: 'right' },
+        { title: '运费', width: 92, align: 'right' },
+        { title: '金额', width: 105, align: 'right' },
+        { title: '折扣优惠', width: 105, align: 'right' },
+        { title: '备注', width: 150, align: 'left' },
+        { title: '增加应收款', width: 120, align: 'right' },
+        { title: '收回应收款', width: 120, align: 'right' },
+        { title: '抹零', width: 88, align: 'right' },
+        { title: '期末应收款', width: 125, align: 'right' },
+      ],
+      rows,
+      amountColumnIndexes: [3, 4, 5, 6, 7, 9, 10, 11, 12],
+      summaryRowIndexes: [0],
+      rowStyles: Object.fromEntries(
+        tableData.value.map((record, index) => {
+          const item = record as ReceivableStatementRecord;
+          if (item.isSummary) {
+            return [index, 'background:#f2f3f5;font-weight:600;'];
+          }
+          if (item.rowType === 'sale') {
+            return [index, 'background:#e8f7ff;'];
+          }
+          if (item.rowType === 'opening' || item.rowType === 'receipt') {
+            return [index, 'background:#ffffdd;'];
+          }
+          return [index, ''];
+        })
+      ),
+    });
   };
 
   const escapeHtml = (value: unknown) =>

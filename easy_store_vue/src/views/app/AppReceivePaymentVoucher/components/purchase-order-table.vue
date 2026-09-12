@@ -184,9 +184,9 @@
     renderData.value.forEach((item) => {
       if (!item.id) return;
       if (selectedKeys.has(String(item.id))) {
-        item.amount = item.amount ?? 0;
+        item.amount = item.unpaidAmount || 0;
       } else {
-        item.amount = undefined;
+        item.amount = 0;
       }
     });
     selectedRowKeys.value = e;

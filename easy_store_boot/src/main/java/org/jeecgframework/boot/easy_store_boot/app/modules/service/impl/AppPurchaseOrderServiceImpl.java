@@ -27,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
 * @author Administrator
@@ -55,13 +57,17 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
     public IAppSupplierService appSupplierService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private AppBusinessDailySummaryService dailySummaryService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean save(AppPurchaseOrder entity){
         setUnpaidAmount(entity);
-        boolean flag = super.save(entity);
         setItemsByEntity(entity);
+        appGoodsService.lockGoodsForUpdate(collectGoodsIds(entity.getItems(), null));
+        boolean flag = super.save(entity);
+        entity.getItems().forEach(item -> item.setOrderId(entity.getId()));
         if(!entity.getItems().isEmpty())
              appPurchaseOrderItemService.saveBatch(entity.getItems());
 
@@ -70,6 +76,8 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
             updateAccountSettle(entity, -1);
             appSupplierService.updatePayable(entity.getSupplierId());
         }
+        AppPurchaseOrder savedOrder = entity.getCreateTime() == null ? getById(entity.getId()) : entity;
+        dailySummaryService.refreshPurchaseDate(savedOrder == null ? null : savedOrder.getCreateTime());
         return flag;
     }
 
@@ -78,10 +86,11 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
     public boolean updateById(AppPurchaseOrder entity){
         entity.setOrderNo(null);
 
-        setItemsByEntity(entity);
-        setUnpaidAmount(entity);
         List<AppPurchaseOrderItem> oldItems = appPurchaseOrderItemService.listByOrderId(entity.getId());
         AppPurchaseOrder oldOrder = getById(entity.getId());
+        setItemsByEntity(entity);
+        setUnpaidAmount(entity);
+        appGoodsService.lockGoodsForUpdate(collectGoodsIds(oldItems, entity.getItems()));
         boolean flag = super.updateById(entity);
         entity.getItems().forEach(item->{
             if(entity.getOrderType()==2){
@@ -94,8 +103,9 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
         if(!entity.getItems().isEmpty()){
             appPurchaseOrderItemService.saveOrUpdateBatch(entity.getItems());
         }
-        appPurchaseOrderItemService.batchUpdateGoodsStore(oldItems);
-        appPurchaseOrderItemService.batchUpdateGoodsStore(entity.getItems());
+        List<AppPurchaseOrderItem> affectedItems = new ArrayList<>(oldItems);
+        affectedItems.addAll(entity.getItems());
+        appPurchaseOrderItemService.batchUpdateGoodsStore(affectedItems);
 
         if (isActive(oldOrder)) {
             updateAccountSettle(oldOrder, 1);
@@ -108,6 +118,10 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
             appSupplierService.updatePayable(oldOrder.getSupplierId());
         }
 
+        AppPurchaseOrder currentOrder = getById(entity.getId());
+        dailySummaryService.refreshDates(
+                oldOrder == null ? null : oldOrder.getCreateTime(),
+                currentOrder == null ? entity.getCreateTime() : currentOrder.getCreateTime());
         return flag;
     }
 
@@ -115,6 +129,8 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
     @Transactional(rollbackFor = Exception.class)
     public boolean removeById(Serializable id){
         AppPurchaseOrder db = getById(id);
+        List<AppPurchaseOrderItem> oldItems = db == null ? new ArrayList<>() : appPurchaseOrderItemService.listByOrderId(db.getId());
+        appGoodsService.lockGoodsForUpdate(collectGoodsIds(oldItems, null));
         boolean flag = super.removeById(id);
         if(flag && db!=null){
             appPurchaseOrderItemService.removeByOrderId(db.getId());
@@ -122,8 +138,25 @@ public class AppPurchaseOrderServiceImpl extends ServiceImpl<AppPurchaseOrderMap
                 updateAccountSettle(db, 1);
             }
             appSupplierService.updatePayable(db.getSupplierId());
+            dailySummaryService.refreshPurchaseDate(db.getCreateTime());
         }
         return flag;
+    }
+
+    private Set<String> collectGoodsIds(List<AppPurchaseOrderItem> first, List<AppPurchaseOrderItem> second) {
+        Set<String> goodsIds = new HashSet<>();
+        addGoodsIds(goodsIds, first);
+        addGoodsIds(goodsIds, second);
+        return goodsIds;
+    }
+
+    private void addGoodsIds(Set<String> goodsIds, List<AppPurchaseOrderItem> items) {
+        if (items == null) return;
+        for (AppPurchaseOrderItem item : items) {
+            if (item != null && StringUtils.isNotBlank(item.getGoodsId())) {
+                goodsIds.add(item.getGoodsId().trim());
+            }
+        }
     }
 
     @Override

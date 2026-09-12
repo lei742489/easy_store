@@ -67,10 +67,22 @@ public class AppPurchaseOrderItemServiceImpl extends ServiceImpl<AppPurchaseOrde
 
     @Override
     public   void batchUpdateGoodsStore(List<AppPurchaseOrderItem> updateList){
-        if(!updateList.isEmpty()){
-            for(AppPurchaseOrderItem item:updateList){
-                appGoodsService.updateStock(item.getGoodsId());
+        if(updateList == null || updateList.isEmpty()){
+            return;
+        }
+        // Rebuild each affected goods once and use a stable lock order.
+        Set<Integer> goodsIds = new TreeSet<>();
+        for(AppPurchaseOrderItem item:updateList){
+            if(item == null || item.getGoodsId() == null){
+                continue;
             }
+            String goodsId = item.getGoodsId().trim();
+            if(goodsId.matches("\\d+")){
+                goodsIds.add(Integer.valueOf(goodsId));
+            }
+        }
+        for(Integer goodsId : goodsIds){
+            appGoodsService.updateStock(String.valueOf(goodsId));
         }
     }
 

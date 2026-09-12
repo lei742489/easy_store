@@ -172,6 +172,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import CustomerSelect from '@/views/app/customer/components/customer-select-modal.vue';
   import {
@@ -494,39 +495,29 @@
     [detailForm.startDate, detailForm.endDate] = dates;
   };
 
-  const csvValue = (value: unknown) =>
-    `"${String(value ?? '').replace(/"/g, '""')}"`;
   const exportCsv = () => {
-    const headers = [
-      '行号',
-      '往来单位',
-      '折后金额',
-      '成本金额',
-      '利润金额',
-      '利润率',
-    ];
-    const rows = tableData.value.map((item) => [
-      item.rowNo,
-      item.customerName,
-      item.discountedAmount,
-      item.costAmount,
-      item.profitAmount,
-      `${Number(item.profitRate || 0).toFixed(2)}%`,
-    ]);
-    const blob = new Blob(
-      [
-        `\uFEFF${[
-          headers.join(','),
-          ...rows.map((row) => row.map(csvValue).join(',')),
-        ].join('\n')}`,
+    exportStyledXls({
+      fileName: '利润统计',
+      title: '利润统计',
+      columns: [
+        { title: '行号', width: 70 },
+        { title: '往来单位', width: 240, align: 'left' },
+        { title: '折后金额', width: 160, align: 'right' },
+        { title: '成本金额', width: 160, align: 'right' },
+        { title: '利润金额', width: 160, align: 'right' },
+        { title: '利润率', width: 130, align: 'right' },
       ],
-      { type: 'text/csv;charset=utf-8;' }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '利润统计.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.customerName,
+        `¥${formatPrice(Number(item.discountedAmount || 0))}`,
+        `¥${formatPrice(Number(item.costAmount || 0))}`,
+        `¥${formatPrice(Number(item.profitAmount || 0))}`,
+        `${Number(item.profitRate || 0).toFixed(2)}%`,
+      ]),
+      amountColumnIndexes: [2, 3, 4],
+      summaryRowIndexes: [0],
+    });
   };
 
   const escapeHtml = (value: unknown) =>

@@ -124,23 +124,20 @@ public class AppSaleStatisticsController {
 
         Long startTime = startDate.atStartOfDay(ZONE_ID).toInstant().toEpochMilli();
         Long endTime = endDate.plusDays(1).atStartOfDay(ZONE_ID).toInstant().toEpochMilli() - 1;
-        String dateBucketSql = databaseDialect.dateBucket(saleBusinessTimeSql(), false);
-        StringBuilder sql = new StringBuilder("SELECT " + dateBucketSql + " AS businessDate, " +
-                "COALESCE(SUM(" + DISCOUNTED_AMOUNT_SQL + "), 0) AS salesAmount, " +
-                "COALESCE(SUM(COALESCE(i.gross_profit, 0)), 0) AS profitAmount " +
-                baseSql() +
-                " WHERE o.status = 1 AND COALESCE(o.is_del, 0) = 0 " +
-                "AND COALESCE(i.is_del, 0) = 0 " +
-                "AND " + saleBusinessTimeSql() + " >= ? " +
-                "AND " + saleBusinessTimeSql() + " <= ? ");
+        StringBuilder sql = new StringBuilder(
+                "SELECT business_date AS businessDate, " +
+                        "COALESCE(SUM(sales_amount), 0) AS salesAmount, " +
+                        "COALESCE(SUM(sales_profit), 0) AS profitAmount " +
+                        "FROM app_business_daily_summary " +
+                        "WHERE business_date >= ? AND business_date <= ? ");
         List<Object> params = new ArrayList<>();
-        params.add(startTime);
-        params.add(endTime);
+        params.add(startDate.format(DATE_FORMATTER));
+        params.add(endDate.format(DATE_FORMATTER));
         if (!rootUser) {
-            sql.append("AND o.cashier_id = ? ");
+            sql.append("AND cashier_id = ? ");
             params.add(user.getId());
         }
-        sql.append("GROUP BY ").append(dateBucketSql).append(" ORDER BY businessDate");
+        sql.append("GROUP BY business_date ORDER BY business_date");
 
         Map<String, Map<String, Object>> rowsByDate = new HashMap<>();
         for (Map<String, Object> row : jdbcTemplate.queryForList(sql.toString(), params.toArray())) {

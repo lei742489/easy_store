@@ -12,11 +12,9 @@ import org.jeecgframework.boot.easy_store_boot.app.common.excel.ExcelExportStyle
 import org.jeecgframework.boot.easy_store_boot.app.common.query.QueryGenerator;
 import org.jeecgframework.boot.easy_store_boot.app.exception.AppRunTimeException;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.controller.ApiBaseController;
+import org.jeecgframework.boot.easy_store_boot.app.modules.api.permission.AppPermissionDefinition;
 import org.jeecgframework.boot.easy_store_boot.app.modules.api.vo.Result;
-import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPaymentAmountItem;
-import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPaymentVoucher;
-import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppPurchaseOrder;
-import org.jeecgframework.boot.easy_store_boot.app.modules.entity.AppSupplier;
+import org.jeecgframework.boot.easy_store_boot.app.modules.entity.*;
 import org.jeecgframework.boot.easy_store_boot.app.modules.service.*;
 import org.jeecgframework.poi.excel.def.NormalExcelConstants;
 import org.jeecgframework.poi.excel.entity.ExportParams;
@@ -86,6 +84,9 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
         applyDefaultAuditSort(queryWrapper, param);
         IPage<AppPaymentVoucher> pageList =
                 service.page(new Page<>(current, pageSize), queryWrapper);
+        for (AppPaymentVoucher voucher : pageList.getRecords()) {
+            maskPaymentVoucher(voucher, param);
+        }
         return Result.ok(pageList);
     }
 
@@ -124,6 +125,7 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
         // 过滤选中数据
         String selections = request.getParameter("selections");
         List<String> ids = Arrays.asList(selections.split(","));
+        JSONObject permissionParam = getUserParam(request);
         List<AppPaymentVoucher> list = service.list(new LambdaQueryWrapper<AppPaymentVoucher>().in(AppPaymentVoucher::getId, ids).orderByDesc(AppPaymentVoucher::getCreateTime));
 
         for(AppPaymentVoucher item : list){
@@ -140,6 +142,7 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
                 }
             }
             item.setAmountItems(amountItems);
+            maskPaymentVoucher(item, permissionParam);
         }
 
 
@@ -295,5 +298,27 @@ public class AppPaymentVoucherController extends ApiBaseController<AppPaymentVou
             ids.add(id);
         }
         return ids;
+    }
+
+    private void maskPaymentVoucher(AppPaymentVoucher voucher, JSONObject param) {
+        if (voucher == null) return;
+        if (!hasDataViewPermission(param, AppPermissionDefinition.DATA_VIEW_PURCHASE_PRICE)) {
+            voucher.setAmount(0D);
+            if (voucher.getSettleItems() != null) {
+                for (AppPaymentSettleItem item : voucher.getSettleItems()) {
+                    if (item != null) item.setAmount(0D);
+                }
+            }
+            if (voucher.getAmountItems() != null) {
+                for (AppPaymentAmountItem item : voucher.getAmountItems()) {
+                    if (item != null) {
+                        item.setAmount(0D);
+                        item.setPayableAmount(0D);
+                        item.setPaidAmount(0D);
+                        item.setUnpaidAmount(0D);
+                    }
+                }
+            }
+        }
     }
 }

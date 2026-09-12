@@ -128,6 +128,7 @@
   import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
   import dayjs from 'dayjs';
   import { formatPrice } from '@/api/common';
+  import { exportStyledXls } from '@/utils/styled-xls-export';
   import TimeSelect from '@/components/menu/time-select.vue';
   import CategorySelectTree from '@/views/app/goods/components/category-select-tree.vue';
   import StockDetailModal from '@/views/app/goods/components/stock-detail-modal.vue';
@@ -390,50 +391,38 @@
   ) => item[field] ?? '';
 
   const exportCsv = () => {
-    const fields: Array<keyof StockStatisticsRecord> = [
-      'rowNo',
-      'goodsName',
-      'unit',
-      'openingQty',
-      'openingAmount',
-      'inQty',
-      'inAmount',
-      'outQty',
-      'outAmount',
-      'endingQty',
-      'endingAmount',
-    ];
-    const headers = [
-      '行号',
-      '品名规格',
-      '单位',
-      '期初数量',
-      '期初金额',
-      '新增数量',
-      '新增金额',
-      '减少数量',
-      '减少金额',
-      '期末数量',
-      '期末金额',
-    ];
-    const rows = tableData.value.map((item) =>
-      fields
-        .map(
-          (field) => `"${String(csvValue(item, field)).replace(/"/g, '""')}"`
-        )
-        .join(',')
-    );
-    const blob = new Blob(
-      [`\uFEFF${[headers.join(','), ...rows].join('\n')}`],
-      {
-        type: 'text/csv;charset=utf-8;',
-      }
-    );
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '库存统计报告.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+    exportStyledXls({
+      fileName: '库存统计报告',
+      title: '库存统计报告',
+      columns: [
+        { title: '行号', width: 72 },
+        { title: '品名规格', width: 280, align: 'left' },
+        { title: '单位', width: 74 },
+        { title: '期初数量', width: 100, align: 'right' },
+        { title: '期初金额', width: 120, align: 'right' },
+        { title: '新增数量', width: 100, align: 'right' },
+        { title: '新增金额', width: 120, align: 'right' },
+        { title: '减少数量', width: 100, align: 'right' },
+        { title: '减少金额', width: 120, align: 'right' },
+        { title: '期末数量', width: 100, align: 'right' },
+        { title: '期末金额', width: 120, align: 'right' },
+      ],
+      rows: tableData.value.map((item) => [
+        item.rowNo,
+        item.goodsName,
+        item.unit,
+        Number(item.openingQty || 0).toFixed(2),
+        `¥${formatPrice(Number(item.openingAmount || 0))}`,
+        Number(item.inQty || 0).toFixed(2),
+        `¥${formatPrice(Number(item.inAmount || 0))}`,
+        Number(item.outQty || 0).toFixed(2),
+        `¥${formatPrice(Number(item.outAmount || 0))}`,
+        Number(item.endingQty || 0).toFixed(2),
+        `¥${formatPrice(Number(item.endingAmount || 0))}`,
+      ]),
+      amountColumnIndexes: [3, 4, 5, 6, 7, 8, 9, 10],
+      summaryRowIndexes: [0],
+    });
   };
 
   const escapeHtml = (value: unknown) =>
